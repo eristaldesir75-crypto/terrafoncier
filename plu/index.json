@@ -1,0 +1,3751 @@
+{
+"date": "2026-11-06T12:20:42Z",
+"departements": [
+"37",
+"45",
+"91"
+],
+"documents": {
+"DU_200035764": {
+"id": "0c1f72a219fe26eb718ddb9de6cdad9b",
+"nom": "200035764_PLUi_20260309",
+"type": "PLUi",
+"maj": "27/03/2026 09:01:47",
+"zones": 406,
+"presc": 1583,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200067668_A": {
+"id": "e512721867966326597b4d02a544cec6",
+"nom": "200067668_PLUi_20250925_A",
+"type": "PLUi",
+"maj": "10/10/2025 15:07:48",
+"zones": 554,
+"presc": 579,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200067676": {
+"id": "0d0387a7b857a7876f84d8fdb3f6dfbb",
+"nom": "200067676_PLUi_20250923",
+"type": "PLUi",
+"maj": "06/10/2025 10:03:53",
+"zones": 2260,
+"presc": 4043,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200068278": {
+"id": "af17e026dc51fa92f8192ec812f41f2d",
+"nom": "200068278_PLUi_20260512",
+"type": "PLUi",
+"maj": "05/06/2026 09:23:56",
+"zones": 1118,
+"presc": 1730,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200071850": {
+"id": "d71403ad718fae6bfa8b5eb4776b9942",
+"nom": "200071850_PLUi_20211214",
+"type": "PLUi",
+"maj": "10/01/2024 21:43:05",
+"zones": 816,
+"presc": 119,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200071850_A": {
+"id": "53ecc4bccc3540aee44da2d2fa624261",
+"nom": "200071850_PLUi_20240220_A",
+"type": "PLUi",
+"maj": "06/03/2024 22:37:09",
+"zones": 374,
+"presc": 236,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200043065": {
+"id": "a7a0ce0474edb440c8543776f58e16bd",
+"nom": "200043065_PLUi_20260721",
+"type": "PLUi",
+"maj": "23/07/2026 14:00:52",
+"zones": 419,
+"presc": 503,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200043081": {
+"id": "5474a5defa54fdd977af2cd2b0509de7",
+"nom": "200043081_PLUi_20250918",
+"type": "PLUi",
+"maj": "10/12/2025 17:46:15",
+"zones": 833,
+"presc": 2818,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200058014": {
+"id": "2e018aad7e25effb980f4d34d2d7829c",
+"nom": "200058014_PLUi_20251216",
+"type": "PLUi",
+"maj": "21/02/2026 14:37:33",
+"zones": 1873,
+"presc": 4643,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200072668": {
+"id": "56d88bbe8ca7a2b6bd1b0c7f30028e63",
+"nom": "200072668_PLUi_20260622",
+"type": "PLUi",
+"maj": "22/07/2026 09:48:56",
+"zones": 1316,
+"presc": 711,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_243700499": {
+"id": "210c4f5dab4666e2c58d37b3f24cf0e2",
+"nom": "243700499_PLUi_20251217",
+"type": "PLUi",
+"maj": "03/02/2026 12:13:16",
+"zones": 454,
+"presc": 741,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_200073161": {
+"id": "d51553ffa7c0a3ff226e57f3cf0ca738",
+"nom": "200073161_PLUi_20260212",
+"type": "PLUi",
+"maj": "20/02/2026 10:11:06",
+"zones": 670,
+"presc": 2084,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_243700820": {
+"id": "20a1ea5f9cbb809ec95d8a5c48d22cfd",
+"nom": "243700820_PLUi_20260205",
+"type": "PLUi",
+"maj": "19/03/2026 16:04:02",
+"zones": 463,
+"presc": 1477,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_244500211": {
+"id": "aa78dbb5ad934b38aae5e2e29ff5f5be",
+"nom": "244500211_PLUi_20260923",
+"type": "PLUi",
+"maj": "16/10/2026 14:30:16",
+"zones": 825,
+"presc": 911,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_244500203": {
+"id": "70dd95fb3227beb669cb6512e7d39a91",
+"nom": "244500203_PLUi_20260623",
+"type": "PLUi",
+"maj": "09/07/2026 17:33:44",
+"zones": 786,
+"presc": 407,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_244500419": {
+"id": "38a13e934f82fc7b4110521f7540ad74",
+"nom": "244500419_PLUi_20260313",
+"type": "PLUi",
+"maj": "01/04/2026 09:37:35",
+"zones": 784,
+"presc": 853,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_244500542": {
+"id": "b10b28877a9bc74297a6552a2c1cf20b",
+"nom": "244500542_PLUi_20260312",
+"type": "PLUi",
+"maj": "31/03/2026 13:31:28",
+"zones": 707,
+"presc": 212,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37001": {
+"id": "7f5a8d50e531d2045748ba1fdc355dff",
+"nom": "37001_PLU_20231220",
+"type": "PLU",
+"maj": "05/01/2024 11:22:43",
+"zones": 49,
+"presc": 74,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37002": {
+"id": "4a54a11d62b0f44e0d3f425ec834638f",
+"nom": "37002_PLU_20230908",
+"type": "PLU",
+"maj": "03/10/2023 14:50:33",
+"zones": 49,
+"presc": 116,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37013": {
+"id": "cba079fbdfceb195f636e8f17c90b496",
+"nom": "37013_CC_20050523",
+"type": "CC",
+"maj": "02/06/2020 11:32:53",
+"zones": 7,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37014": {
+"id": "41739b2bfe5369131c3804ec55828af8",
+"nom": "37014_PLU_20231220",
+"type": "PLU",
+"maj": "14/02/2024 10:52:25",
+"zones": 77,
+"presc": 85,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37006": {
+"id": "0a517414070a0eb804a2fddc544d2e44",
+"nom": "37006_PLU_20260302",
+"type": "PLU",
+"maj": "18/03/2026 10:03:02",
+"zones": 41,
+"presc": 101,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37016": {
+"id": "e8a6d46b579b4fa1cf58511b3ba322ca",
+"nom": "37016_CC_20161123",
+"type": "CC",
+"maj": "02/06/2020 11:32:47",
+"zones": 8,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37019": {
+"id": "88f99725904b8d8ea00c24526a7dbdcd",
+"nom": "37019_CC_20121205",
+"type": "CC",
+"maj": "02/06/2020 11:32:50",
+"zones": 5,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37018": {
+"id": "4566806ec57d81c3de444d5c6d7b8788",
+"nom": "37018_PLU_20250512",
+"type": "PLU",
+"maj": "06/06/2025 17:10:59",
+"zones": 149,
+"presc": 166,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_244500468": {
+"id": "3d1129d3be676df7bf8bbc6f988715d8",
+"nom": "244500468_PLUi_20261001",
+"type": "PLUi",
+"maj": "01/10/2026 14:07:42",
+"zones": 2812,
+"presc": 4648,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37020": {
+"id": "5c2dfa020f793764f802b84d455a7d30",
+"nom": "37020_PLU_20190617",
+"type": "PLU",
+"maj": "02/06/2020 11:32:55",
+"zones": 64,
+"presc": 24,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37025": {
+"id": "4cb98337c127bcd21b1001bda095e5cd",
+"nom": "37025_PLU_20260109",
+"type": "PLU",
+"maj": "16/01/2026 09:15:53",
+"zones": 10,
+"presc": 48,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37024": {
+"id": "5f501681094c5e6bf4a03566d356a7b6",
+"nom": "37024_PLU_20210412",
+"type": "PLU",
+"maj": "26/05/2021 11:35:48",
+"zones": 114,
+"presc": 37,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37026": {
+"id": "672648422f4b8875a08080d433acabce",
+"nom": "37026_CC_20120120",
+"type": "CC",
+"maj": "02/06/2020 11:32:50",
+"zones": 5,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37028": {
+"id": "4a477138ebf497605999bbe01c713957",
+"nom": "37028_PLU_20140326",
+"type": "PLU",
+"maj": "21/12/2021 12:42:58",
+"zones": 359,
+"presc": 354,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37033": {
+"id": "172b76c87a82aab60bf0cbae23592915",
+"nom": "37033_CC_20121211",
+"type": "CC",
+"maj": "02/06/2020 11:32:52",
+"zones": 8,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37021": {
+"id": "7b058fb0cdddc7ac52959e57a4d285a8",
+"nom": "37021_PLU_20260923",
+"type": "PLU",
+"maj": "29/09/2026 11:30:11",
+"zones": 118,
+"presc": 106,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37031": {
+"id": "ec234e125f9e8faf1ada8c8db08748e2",
+"nom": "37031_PLU_20251127",
+"type": "PLU",
+"maj": "16/01/2026 09:33:31",
+"zones": 51,
+"presc": 148,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37041": {
+"id": "9f76c5601ab387ff504d4daf3f560ea6",
+"nom": "37041_CC_20051205",
+"type": "CC",
+"maj": "02/06/2020 11:32:52",
+"zones": 7,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37038": {
+"id": "929c728795b554ef58d33c6099d9488d",
+"nom": "37038_PLU_20070221",
+"type": "PLU",
+"maj": "02/06/2020 11:32:48",
+"zones": 29,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37048": {
+"id": "ae28c6bd8cf97a6dc502f1c5a21c0b94",
+"nom": "37048_PLU_20140307",
+"type": "PLU",
+"maj": "02/06/2020 11:32:47",
+"zones": 94,
+"presc": 36,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37045": {
+"id": "9a7d992c8498a048d3a627cfb51343dd",
+"nom": "37045_PLU_20211006",
+"type": "PLU",
+"maj": "16/11/2021 11:33:47",
+"zones": 127,
+"presc": 146,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37050": {
+"id": "30d5d670eecfdce759f79d9e5775beed",
+"nom": "37050_PLU_20260408",
+"type": "PLU",
+"maj": "29/04/2026 12:36:56",
+"zones": 169,
+"presc": 276,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37047": {
+"id": "a7f5a8d33e170ce5fa8e1f9cb006f7c9",
+"nom": "37047_PLU_20210623",
+"type": "PLU",
+"maj": "14/09/2021 17:56:29",
+"zones": 20,
+"presc": 14,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37055": {
+"id": "5415b18e3b512dc7a426bc376d94d3a7",
+"nom": "37055_PLU_20140217",
+"type": "PLU",
+"maj": "02/06/2020 11:32:53",
+"zones": 204,
+"presc": 94,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37049": {
+"id": "23da0fe5efbff1ed7adb67524bf9381b",
+"nom": "37049_PLU_20250424",
+"type": "PLU",
+"maj": "07/07/2025 14:46:53",
+"zones": 51,
+"presc": 100,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37057": {
+"id": "2356e6c4fbff614d6c2cd973d1d29498",
+"nom": "37057_PLU_20260224",
+"type": "PLU",
+"maj": "22/05/2026 15:56:28",
+"zones": 19,
+"presc": 53,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37058": {
+"id": "9cc15b586ed7af3c8a0ed6cb6a5a32e6",
+"nom": "37058_PLU_20230403",
+"type": "PLU",
+"maj": "09/06/2023 09:49:38",
+"zones": 37,
+"presc": 25,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37062": {
+"id": "1507b62b5bfcd262bb99d4ce597dc5fa",
+"nom": "37062_PLU_20210125",
+"type": "PLU",
+"maj": "09/12/2021 10:26:07",
+"zones": 41,
+"presc": 25,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37054": {
+"id": "8a5208b42ce1e8a6b1e84ac0903ea372",
+"nom": "37054_PLU_20250512",
+"type": "PLU",
+"maj": "06/06/2025 17:12:11",
+"zones": 85,
+"presc": 102,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37059": {
+"id": "b31ec3571e25fadb07711a72e9447d90",
+"nom": "37059_PLU_20230503",
+"type": "PLU",
+"maj": "22/09/2023 10:23:21",
+"zones": 58,
+"presc": 79,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37067": {
+"id": "02a80a3f255b25252d58eeafd5255670",
+"nom": "37067_PLU_20150912",
+"type": "PLU",
+"maj": "02/06/2020 11:32:54",
+"zones": 124,
+"presc": 85,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37068": {
+"id": "1880f552152d407fc51631dde7a2b19a",
+"nom": "37068_PLU_20120425",
+"type": "PLU",
+"maj": "02/06/2020 11:32:52",
+"zones": 121,
+"presc": 118,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37066": {
+"id": "d06542b5a82e07f708e4f914f5376c16",
+"nom": "37066_PLU_20260907",
+"type": "PLU",
+"maj": "18/09/2026 15:48:49",
+"zones": 66,
+"presc": 71,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37078": {
+"id": "bfcdd71812b7b8d8a0758215e7a9b8a8",
+"nom": "37078_CC_20081014",
+"type": "CC",
+"maj": "02/06/2020 11:32:48",
+"zones": 7,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37080": {
+"id": "da9acf29ba179168f96a5d83b9d588bd",
+"nom": "37080_CC_20110315",
+"type": "CC",
+"maj": "02/06/2020 11:32:49",
+"zones": 4,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37081": {
+"id": "17fdfd2819e559c7c7d613e8a3161f94",
+"nom": "37081_PLU_20190614",
+"type": "PLU",
+"maj": "02/06/2020 11:32:55",
+"zones": 52,
+"presc": 2,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37064": {
+"id": "e628b5a57a1a2db8442485223172417c",
+"nom": "37064_CC_20190212",
+"type": "CC",
+"maj": "02/06/2020 11:32:54",
+"zones": 8,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37082": {
+"id": "ac21f06614695d8e2c75871110313c69",
+"nom": "37082_PLU_20150218",
+"type": "PLU",
+"maj": "02/06/2020 11:32:50",
+"zones": 180,
+"presc": 4,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37077": {
+"id": "35a281669be9381c6adbe7033ba08111",
+"nom": "37077_PLU_20251001",
+"type": "PLU",
+"maj": "17/10/2025 17:22:13",
+"zones": 110,
+"presc": 64,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37086": {
+"id": "16b21819e5af5f74c29b0882be2b3fb6",
+"nom": "37086_PLU_20110328",
+"type": "PLU",
+"maj": "02/03/2023 11:55:32",
+"zones": 84,
+"presc": 98,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37083": {
+"id": "0406127ad0dac3c4cc751f6e1f522a38",
+"nom": "37083_PLU_20200130",
+"type": "PLU",
+"maj": "02/06/2020 11:32:45",
+"zones": 36,
+"presc": 37,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37097": {
+"id": "5cfaa55740382d1c28ce0b445522c50c",
+"nom": "37097_PLU_20230321",
+"type": "PLU",
+"maj": "21/04/2023 18:09:49",
+"zones": 31,
+"presc": 30,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37098": {
+"id": "d7e9ba41df1b55fc70024cbc27915c0b",
+"nom": "37098_PLU_20260504",
+"type": "PLU",
+"maj": "11/06/2026 15:14:22",
+"zones": 93,
+"presc": 73,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37084": {
+"id": "e50f57bc1a3a4ecf97b63b24aa2e1010",
+"nom": "37084_CC_20071228",
+"type": "CC",
+"maj": "02/06/2020 11:32:52",
+"zones": 9,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37104": {
+"id": "636cc642d805c497652d1604aa31ff00",
+"nom": "37104_PLU_20251013",
+"type": "PLU",
+"maj": "03/11/2025 15:39:00",
+"zones": 148,
+"presc": 169,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37099": {
+"id": "384c1da9256817cb43a583838aac9519",
+"nom": "37099_PLU_20250512",
+"type": "PLU",
+"maj": "06/06/2025 17:13:37",
+"zones": 89,
+"presc": 229,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37109": {
+"id": "f36c0f2fb1848941651861ec4b3140e3",
+"nom": "37109_PLU_20260928",
+"type": "PLU",
+"maj": "13/10/2026 15:08:21",
+"zones": 296,
+"presc": 346,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37108": {
+"id": "951f6b7db26b658887af35824e0027f9",
+"nom": "37108_PLU_20200110",
+"type": "PLU",
+"maj": "02/06/2020 11:32:46",
+"zones": 43,
+"presc": 77,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37111": {
+"id": "754fd522b787c98858d9b63ebc047bcd",
+"nom": "37111_PLU_20250926",
+"type": "PLU",
+"maj": "21/01/2026 09:26:47",
+"zones": 62,
+"presc": 9,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37094": {
+"id": "caaf4f9316c1d7e13c4bdde0370bc776",
+"nom": "37094_PLU_20250328",
+"type": "PLU",
+"maj": "25/04/2025 09:35:36",
+"zones": 43,
+"presc": 12,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37112": {
+"id": "a18598db3a5919116183c04844850921",
+"nom": "37112_PLU_20140304",
+"type": "PLU",
+"maj": "02/06/2020 11:32:53",
+"zones": 93,
+"presc": 49,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37113": {
+"id": "1bce2734020655a999d1d536cf7f1ec5",
+"nom": "37113_PLU_20090317",
+"type": "PLU",
+"maj": "02/06/2020 11:32:50",
+"zones": 98,
+"presc": 174,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37122": {
+"id": "e7d35e269435a95c01608886a7eef8db",
+"nom": "37122_PLU_20260408",
+"type": "PLU",
+"maj": "29/04/2026 12:54:36",
+"zones": 110,
+"presc": 331,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37117": {
+"id": "07f769c78f60fbeb470a30efe03c8c90",
+"nom": "37117_PLU_20180213",
+"type": "PLU",
+"maj": "02/06/2020 11:32:52",
+"zones": 165,
+"presc": 311,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37128": {
+"id": "4126796f06dcf1dc3895a2f40407621c",
+"nom": "37128_PLU_20210122",
+"type": "PLU",
+"maj": "18/05/2021 14:48:16",
+"zones": 36,
+"presc": 26,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37115": {
+"id": "1bba38d031b97e811df60c3696c0ee03",
+"nom": "37115_PLU_20260224",
+"type": "PLU",
+"maj": "26/03/2026 16:52:14",
+"zones": 53,
+"presc": 148,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37123": {
+"id": "ff3f35611c2bb26f4359d5fedd3a6825",
+"nom": "37123_PLU_20220523",
+"type": "PLU",
+"maj": "24/08/2022 17:15:21",
+"zones": 209,
+"presc": 372,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37130": {
+"id": "b6a8e9f7982dc0e6ac6cd2a1cc10cfe0",
+"nom": "37130_PLU_20250402",
+"type": "PLU",
+"maj": "07/07/2025 14:36:08",
+"zones": 60,
+"presc": 42,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37136": {
+"id": "deb750a30f411ec4a175840a1fe0986e",
+"nom": "37136_PLU_20181217",
+"type": "PLU",
+"maj": "02/06/2020 11:32:53",
+"zones": 62,
+"presc": 55,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37134": {
+"id": "347adf1be09d14ce43a76cb34120a253",
+"nom": "37134_PLU_20161114",
+"type": "PLU",
+"maj": "02/06/2020 11:32:51",
+"zones": 84,
+"presc": 97,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37132": {
+"id": "0f49bc7444eed94a0cee2d5967e3983d",
+"nom": "37132_PLU_20261009",
+"type": "PLU",
+"maj": "21/10/2026 10:18:05",
+"zones": 107,
+"presc": 121,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37145": {
+"id": "de854b6791be3f2b6bcb83583af6e4eb",
+"nom": "37145_CC_20090402",
+"type": "CC",
+"maj": "02/06/2020 11:32:51",
+"zones": 5,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37143": {
+"id": "85bb760cf289acd8e68aa262c380fcd2",
+"nom": "37143_PLU_20250829",
+"type": "PLU",
+"maj": "04/09/2025 10:38:58",
+"zones": 41,
+"presc": 159,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37149": {
+"id": "e6ea6640ca590cb51f3b2bd18426cbf7",
+"nom": "37149_PLU_20210512",
+"type": "PLU",
+"maj": "19/10/2021 13:36:13",
+"zones": 61,
+"presc": 101,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37151": {
+"id": "92589521242e565b6f4af4cc44cc54d2",
+"nom": "37151_PLU_20250507",
+"type": "PLU",
+"maj": "06/06/2025 17:15:13",
+"zones": 48,
+"presc": 118,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37139": {
+"id": "a2d484320a8912863101310d934e02b9",
+"nom": "37139_PLU_20250507",
+"type": "PLU",
+"maj": "13/06/2025 09:02:21",
+"zones": 131,
+"presc": 555,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37152": {
+"id": "884fbfc614b90084b24240959b39dbc5",
+"nom": "37152_PLU_20250507",
+"type": "PLU",
+"maj": "06/06/2025 17:25:34",
+"zones": 49,
+"presc": 150,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37159": {
+"id": "9fd0e59dd14e49f6b1fac4abfeb7942f",
+"nom": "37159_PLU_20251118",
+"type": "PLU",
+"maj": "11/12/2025 14:51:17",
+"zones": 84,
+"presc": 230,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37154": {
+"id": "debc93308bf3bbc551f6b8d7b88e3342",
+"nom": "37154_PLU_20251016",
+"type": "PLU",
+"maj": "12/11/2025 11:14:16",
+"zones": 43,
+"presc": 69,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37167": {
+"id": "c833f63a6d7660a372584389735c1dc6",
+"nom": "37167_PLU_20260114",
+"type": "PLU",
+"maj": "02/03/2026 12:32:36",
+"zones": 47,
+"presc": 157,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37162": {
+"id": "9e592fac2ff3dbb65b637d57d982799e",
+"nom": "37162_PLU_20250327",
+"type": "PLU",
+"maj": "18/04/2025 14:58:39",
+"zones": 59,
+"presc": 63,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37168": {
+"id": "23a9c5a1ff9fbb962a0b05638b558ede",
+"nom": "37168_CC_20101028",
+"type": "CC",
+"maj": "02/06/2020 11:32:48",
+"zones": 5,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37170": {
+"id": "3879659f82c7301f90ca663dfdef2a9f",
+"nom": "37170_PLU_20250213",
+"type": "PLU",
+"maj": "11/03/2025 14:33:43",
+"zones": 87,
+"presc": 22,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37150": {
+"id": "2e17d242b3f40ededfdb0ef773f2320b",
+"nom": "37150_PLU_20250129",
+"type": "PLU",
+"maj": "21/02/2025 17:16:08",
+"zones": 59,
+"presc": 225,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37172": {
+"id": "63cdf2082abf312e53a332b997979208",
+"nom": "37172_PLU_20250929",
+"type": "PLU",
+"maj": "13/10/2025 16:01:22",
+"zones": 56,
+"presc": 29,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37177": {
+"id": "61659cadd379974bb770922c7430b854",
+"nom": "37177_CC_20070822",
+"type": "CC",
+"maj": "02/06/2020 11:32:51",
+"zones": 5,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37182": {
+"id": "0d970a87951aca8f23d855441ec70164",
+"nom": "37182_PLU_20240327",
+"type": "PLU",
+"maj": "18/04/2024 10:59:48",
+"zones": 32,
+"presc": 97,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37184": {
+"id": "ffa6e044d28785c5e557ce542291ab76",
+"nom": "37184_CC_20110711",
+"type": "CC",
+"maj": "02/06/2020 11:32:48",
+"zones": 3,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37183": {
+"id": "7026ca84354bdccbb58a35a1a8d9af16",
+"nom": "37183_PLU_20210726",
+"type": "PLU",
+"maj": "07/09/2021 11:36:41",
+"zones": 74,
+"presc": 127,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37186": {
+"id": "617aa109bdcb911143b66e2758d781cd",
+"nom": "37186_PLU_20250505",
+"type": "PLU",
+"maj": "24/06/2025 11:38:23",
+"zones": 28,
+"presc": 54,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37189": {
+"id": "dcd32df0433084b30912d807ddd000cd",
+"nom": "37189_PLU_20240627",
+"type": "PLU",
+"maj": "13/09/2024 10:07:59",
+"zones": 77,
+"presc": 89,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37192": {
+"id": "f73d4e6a5605dfc0652f93fd3de980fa",
+"nom": "37192_PLU_20250422",
+"type": "PLU",
+"maj": "07/07/2025 10:43:06",
+"zones": 59,
+"presc": 43,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37193": {
+"id": "043e78ad36d6f28ff5542d7bf3b2af5b",
+"nom": "37193_PLU_20220419",
+"type": "PLU",
+"maj": "14/06/2022 16:01:43",
+"zones": 35,
+"presc": 63,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37197": {
+"id": "f7915a78ddd800d22a9b8e0401e1e086",
+"nom": "37197_PLU_20150112",
+"type": "PLU",
+"maj": "02/06/2020 11:32:49",
+"zones": 26,
+"presc": 63,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37195": {
+"id": "75e6fbcfb001360102af814d68e19eb8",
+"nom": "37195_PLU_20260408",
+"type": "PLU",
+"maj": "30/04/2026 08:21:52",
+"zones": 39,
+"presc": 43,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37179": {
+"id": "6bb5c2c58d7e45521aa98a749fb8506a",
+"nom": "37179_PLU_20260928",
+"type": "PLU",
+"maj": "13/10/2026 14:36:49",
+"zones": 79,
+"presc": 78,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37204": {
+"id": "39bfa61081fac9ce639289196daa0c0e",
+"nom": "37204_PLU_20220929",
+"type": "PLU",
+"maj": "08/06/2023 09:18:04",
+"zones": 56,
+"presc": 37,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37203": {
+"id": "e774d207a2e85f89f2ec594de78ebe1b",
+"nom": "37203_PLU_20250507",
+"type": "PLU",
+"maj": "06/06/2025 17:19:38",
+"zones": 105,
+"presc": 112,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37205": {
+"id": "23373cfa0205c69badf31e3f098408c4",
+"nom": "37205_PLU_20191021",
+"type": "PLU",
+"maj": "02/06/2020 11:32:56",
+"zones": 49,
+"presc": 102,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37211": {
+"id": "c203b4a028d01a9d13310de24de4b1f1",
+"nom": "37211_PLU_20230905",
+"type": "PLU",
+"maj": "22/09/2023 11:10:18",
+"zones": 263,
+"presc": 283,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37212": {
+"id": "a48d64fb1f18fc12cf1471239a940067",
+"nom": "37212_PLU_20250715",
+"type": "PLU",
+"maj": "10/12/2025 19:21:19",
+"zones": 33,
+"presc": 104,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37206": {
+"id": "fafeb9d4134f3abfa693191b8c2751f9",
+"nom": "37206_PLU_20241218",
+"type": "PLU",
+"maj": "16/01/2025 14:48:43",
+"zones": 108,
+"presc": 129,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37213": {
+"id": "be3edfb25e6dbbccb1261edddd55a66e",
+"nom": "37213_PLU_20240529",
+"type": "PLU",
+"maj": "01/07/2024 17:51:10",
+"zones": 49,
+"presc": 105,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37217": {
+"id": "6a3f6cebda48f98b1c7613946221392e",
+"nom": "37217_PLU_20250512",
+"type": "PLU",
+"maj": "11/06/2025 14:08:50",
+"zones": 51,
+"presc": 187,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37208": {
+"id": "73b07f1a17fc4bdf0fb3a316e65e42c4",
+"nom": "37208_PLU_20260408",
+"type": "PLU",
+"maj": "29/04/2026 11:36:47",
+"zones": 121,
+"presc": 241,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37219": {
+"id": "75ea7b83c7859563419fd7a8291de2cc",
+"nom": "37219_PLU_20250512",
+"type": "PLU",
+"maj": "11/06/2025 14:11:19",
+"zones": 25,
+"presc": 71,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37221": {
+"id": "7c014dfb9378ccf053c16f0efd40dced",
+"nom": "37221_PLU_20060720",
+"type": "PLU",
+"maj": "02/06/2020 11:32:51",
+"zones": 32,
+"presc": 75,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37223": {
+"id": "f4c0fce9f2371ff9abab31cd797520cd",
+"nom": "37223_CC_20080702",
+"type": "CC",
+"maj": "02/06/2020 11:32:53",
+"zones": 5,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37222": {
+"id": "3140d79a1aedb8bb615dcc714eff4204",
+"nom": "37222_PLU_20250415",
+"type": "PLU",
+"maj": "16/06/2025 16:46:43",
+"zones": 65,
+"presc": 89,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37214": {
+"id": "ce5cabb5e455f8255681dc1f79e5076b",
+"nom": "37214_PLU_20250507",
+"type": "PLU",
+"maj": "11/06/2025 14:10:15",
+"zones": 55,
+"presc": 359,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37231": {
+"id": "aec86224ea774120e0861e2ed18536e4",
+"nom": "37231_PLU_20240711",
+"type": "PLU",
+"maj": "20/08/2024 10:54:20",
+"zones": 72,
+"presc": 239,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37228": {
+"id": "6ec802edad90f5a5ea6d1f03bc1bacc5",
+"nom": "37228_PLU_20251112",
+"type": "PLU",
+"maj": "19/11/2025 09:09:41",
+"zones": 34,
+"presc": 64,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37234": {
+"id": "b9bc8b4bb6053ef121f637cfbff86f60",
+"nom": "37234_PLU_20170502",
+"type": "PLU",
+"maj": "15/07/2020 10:20:12",
+"zones": 39,
+"presc": 22,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37237": {
+"id": "3650d69db63b738260b59ca11d461e73",
+"nom": "37237_PLU_20200304",
+"type": "PLU",
+"maj": "06/07/2020 11:47:09",
+"zones": 41,
+"presc": 70,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37233": {
+"id": "bea3cc2a9f91e3d2262b7063ab3c1e28",
+"nom": "37233_PLU_20260408",
+"type": "PLU",
+"maj": "29/04/2026 12:33:38",
+"zones": 41,
+"presc": 71,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37238": {
+"id": "a7fc6a5898fa51930214ff20253ce9a3",
+"nom": "37238_PLU_20260302",
+"type": "PLU",
+"maj": "14/04/2026 10:36:54",
+"zones": 14,
+"presc": 42,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37241": {
+"id": "2d870069de4695c6b74ac1a0ee41d388",
+"nom": "37241_PLU_20150602",
+"type": "PLU",
+"maj": "02/06/2020 11:32:53",
+"zones": 175,
+"presc": 117,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37243": {
+"id": "1ba565cdf319211d4fcfab610b63e8b3",
+"nom": "37243_PLU_20250512",
+"type": "PLU",
+"maj": "19/06/2025 10:15:22",
+"zones": 41,
+"presc": 96,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37245": {
+"id": "382f32c953b03aeb1e4fdb3a1631eb52",
+"nom": "37245_PLU_20250702",
+"type": "PLU",
+"maj": "16/07/2025 16:33:48",
+"zones": 141,
+"presc": 459,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37247": {
+"id": "54e5e5eb199a04d293007cb7047b3094",
+"nom": "37247_PLU_20260902",
+"type": "PLU",
+"maj": "25/09/2026 11:54:06",
+"zones": 20,
+"presc": 103,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37232": {
+"id": "1de76cc9ba08bc3a0e3fae5758d32dcc",
+"nom": "37232_PLU_20260427",
+"type": "PLU",
+"maj": "04/05/2026 11:57:00",
+"zones": 48,
+"presc": 311,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37249": {
+"id": "1fb42b3dd2067621d66e6b41c7396966",
+"nom": "37249_PLU_20230301",
+"type": "PLU",
+"maj": "29/07/2024 12:57:20",
+"zones": 93,
+"presc": 73,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37251": {
+"id": "27ef64dfbafb2bef1fe20473cf4151d8",
+"nom": "37251_PLU_20221215",
+"type": "PLU",
+"maj": "10/05/2023 14:30:04",
+"zones": 36,
+"presc": 32,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37250": {
+"id": "275280d990e54c61aa28b662725bd8d6",
+"nom": "37250_PLU_20250411",
+"type": "PLU",
+"maj": "02/09/2025 16:51:27",
+"zones": 44,
+"presc": 204,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37261": {
+"id": "59baa40ddd9cc0bf789dde128d37aaa9",
+"nom": "37261_PLU_20260408",
+"type": "PLU",
+"maj": "12/05/2026 11:29:13",
+"zones": 132,
+"presc": 1166,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37254": {
+"id": "269d11fe8e8cc13175165ac3a4c14011",
+"nom": "37254_PLU_20220404",
+"type": "PLU",
+"maj": "27/04/2022 15:18:56",
+"zones": 97,
+"presc": 123,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37257": {
+"id": "0a89ed0e67f0a1f27a25d19d99309878",
+"nom": "37257_PLU_20250314",
+"type": "PLU",
+"maj": "27/03/2025 09:33:06",
+"zones": 33,
+"presc": 33,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_37264": {
+"id": "7c7132f4a05cc8a8dc6a6b4b0f45e437",
+"nom": "37264_PLU_20250403",
+"type": "PLU",
+"maj": "08/04/2025 15:11:33",
+"zones": 35,
+"presc": 113,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37263": {
+"id": "bbe4698b2c05a024346aa1e320dcfb3b",
+"nom": "37263_PLU_20250403",
+"type": "PLU",
+"maj": "11/04/2025 10:14:01",
+"zones": 76,
+"presc": 63,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37271": {
+"id": "a85c48a6fd3048f7bdc096ea285b47be",
+"nom": "37271_PLU_20101028",
+"type": "PLU",
+"maj": "10/12/2021 11:08:14",
+"zones": 55,
+"presc": 95,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37266": {
+"id": "c022eb7a4ca47d9d0054f7a0463bffa7",
+"nom": "37266_PLU_20250331",
+"type": "PLU",
+"maj": "07/04/2025 15:58:32",
+"zones": 81,
+"presc": 157,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37272": {
+"id": "99095f7cf4f3fa35b1adf6669b668821",
+"nom": "37272_PLU_20250512",
+"type": "PLU",
+"maj": "19/06/2025 10:16:49",
+"zones": 17,
+"presc": 79,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37279": {
+"id": "e259c2a409766cdd83c35da9fcadefcb",
+"nom": "37279_PLU_20230704",
+"type": "PLU",
+"maj": "10/07/2023 09:50:22",
+"zones": 37,
+"presc": 163,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37278": {
+"id": "a1577b85ef59e8346d3cc86f5cc68602",
+"nom": "37278_PLU_20250327",
+"type": "PLU",
+"maj": "22/05/2025 12:00:54",
+"zones": 59,
+"presc": 39,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37280": {
+"id": "099dfd0d6fb7127719e3d81abf1d9698",
+"nom": "37280_CC_20100121",
+"type": "CC",
+"maj": "02/06/2020 11:32:48",
+"zones": 6,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45006": {
+"id": "4ffba0ac559abd43fcbcf728e98311e6",
+"nom": "45006_PLU_20260310",
+"type": "PLU",
+"maj": "26/03/2026 16:12:04",
+"zones": 57,
+"presc": 84,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37282": {
+"id": "11ad7a3bc644a233310653b62c794ec6",
+"nom": "37282_PLU_20170608",
+"type": "PLU",
+"maj": "02/06/2020 11:32:51",
+"zones": 234,
+"presc": 195,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45009": {
+"id": "18bed1f59aeb3a5abd63d2588a548dd2",
+"nom": "45009_PLU_20261005",
+"type": "PLU",
+"maj": "29/10/2026 12:46:58",
+"zones": 44,
+"presc": 32,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45010": {
+"id": "bbaaf9b35bc07b86df7161a2d03fd26b",
+"nom": "45010_PLU_20231106",
+"type": "PLU",
+"maj": "08/01/2024 10:59:44",
+"zones": 18,
+"presc": 13,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_37274": {
+"id": "a50ccf2e789a1ade6019640fc8329a47",
+"nom": "37274_CC_20100527",
+"type": "CC",
+"maj": "02/06/2020 11:32:48",
+"zones": 4,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45020": {
+"id": "5768e9723d573acf01cc052537dd99a7",
+"nom": "45020_CC_20221026",
+"type": "CC",
+"maj": "25/03/2024 15:31:51",
+"zones": 4,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45038": {
+"id": "c4282e09d84e2e77a5757c4323b55fdb",
+"nom": "45038_PLU_20221024",
+"type": "PLU",
+"maj": "06/03/2023 08:46:22",
+"zones": 20,
+"presc": 33,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45028": {
+"id": "797e07ad381c7fd41e5e51ff079ba2b8",
+"nom": "45028_PLU_20231116",
+"type": "PLU",
+"maj": "19/01/2024 16:12:55",
+"zones": 46,
+"presc": 33,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45024": {
+"id": "ffe15d635885013727ec0022841cb277",
+"nom": "45024_PLU_20230928",
+"type": "PLU",
+"maj": "09/11/2023 14:57:07",
+"zones": 37,
+"presc": 42,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45039": {
+"id": "43ddf453429487116cf6abe40440d9f7",
+"nom": "45039_PLU_20240924",
+"type": "PLU",
+"maj": "10/11/2025 12:20:55",
+"zones": 72,
+"presc": 33,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45042": {
+"id": "7a8d64c6913c821458a3f0fd9a9409b8",
+"nom": "45042_PLU_20190619",
+"type": "PLU",
+"maj": "02/09/2021 16:56:06",
+"zones": 72,
+"presc": 102,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45044": {
+"id": "b11679920f79f03c3b5476118dbd5b89",
+"nom": "45044_CC_20150917",
+"type": "CC",
+"maj": "18/08/2021 12:21:40",
+"zones": 8,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45050": {
+"id": "dd04176d1e072f7ca56038daa287b8bd",
+"nom": "45050_PLU_20210216",
+"type": "PLU",
+"maj": "08/04/2021 15:22:49",
+"zones": 58,
+"presc": 22,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45049": {
+"id": "b30f38cb56a6f13d9de232e3d443dbe1",
+"nom": "45049_PLU_20200305",
+"type": "PLU",
+"maj": "12/08/2020 14:52:47",
+"zones": 226,
+"presc": 30,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45051": {
+"id": "5aa34059adebeecbfb54c3347eda7bf1",
+"nom": "45051_PLU_20210112",
+"type": "PLU",
+"maj": "12/02/2021 18:07:02",
+"zones": 194,
+"presc": 81,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45063": {
+"id": "01a5415cfefca7bcdc39ecd3d2643f27",
+"nom": "45063_PLU_20160119",
+"type": "PLU",
+"maj": "05/06/2023 17:16:44",
+"zones": 187,
+"presc": 1312,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45082": {
+"id": "7fb69a333c81335d86ef30e55976615e",
+"nom": "45082_PLU_20250704",
+"type": "PLU",
+"maj": "17/07/2025 12:23:37",
+"zones": 182,
+"presc": 88,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45067": {
+"id": "23abbcca70237f84d11bd890b0fb6516",
+"nom": "45067_PLU_20200922",
+"type": "PLU",
+"maj": "07/06/2021 17:14:52",
+"zones": 32,
+"presc": 73,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45095": {
+"id": "3b42e20529ee5c295ca2c347c2bdf22b",
+"nom": "45095_PLU_20250731",
+"type": "PLU",
+"maj": "19/01/2026 16:18:04",
+"zones": 67,
+"presc": 152,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45097": {
+"id": "761ebdff1a9f4a50ce0bd7dd8fc869a7",
+"nom": "45097_CC_20111028",
+"type": "CC",
+"maj": "02/06/2020 11:32:56",
+"zones": 114,
+"presc": 0,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45098": {
+"id": "f11200c51fb0c04ababc658f400acb75",
+"nom": "45098_PLU_20250522",
+"type": "PLU",
+"maj": "19/06/2025 09:46:37",
+"zones": 66,
+"presc": 46,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45083": {
+"id": "ee3d982957f5fe126c5542f5f652b186",
+"nom": "45083_PLU_20251113",
+"type": "PLU",
+"maj": "15/01/2026 08:51:16",
+"zones": 288,
+"presc": 149,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45116": {
+"id": "41cbd8396a500f3c49cbc1f3413e26e1",
+"nom": "45116_CC_20190930",
+"type": "CC",
+"maj": "02/06/2020 11:32:44",
+"zones": 27,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45119": {
+"id": "f524377091261375d3e433dd3e2e3daa",
+"nom": "45119_PLU_20230131",
+"type": "PLU",
+"maj": "13/04/2023 10:12:23",
+"zones": 36,
+"presc": 72,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45126": {
+"id": "29277f6612f0fd3912c098da83ac6f31",
+"nom": "45126_PLU_20260625",
+"type": "PLU",
+"maj": "29/10/2026 04:16:01",
+"zones": 88,
+"presc": 207,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45122": {
+"id": "c25f88c2f5b1f3dad104dbc3f3557c11",
+"nom": "45122_PLU_20070522",
+"type": "PLU",
+"maj": "07/06/2023 09:21:22",
+"zones": 74,
+"presc": 25,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45123": {
+"id": "f363073aa8ccb7f5e6525aea6e2c721e",
+"nom": "45123_PLU_20250619",
+"type": "PLU",
+"maj": "16/07/2025 09:42:35",
+"zones": 39,
+"presc": 7,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45130": {
+"id": "6015f59943915483e3e8cc37299e8ba4",
+"nom": "45130_PLU_20240326",
+"type": "PLU",
+"maj": "21/05/2024 10:12:37",
+"zones": 76,
+"presc": 26,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45134": {
+"id": "bd3d8588510c72f8b19508524cc0834a",
+"nom": "45134_PLU_20241212",
+"type": "PLU",
+"maj": "08/01/2025 16:18:19",
+"zones": 66,
+"presc": 70,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45144": {
+"id": "6d0b22d92a67750b679c2c936e4363d0",
+"nom": "45144_PLU_20200306",
+"type": "PLU",
+"maj": "05/10/2021 10:54:41",
+"zones": 64,
+"presc": 46,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45146": {
+"id": "b3c2e9cf657d475fb645975c72bfda3c",
+"nom": "45146_PLU_20240206",
+"type": "PLU",
+"maj": "04/03/2024 16:56:08",
+"zones": 61,
+"presc": 157,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45142": {
+"id": "cf304e2f1370d158fb33bee02d63c782",
+"nom": "45142_PLU_20201015",
+"type": "PLU",
+"maj": "04/02/2021 17:26:28",
+"zones": 180,
+"presc": 90,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45157": {
+"id": "db6c8afee4c9fc7072d1a79feca799b8",
+"nom": "45157_PLU_20171128",
+"type": "PLU",
+"maj": "06/09/2021 16:32:16",
+"zones": 26,
+"presc": 55,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45153": {
+"id": "ea4d7087ea8fdb1542a08e59d4ed404c",
+"nom": "45153_PLU_20191125",
+"type": "PLU",
+"maj": "02/06/2020 11:32:56",
+"zones": 20,
+"presc": 21,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45164": {
+"id": "0cd8caf6c03f339ee15b0ff70c803fc0",
+"nom": "45164_PLU_20251125",
+"type": "PLU",
+"maj": "11/02/2026 16:53:54",
+"zones": 135,
+"presc": 89,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45165": {
+"id": "ac782247cef6d7c3c8530246f2085bb5",
+"nom": "45165_CC_20050603",
+"type": "CC",
+"maj": "31/05/2023 11:50:51",
+"zones": 12,
+"presc": 0,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45171": {
+"id": "280a485ae5851a5c3b8671160ce4421b",
+"nom": "45171_PLU_20180727",
+"type": "PLU",
+"maj": "26/07/2023 15:34:21",
+"zones": 41,
+"presc": 50,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45173": {
+"id": "9c1d000d353b19c3dacd02f630deb7ae",
+"nom": "45173_PLU_20200305",
+"type": "PLU",
+"maj": "21/05/2025 17:47:21",
+"zones": 72,
+"presc": 84,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45167": {
+"id": "abfffddd6caa7e58e969ec9522de9a54",
+"nom": "45167_PLU_20241212",
+"type": "PLU",
+"maj": "15/01/2025 09:46:34",
+"zones": 73,
+"presc": 159,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45179": {
+"id": "e92dd59c2a3679c02f770dc6d62325a8",
+"nom": "45179_PLU_20200302",
+"type": "PLU",
+"maj": "29/09/2020 14:19:33",
+"zones": 110,
+"presc": 69,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45182": {
+"id": "7746098c49471b1c7601d38f936f3856",
+"nom": "45182_PLU_20241210",
+"type": "PLU",
+"maj": "04/04/2025 09:01:18",
+"zones": 180,
+"presc": 56,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45184": {
+"id": "a5946909133c41e9089f14558ab19244",
+"nom": "45184_PLU_20230919",
+"type": "PLU",
+"maj": "13/11/2023 09:01:13",
+"zones": 101,
+"presc": 18,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45188": {
+"id": "0a2c95c3aceb9297c9db3de7ba2de64a",
+"nom": "45188_PLU_20260121",
+"type": "PLU",
+"maj": "02/10/2026 11:26:29",
+"zones": 62,
+"presc": 70,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45195": {
+"id": "eda50d4c7e9deb40416b991d63c9c082",
+"nom": "45195_CC_20260709",
+"type": "CC",
+"maj": "23/09/2026 10:13:37",
+"zones": 12,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45196": {
+"id": "55d71dffd5575500de83ee3054224903",
+"nom": "45196_PLU_20201216",
+"type": "PLU",
+"maj": "25/05/2021 10:40:22",
+"zones": 55,
+"presc": 50,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45199": {
+"id": "db158f19a2ede105997b3c309b914a55",
+"nom": "45199_CC_20060323",
+"type": "CC",
+"maj": "02/06/2020 11:32:55",
+"zones": 16,
+"presc": 0,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45200": {
+"id": "3cff3911a9759f3669c9ad72bafe3a8c",
+"nom": "45200_PLU_20180619",
+"type": "PLU",
+"maj": "23/01/2023 12:25:23",
+"zones": 34,
+"presc": 202,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45175": {
+"id": "74343ec4921f152c8770e62aa1806fd3",
+"nom": "45175_PLU_20250627",
+"type": "PLU",
+"maj": "06/08/2025 13:34:40",
+"zones": 45,
+"presc": 10,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45202": {
+"id": "b541b400869482959c0bdc4e970aa043",
+"nom": "45202_PLU_20230629",
+"type": "PLU",
+"maj": "01/08/2023 10:03:56",
+"zones": 42,
+"presc": 25,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45203": {
+"id": "a049f7fafae32c23d909f248e7400980",
+"nom": "45203_PLU_20221215",
+"type": "PLU",
+"maj": "09/07/2026 02:40:24",
+"zones": 96,
+"presc": 100,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45193": {
+"id": "cd536aff5f1da688afe5b123c59aec74",
+"nom": "45193_PLU_20130430",
+"type": "PLU",
+"maj": "16/12/2022 16:42:13",
+"zones": 198,
+"presc": 132,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45244": {
+"id": "f3aa721484c9b7069a95c5d11b328477",
+"nom": "45244_PLU_20250304",
+"type": "PLU",
+"maj": "16/03/2026 13:34:56",
+"zones": 73,
+"presc": 13,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45224": {
+"id": "d9f55b6beeddfd2e5c85e8d755014f6f",
+"nom": "45224_PLU_20170403",
+"type": "PLU",
+"maj": "27/10/2021 12:38:06",
+"zones": 29,
+"presc": 407,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45252": {
+"id": "84e7c04638987521ed714dab9123c70c",
+"nom": "45252_PLU_20260305",
+"type": "PLU",
+"maj": "28/04/2026 08:24:48",
+"zones": 148,
+"presc": 88,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45253": {
+"id": "3b387ab359d4a136a213902cc6464409",
+"nom": "45253_PLU_20260709",
+"type": "PLU",
+"maj": "29/07/2026 15:10:10",
+"zones": 55,
+"presc": 166,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45204": {
+"id": "2bc6ab104130a7be3cf8e8fd6d5daf77",
+"nom": "45204_PLU_20240924",
+"type": "PLU",
+"maj": "22/10/2024 11:17:43",
+"zones": 100,
+"presc": 66,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45261": {
+"id": "6c88af4cb32b7c0b7b733ebabee0a42f",
+"nom": "45261_PLU_20230209",
+"type": "PLU",
+"maj": "03/04/2023 16:51:54",
+"zones": 23,
+"presc": 14,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45268": {
+"id": "94ccead69dd9dfe9b37b5fe5fd997f10",
+"nom": "45268_PLU_20210115",
+"type": "PLU",
+"maj": "24/05/2023 09:15:35",
+"zones": 83,
+"presc": 36,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45270": {
+"id": "fb60c27def76e5041965a465ca2f6133",
+"nom": "45270_PLU_20240924",
+"type": "PLU",
+"maj": "03/04/2025 09:47:44",
+"zones": 201,
+"presc": 49,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45269": {
+"id": "76f6004bfa3ea8a13a46465d2b954922",
+"nom": "45269_PLU_20260115",
+"type": "PLU",
+"maj": "09/03/2026 15:04:44",
+"zones": 30,
+"presc": 46,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45289": {
+"id": "56024a88fe8ab6a8ad376a227e72af0e",
+"nom": "45289_PLU_20240701",
+"type": "PLU",
+"maj": "22/07/2024 14:55:53",
+"zones": 67,
+"presc": 30,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45273": {
+"id": "9b3054e031ec400e9d84ed2d17d87c6a",
+"nom": "45273_PLU_20240924",
+"type": "PLU",
+"maj": "21/10/2024 11:42:59",
+"zones": 110,
+"presc": 84,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45277": {
+"id": "b46c667faff0042db1d88667f17afef2",
+"nom": "45277_CC_20071203",
+"type": "CC",
+"maj": "26/05/2023 11:10:37",
+"zones": 52,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45297": {
+"id": "9b4be1b655b9bf9de02ac0cbb2c39106",
+"nom": "45297_PLU_20190626",
+"type": "PLU",
+"maj": "18/10/2021 11:45:15",
+"zones": 33,
+"presc": 28,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45290": {
+"id": "0982f426c4b1bdc3f35138184762deff",
+"nom": "45290_PLU_20191130",
+"type": "PLU",
+"maj": "02/06/2020 11:32:46",
+"zones": 58,
+"presc": 33,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45309": {
+"id": "5cd945f065dc93dc9123c00450fda812",
+"nom": "45309_CC_20010831",
+"type": "CC",
+"maj": "09/01/2023 09:19:48",
+"zones": 3,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45300": {
+"id": "794017fc13c879083af9d941927900ef",
+"nom": "45300_PLU_20230927",
+"type": "PLU",
+"maj": "11/10/2023 10:25:37",
+"zones": 170,
+"presc": 195,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45314": {
+"id": "8bd49e5246733c68547ff50fc014fdd2",
+"nom": "45314_CC_20190304",
+"type": "CC",
+"maj": "12/05/2025 08:50:10",
+"zones": 61,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45315": {
+"id": "349f814a3cc477b4b8c9e0127edd77ac",
+"nom": "45315_PLU_20210614",
+"type": "PLU",
+"maj": "14/11/2023 14:23:12",
+"zones": 78,
+"presc": 32,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45311": {
+"id": "2b2a1fe9c88e4655adecc44035f61b12",
+"nom": "45311_CC_20040908",
+"type": "CC",
+"maj": "02/06/2020 11:32:54",
+"zones": 7,
+"presc": 0,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45316": {
+"id": "335d0d944459a547e6322f549f31ee0b",
+"nom": "45316_PLU_20260206",
+"type": "PLU",
+"maj": "25/02/2026 16:31:14",
+"zones": 71,
+"presc": 32,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45324": {
+"id": "a63ecd8c34f20c6fa7f84e9f5c5b911d",
+"nom": "45324_PLU_20241106",
+"type": "PLU",
+"maj": "16/01/2025 16:15:41",
+"zones": 72,
+"presc": 51,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45317": {
+"id": "11c5cd0b2d2e65bd8b0be315d22c22d0",
+"nom": "45317_PLU_20240627",
+"type": "PLU",
+"maj": "22/10/2024 11:07:36",
+"zones": 38,
+"presc": 33,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45331": {
+"id": "d37bc7829eb38667c9131d5a20e7bd15",
+"nom": "45331_PLU_20130624",
+"type": "PLU",
+"maj": "06/06/2023 14:52:53",
+"zones": 22,
+"presc": 77,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45336": {
+"id": "0d46614c138d220dcc20cd1954b1638d",
+"nom": "45336_PLU_20241210",
+"type": "PLU",
+"maj": "03/04/2025 09:49:02",
+"zones": 50,
+"presc": 31,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45340": {
+"id": "1cd9c54a1775550e0f77ff0e1fac59d2",
+"nom": "45340_PLU_20180202",
+"type": "PLU",
+"maj": "27/09/2023 08:48:19",
+"zones": 66,
+"presc": 92,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45335": {
+"id": "0426b25de1f0f4d4efed602cbf5d1f83",
+"nom": "45335_PLU_20130315",
+"type": "PLU",
+"maj": "02/06/2020 11:32:54",
+"zones": 94,
+"presc": 79,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_45329": {
+"id": "93441de2dc348d9391af49c59cb51be9",
+"nom": "45329_PLU_20140129",
+"type": "PLU",
+"maj": "02/06/2020 11:32:56",
+"zones": 189,
+"presc": 49,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45346": {
+"id": "8678ee95b461c2ce53e1dfa07ab52ef0",
+"nom": "45346_PLU_20220524",
+"type": "PLU",
+"maj": "26/07/2022 17:19:27",
+"zones": 96,
+"presc": 10,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91016": {
+"id": "b237e83011d1797d7d3a7886c0eff9d0",
+"nom": "91016_PLU_20250318",
+"type": "PLU",
+"maj": "24/06/2025 10:14:57",
+"zones": 59,
+"presc": 62,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91017": {
+"id": "4bd20bbb8f6c3f921dc5afb6aaf4c652",
+"nom": "91017_PLU_20200204",
+"type": "PLU",
+"maj": "02/06/2020 11:32:46",
+"zones": 42,
+"presc": 117,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_45348": {
+"id": "6935d84fb304841d4cf3965142b5acca",
+"nom": "45348_PLU_20170511",
+"type": "PLU",
+"maj": "02/06/2020 11:32:52",
+"zones": 71,
+"presc": 100,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91035": {
+"id": "44d33d2e24f39d8dd10daf5ce89e1c57",
+"nom": "91035_PLU_20260302",
+"type": "PLU",
+"maj": "10/03/2026 09:16:25",
+"zones": 16,
+"presc": 13,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91021": {
+"id": "68ecec5b18c076ee3b82ae2218314abc",
+"nom": "91021_PLU_20250625",
+"type": "PLU",
+"maj": "07/07/2025 11:07:36",
+"zones": 57,
+"presc": 26,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91037": {
+"id": "97b714bff1602686caf8908197e4097f",
+"nom": "91037_PLU_20180616",
+"type": "PLU",
+"maj": "02/06/2020 11:32:51",
+"zones": 11,
+"presc": 15,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91038": {
+"id": "a8536eed800d44de5e77ab7b347fcd48",
+"nom": "91038_PLU_20200229",
+"type": "PLU",
+"maj": "20/07/2021 14:33:27",
+"zones": 47,
+"presc": 55,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91041": {
+"id": "11dbe970471ce8079491c5942132d7ca",
+"nom": "91041_PLU_20250723",
+"type": "PLU",
+"maj": "15/07/2026 16:40:30",
+"zones": 73,
+"presc": 32,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91045": {
+"id": "f2f7bfaa7349a319f84e94c2d36e4874",
+"nom": "91045_PLU_20240229",
+"type": "PLU",
+"maj": "06/03/2024 09:20:36",
+"zones": 50,
+"presc": 226,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91047": {
+"id": "38f353faf5c7b4d21aa66d59cf8fd698",
+"nom": "91047_PLU_20220621",
+"type": "PLU",
+"maj": "29/11/2022 12:49:34",
+"zones": 46,
+"presc": 54,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91064": {
+"id": "5715fbdff5a9b2b4022e9a8100a8ed0a",
+"nom": "91064_PLU_20251224",
+"type": "PLU",
+"maj": "13/03/2026 11:12:11",
+"zones": 78,
+"presc": 773,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91044": {
+"id": "3c392c09122b300adac3413f922dcb51",
+"nom": "91044_PLU_20250213",
+"type": "PLU",
+"maj": "09/04/2025 10:19:38",
+"zones": 82,
+"presc": 49,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91079": {
+"id": "90ba2eab5d6b33a2a33ca6249167e2ee",
+"nom": "91079_PLU_20170913",
+"type": "PLU",
+"maj": "09/03/2023 19:36:20",
+"zones": 43,
+"presc": 46,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91069": {
+"id": "1847dc6a1fe83411fa447ff08b505d25",
+"nom": "91069_PLU_20171124",
+"type": "PLU",
+"maj": "02/06/2020 11:32:45",
+"zones": 39,
+"presc": 53,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91086": {
+"id": "a833dd9922611fa652936bdee805c593",
+"nom": "91086_PLU_20200206",
+"type": "PLU",
+"maj": "19/09/2023 20:38:03",
+"zones": 45,
+"presc": 44,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91093": {
+"id": "f5e5946afdf40d95880c624d23051f3a",
+"nom": "91093_PLU_20251126",
+"type": "PLU",
+"maj": "18/12/2025 15:45:16",
+"zones": 20,
+"presc": 61,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91095": {
+"id": "8b8b9d0dce846aafafaa3c9d0cec3182",
+"nom": "91095_PLU_20140213",
+"type": "PLU",
+"maj": "02/06/2020 11:32:46",
+"zones": 51,
+"presc": 115,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91085": {
+"id": "02bedcdc64940977b6da1c0a087af624",
+"nom": "91085_PLU_20251218",
+"type": "PLU",
+"maj": "19/01/2026 16:36:33",
+"zones": 61,
+"presc": 65,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91001": {
+"id": "ebf293f30130a6f679152d2524d0c793",
+"nom": "91001_CC_20190222",
+"type": "CC",
+"maj": "15/03/2023 12:33:54",
+"zones": 4,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91098": {
+"id": "8417f92d9b7e813fc83d52d24b3b6848",
+"nom": "91098_PLU_20221215",
+"type": "PLU",
+"maj": "09/02/2023 15:17:44",
+"zones": 20,
+"presc": 26,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91103": {
+"id": "322f477078a7512ebbbfe1cdce89783e",
+"nom": "91103_PLU_20240926",
+"type": "PLU",
+"maj": "17/10/2024 19:27:14",
+"zones": 99,
+"presc": 194,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91097": {
+"id": "d6ba244e49ccb83bafc7c2d7558c4199",
+"nom": "91097_PLU_20220922",
+"type": "PLU",
+"maj": "12/06/2024 16:22:30",
+"zones": 53,
+"presc": 47,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91105": {
+"id": "facfcd68c2f6ced675ab047cfbb138e2",
+"nom": "91105_PLU_20250129",
+"type": "PLU",
+"maj": "05/02/2025 09:37:00",
+"zones": 82,
+"presc": 287,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91112": {
+"id": "90c05c9067ea52fb905e70d4e64dc673",
+"nom": "91112_PLU_20131217",
+"type": "PLU",
+"maj": "26/05/2023 16:39:23",
+"zones": 6,
+"presc": 76,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91109": {
+"id": "8ff1a4b3349e7e22da197b7b0d0d6f09",
+"nom": "91109_PLU_20251129",
+"type": "PLU",
+"maj": "20/02/2026 11:56:21",
+"zones": 45,
+"presc": 85,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91114": {
+"id": "0e726f31c360219b178060561498de5e",
+"nom": "91114_PLU_20260922",
+"type": "PLU",
+"maj": "04/11/2026 11:05:10",
+"zones": 101,
+"presc": 304,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91121": {
+"id": "c92fdc2e6700929018de5e69b172317a",
+"nom": "91121_PLU_20220701",
+"type": "PLU",
+"maj": "11/10/2022 14:47:47",
+"zones": 31,
+"presc": 267,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91115": {
+"id": "ca9ec28a21113f6558bbad8899dc4c77",
+"nom": "91115_PLU_20180131",
+"type": "PLU",
+"maj": "04/01/2021 14:42:23",
+"zones": 44,
+"presc": 0,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91106": {
+"id": "47a162712ae23f37eda3267a5bb9d0b0",
+"nom": "91106_PLU_20181013",
+"type": "PLU",
+"maj": "22/10/2022 09:29:05",
+"zones": 26,
+"presc": 72,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91130": {
+"id": "d49c004320f75961bf1987aa6eeeb7be",
+"nom": "91130_PLU_20260126",
+"type": "PLU",
+"maj": "13/04/2026 15:09:41",
+"zones": 278,
+"presc": 538,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91129": {
+"id": "91f021fadd5e92cacfb189fc5e0b1e74",
+"nom": "91129_PLU_20230927",
+"type": "PLU",
+"maj": "30/10/2023 16:43:07",
+"zones": 73,
+"presc": 217,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91122": {
+"id": "641e65e4d5fae6f0008b36600042e87d",
+"nom": "91122_PLU_20250303",
+"type": "PLU",
+"maj": "18/07/2025 11:42:46",
+"zones": 68,
+"presc": 51,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91132": {
+"id": "4315ae1a8383af073a89028fff7f5985",
+"nom": "91132_PLU_20210712",
+"type": "PLU",
+"maj": "07/10/2021 17:14:23",
+"zones": 67,
+"presc": 92,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91136": {
+"id": "ce83eeb46267312749d12706e41f63cf",
+"nom": "91136_PLU_20260113",
+"type": "PLU",
+"maj": "23/01/2026 17:05:45",
+"zones": 56,
+"presc": 51,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91131": {
+"id": "0657bb79d45ffa4a03f365abdcfbb825",
+"nom": "91131_PLU_20260310",
+"type": "PLU",
+"maj": "20/08/2026 11:53:51",
+"zones": 90,
+"presc": 145,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91135": {
+"id": "4ae92f0210bba206ae90cdfa49b2d6ee",
+"nom": "91135_PLU_20241115",
+"type": "PLU",
+"maj": "16/12/2024 11:07:39",
+"zones": 51,
+"presc": 112,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91145": {
+"id": "53db951911d0e472caf8d8ea312004a0",
+"nom": "91145_PLU_20180122",
+"type": "PLU",
+"maj": "21/05/2024 14:21:13",
+"zones": 10,
+"presc": 44,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91137": {
+"id": "cdd797fbfae9826f29c49a3bf96ecdc4",
+"nom": "91137_PLU_20151120",
+"type": "PLU",
+"maj": "24/05/2023 11:04:47",
+"zones": 16,
+"presc": 58,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91156": {
+"id": "91c4ddfa26b8f31c2676dd986ae47892",
+"nom": "91156_PLU_20251002",
+"type": "PLU",
+"maj": "21/11/2025 16:33:30",
+"zones": 42,
+"presc": 91,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91174": {
+"id": "c3fa509f5f46bd7100330eb270482ea3",
+"nom": "91174_PLU_20240703",
+"type": "PLU",
+"maj": "23/07/2026 15:13:51",
+"zones": 145,
+"presc": 272,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91175": {
+"id": "5b9c287a06c7722ab4e7878d1bd93783",
+"nom": "91175_PLU_20200313",
+"type": "PLU",
+"maj": "26/11/2020 16:49:15",
+"zones": 58,
+"presc": 72,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91180": {
+"id": "0f0c9ae28784d4cd3e655d0f239ca9d8",
+"nom": "91180_PLU_20181219",
+"type": "PLU",
+"maj": "24/02/2023 13:45:24",
+"zones": 38,
+"presc": 47,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91179": {
+"id": "76ac82f779763b4062c742745fdc8883",
+"nom": "91179_PLU_20250925",
+"type": "PLU",
+"maj": "14/11/2025 09:11:48",
+"zones": 38,
+"presc": 48,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91184": {
+"id": "570853e147b7efa156bec65cc3d809fb",
+"nom": "91184_PLU_20160704",
+"type": "PLU",
+"maj": "02/06/2020 11:32:53",
+"zones": 31,
+"presc": 43,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91195": {
+"id": "a9f891285b894f60d12b0cbd1346054a",
+"nom": "91195_PLU_20181201",
+"type": "PLU",
+"maj": "05/06/2021 11:40:45",
+"zones": 41,
+"presc": 89,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91200": {
+"id": "bed383dc597ada8adea2ece9f4be9260",
+"nom": "91200_PLU_20241212",
+"type": "PLU",
+"maj": "13/05/2025 14:55:32",
+"zones": 167,
+"presc": 88,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91201": {
+"id": "a70a49eb00c21b40b5419d3acebee1f0",
+"nom": "91201_PLU_20260615",
+"type": "PLU",
+"maj": "16/07/2026 11:16:04",
+"zones": 143,
+"presc": 406,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91161": {
+"id": "4c43e4d6ba73bc92241ba29ea522a5e4",
+"nom": "91161_PLU_20240129",
+"type": "PLU",
+"maj": "26/04/2024 16:16:15",
+"zones": 59,
+"presc": 80,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91191": {
+"id": "ba3f7fc66343135f11afe8a785539b0e",
+"nom": "91191_PLU_20250527",
+"type": "PLU",
+"maj": "02/08/2025 02:01:29",
+"zones": 36,
+"presc": 37,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91207": {
+"id": "c85fc2c80baf630604af51ed850d0e6c",
+"nom": "91207_PLU_20180221",
+"type": "PLU",
+"maj": "02/06/2020 11:32:56",
+"zones": 50,
+"presc": 32,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91215": {
+"id": "30c7480fee23054401a69f6e922a7267",
+"nom": "91215_PLU_20231213",
+"type": "PLU",
+"maj": "30/01/2024 11:33:49",
+"zones": 55,
+"presc": 23,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91216": {
+"id": "f0f6dc89eb56b5015203def4e0e2f81f",
+"nom": "91216_PLU_20190620",
+"type": "PLU",
+"maj": "02/06/2020 11:32:45",
+"zones": 33,
+"presc": 34,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91225": {
+"id": "abfe9d33b285fb36e0184d5342fb959f",
+"nom": "91225_PLU_20260924",
+"type": "PLU",
+"maj": "16/10/2026 09:48:47",
+"zones": 43,
+"presc": 87,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91226": {
+"id": "95a275d44fcb8062035e2292e717a2d8",
+"nom": "91226_PLU_20260220",
+"type": "PLU",
+"maj": "02/04/2026 15:30:19",
+"zones": 79,
+"presc": 143,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91223": {
+"id": "3ef42eef71f28eda4529784cd2c1af6d",
+"nom": "91223_PLU_20250625",
+"type": "PLU",
+"maj": "30/07/2025 15:46:13",
+"zones": 147,
+"presc": 262,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91228": {
+"id": "94845c51928a830dce5b95bbccf569e8",
+"nom": "91228_PLU_20261008",
+"type": "PLU",
+"maj": "29/10/2026 16:15:15",
+"zones": 128,
+"presc": 295,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91235": {
+"id": "af2c07d7f8fbd69550d484acac816242",
+"nom": "91235_PLU_20260701",
+"type": "PLU",
+"maj": "24/07/2026 12:51:28",
+"zones": 42,
+"presc": 98,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91240": {
+"id": "375852fa20271605173808e652d4e6e9",
+"nom": "91240_PLU_20200306",
+"type": "PLU",
+"maj": "23/05/2023 14:55:51",
+"zones": 18,
+"presc": 32,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91244": {
+"id": "dc8aafbb1ab51effdfae1db75590b853",
+"nom": "91244_PLU_20250626",
+"type": "PLU",
+"maj": "01/09/2025 14:55:28",
+"zones": 31,
+"presc": 57,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91247": {
+"id": "56b0ed37f5a36b098a72a53749a57ed4",
+"nom": "91247_PLU_20260129",
+"type": "PLU",
+"maj": "23/02/2026 17:24:33",
+"zones": 28,
+"presc": 46,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91248": {
+"id": "0e5ea3c04ad81beae2b5283f1b5714c5",
+"nom": "91248_CC_20181030",
+"type": "CC",
+"maj": "02/06/2020 11:32:44",
+"zones": 2,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91249": {
+"id": "9ff958fdb8388481dc4fac8b3810c3d9",
+"nom": "91249_PLU_20260930",
+"type": "PLU",
+"maj": "14/10/2026 10:35:43",
+"zones": 74,
+"presc": 307,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91274": {
+"id": "422f8b471a0625239b1db06ede07b6d8",
+"nom": "91274_PLU_20200128",
+"type": "PLU",
+"maj": "02/06/2020 11:32:46",
+"zones": 40,
+"presc": 69,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91272": {
+"id": "35990f7cea60f689590a6f4ee7b1d25f",
+"nom": "91272_PLU_20260408",
+"type": "PLU",
+"maj": "11/05/2026 13:43:05",
+"zones": 154,
+"presc": 256,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91275": {
+"id": "01a01e91af3c78c455d8bf4743d272d6",
+"nom": "91275_PLU_20241014",
+"type": "PLU",
+"maj": "28/10/2024 16:14:17",
+"zones": 32,
+"presc": 48,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91284": {
+"id": "94a0106d36b57177582969ee1d8ad901",
+"nom": "91284_PLU_20230420",
+"type": "PLU",
+"maj": "06/09/2024 19:35:56",
+"zones": 64,
+"presc": 90,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91286": {
+"id": "6e2380d125d3f2e405450639c4ed41ca",
+"nom": "91286_PLU_20240809",
+"type": "PLU",
+"maj": "07/01/2025 18:49:35",
+"zones": 106,
+"presc": 19,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91294": {
+"id": "3c27ab902d91bf4c35971bba52917432",
+"nom": "91294_PLU_20180317",
+"type": "PLU",
+"maj": "27/06/2024 00:01:12",
+"zones": 37,
+"presc": 71,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91312": {
+"id": "4c472b3e0ef272d75876ad789e5dacaf",
+"nom": "91312_PLU_20231005",
+"type": "PLU",
+"maj": "22/01/2026 10:46:07",
+"zones": 54,
+"presc": 29,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91315": {
+"id": "10dcffc1648987abb584283819b5608f",
+"nom": "91315_PLU_20160707",
+"type": "PLU",
+"maj": "04/02/2025 15:49:31",
+"zones": 83,
+"presc": 78,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91330": {
+"id": "747a6cb2a917276972db8fa2720ee0d0",
+"nom": "91330_PLU_20231121",
+"type": "PLU",
+"maj": "20/02/2024 22:33:25",
+"zones": 77,
+"presc": 100,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91332": {
+"id": "583e81384c749df66a26911efd03d093",
+"nom": "91332_PLU_20200716",
+"type": "PLU",
+"maj": "08/12/2020 11:40:10",
+"zones": 23,
+"presc": 47,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91333": {
+"id": "e470d689d3e778dad1427e485bc6f06b",
+"nom": "91333_PLU_20240228",
+"type": "PLU",
+"maj": "07/03/2024 22:32:58",
+"zones": 39,
+"presc": 92,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91319": {
+"id": "ba71a81c7b36475405cbee33dcd46a60",
+"nom": "91319_PLU_20241105",
+"type": "PLU",
+"maj": "16/01/2025 11:47:39",
+"zones": 62,
+"presc": 99,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91338": {
+"id": "e675b7205248a085042c0208796dfb18",
+"nom": "91338_PLU_20170928",
+"type": "PLU",
+"maj": "02/06/2020 11:32:51",
+"zones": 57,
+"presc": 45,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91345": {
+"id": "5a5ab75197e947972c1674c9f79fa0ea",
+"nom": "91345_PLU_20240924",
+"type": "PLU",
+"maj": "10/10/2024 13:23:28",
+"zones": 90,
+"presc": 77,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91339": {
+"id": "e42cab9705604598328b193a8dba9ff5",
+"nom": "91339_PLU_20240912",
+"type": "PLU",
+"maj": "30/10/2024 11:07:26",
+"zones": 47,
+"presc": 102,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91347": {
+"id": "e04da8367437364c54c542a7a8a9d7ca",
+"nom": "91347_PLU_20151214",
+"type": "PLU",
+"maj": "27/10/2025 17:16:03",
+"zones": 74,
+"presc": 135,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91243": {
+"id": "74e32c5f775d51cea7e4eee18685c042",
+"nom": "91243_PLU_20250403",
+"type": "PLU",
+"maj": "18/08/2025 08:11:25",
+"zones": 116,
+"presc": 187,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91374": {
+"id": "4ef9ba48704306bb2f575f68e5e79c00",
+"nom": "91374_CC_20180806",
+"type": "CC",
+"maj": "24/02/2023 10:21:59",
+"zones": 2,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91376": {
+"id": "a67f7d472829ee76a813d5e121ffe7ee",
+"nom": "91376_PLU_20180209",
+"type": "PLU",
+"maj": "14/02/2022 10:22:33",
+"zones": 38,
+"presc": 77,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91386": {
+"id": "cae30b90b736dd91eb41663564bacee4",
+"nom": "91386_PLU_20240315",
+"type": "PLU",
+"maj": "28/03/2024 17:36:02",
+"zones": 86,
+"presc": 203,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91363": {
+"id": "33fd2f1f563888c8fdcb6d1f59ddfa29",
+"nom": "91363_PLU_20231219",
+"type": "PLU",
+"maj": "02/01/2024 15:43:06",
+"zones": 104,
+"presc": 172,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91377": {
+"id": "87bcdd1509460d45e7c37b287c6db9de",
+"nom": "91377_PLU_20250206",
+"type": "PLU",
+"maj": "01/09/2026 16:49:39",
+"zones": 96,
+"presc": 84,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91393": {
+"id": "7ceb64301360043f52b48f2f7c397ddb",
+"nom": "91393_PLU_20160309",
+"type": "PLU",
+"maj": "24/01/2025 13:42:02",
+"zones": 23,
+"presc": 21,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91399": {
+"id": "999d7f8ec2090b4a24dc19677590d495",
+"nom": "91399_PLU_20191212",
+"type": "PLU",
+"maj": "16/09/2021 17:09:07",
+"zones": 61,
+"presc": 66,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91411": {
+"id": "f06d9b416934cad62d7281843fdfe3eb",
+"nom": "91411_PLU_20260216",
+"type": "PLU",
+"maj": "13/10/2026 15:35:14",
+"zones": 26,
+"presc": 69,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91390": {
+"id": "01d6c21c6b775f3799f9207f7ad44e88",
+"nom": "91390_PLU_20241219",
+"type": "PLU",
+"maj": "28/01/2025 15:03:42",
+"zones": 130,
+"presc": 200,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91414": {
+"id": "78033c6c1e2378aaa4c4bb9d3878866e",
+"nom": "91414_PLU_20160511",
+"type": "PLU",
+"maj": "29/11/2023 11:38:35",
+"zones": 14,
+"presc": 28,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91412": {
+"id": "9b8b78c4b01b3ce18130e9c9f2fd8402",
+"nom": "91412_PLU_20160704",
+"type": "PLU",
+"maj": "02/06/2020 11:32:55",
+"zones": 39,
+"presc": 66,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91425": {
+"id": "98f4089221c5a60d8dba3a451004c12b",
+"nom": "91425_PLU_20260721",
+"type": "PLU",
+"maj": "05/08/2026 12:18:58",
+"zones": 52,
+"presc": 78,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91405": {
+"id": "ba2e45ff6174e96a151dd449aba09ef0",
+"nom": "91405_PLU_20251217",
+"type": "PLU",
+"maj": "19/01/2026 16:19:24",
+"zones": 45,
+"presc": 107,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91433": {
+"id": "f391f16a55dd7b24c4827abba6419fa5",
+"nom": "91433_PLU_20181123",
+"type": "PLU",
+"maj": "02/06/2020 11:32:56",
+"zones": 63,
+"presc": 85,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91434": {
+"id": "2bbd1481b52768c1f7042c8c4db4ff39",
+"nom": "91434_PLU_20250401",
+"type": "PLU",
+"maj": "30/04/2025 20:05:33",
+"zones": 79,
+"presc": 163,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91435": {
+"id": "c87b616642492f94c34ae0dee8d16e7b",
+"nom": "91435_PLU_20231212",
+"type": "PLU",
+"maj": "22/12/2023 11:41:53",
+"zones": 14,
+"presc": 28,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91421": {
+"id": "2457687d8e69cb2bb2e7a6146cc78c0a",
+"nom": "91421_PLU_20250630",
+"type": "PLU",
+"maj": "05/08/2025 00:08:30",
+"zones": 125,
+"presc": 578,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91457": {
+"id": "36745d15f98a838b292e410173273262",
+"nom": "91457_PLU_20251208",
+"type": "PLU",
+"maj": "30/10/2026 16:10:55",
+"zones": 27,
+"presc": 28,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91463": {
+"id": "6a8527a86f2628c51898f3c7f1942072",
+"nom": "91463_PLU_20200117",
+"type": "PLU",
+"maj": "14/03/2025 16:49:31",
+"zones": 45,
+"presc": 15,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91458": {
+"id": "220aea200936864f3db3c3fd5bfc1b7d",
+"nom": "91458_PLU_20240404",
+"type": "PLU",
+"maj": "15/04/2024 09:33:03",
+"zones": 93,
+"presc": 85,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91468": {
+"id": "6e7e9e927e370d6443c355e5888b1d03",
+"nom": "91468_PLU_20250414",
+"type": "PLU",
+"maj": "16/05/2025 16:51:49",
+"zones": 12,
+"presc": 19,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91469": {
+"id": "631879d5f0ba95f9dd61cbb032927b80",
+"nom": "91469_PLU_20141222",
+"type": "PLU",
+"maj": "24/05/2023 11:51:28",
+"zones": 34,
+"presc": 53,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91471": {
+"id": "2f095821e62749b35a33792e0131f09d",
+"nom": "91471_PLU_20260408",
+"type": "PLU",
+"maj": "07/05/2026 18:03:47",
+"zones": 83,
+"presc": 135,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91473": {
+"id": "389592c5b4539c68e1b1122b9a5b7e8e",
+"nom": "91473_PLU_20191031",
+"type": "PLU",
+"maj": "02/06/2020 11:32:45",
+"zones": 18,
+"presc": 40,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91477": {
+"id": "e6219e2b37cf79f6c55e983adfe5d336",
+"nom": "91477_PLU_20250324",
+"type": "PLU",
+"maj": "30/04/2025 14:09:03",
+"zones": 55,
+"presc": 257,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91494": {
+"id": "121dbf94f8d9d5aa06a2f131159d6034",
+"nom": "91494_PLU_20240715",
+"type": "PLU",
+"maj": "04/11/2024 18:27:09",
+"zones": 57,
+"presc": 62,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91495": {
+"id": "e76ec0427f3377cda21cee34aec135fe",
+"nom": "91495_PLU_20191212",
+"type": "PLU",
+"maj": "20/04/2023 10:11:40",
+"zones": 35,
+"presc": 77,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91461": {
+"id": "934b67b3f0f870ffdf54873e88716c8d",
+"nom": "91461_PLU_20250401",
+"type": "PLU",
+"maj": "10/04/2025 14:26:50",
+"zones": 103,
+"presc": 241,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91507": {
+"id": "0ba5c9acb352f3f3c756f6090c15371a",
+"nom": "91507_PLU_20181220",
+"type": "PLU",
+"maj": "04/06/2021 12:02:53",
+"zones": 44,
+"presc": 44,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91508": {
+"id": "3a4111476ee9b66b3e0526b135436fbf",
+"nom": "91508_PLU_20180622",
+"type": "PLU",
+"maj": "30/09/2024 13:49:52",
+"zones": 54,
+"presc": 69,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91511": {
+"id": "5039e45c2e9b811ad3d0366a26c51c75",
+"nom": "91511_PLU_20200206",
+"type": "PLU",
+"maj": "02/06/2020 11:32:46",
+"zones": 43,
+"presc": 27,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91521": {
+"id": "45aa44313016659711ab682bb643eecd",
+"nom": "91521_PLU_20190221",
+"type": "PLU",
+"maj": "05/07/2022 10:45:02",
+"zones": 72,
+"presc": 44,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91482": {
+"id": "2e755c50a061ccb90f17c1e31936f35e",
+"nom": "91482_PLU_20220124",
+"type": "PLU",
+"maj": "05/03/2024 14:41:12",
+"zones": 32,
+"presc": 47,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91526": {
+"id": "13943cd17c290740b2326e4fbc14dd01",
+"nom": "91526_CC_20110315",
+"type": "CC",
+"maj": "22/08/2023 11:57:53",
+"zones": 3,
+"presc": 0,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91525": {
+"id": "d4e1e404716794264bddd05792e584ea",
+"nom": "91525_PLU_20190618",
+"type": "PLU",
+"maj": "02/06/2020 11:32:44",
+"zones": 69,
+"presc": 116,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91538": {
+"id": "575af0ae0e5775c37ced15002e21c554",
+"nom": "91538_PLU_20180502",
+"type": "PLU",
+"maj": "12/04/2023 09:36:57",
+"zones": 23,
+"presc": 13,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91534": {
+"id": "af8d024c7bc2e6db013d6cb4ff475d3b",
+"nom": "91534_PLU_20251002",
+"type": "PLU",
+"maj": "12/11/2025 09:53:51",
+"zones": 83,
+"presc": 48,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91544": {
+"id": "daad9119856a3a146dc1866100dbef51",
+"nom": "91544_PLU_20140130",
+"type": "PLU",
+"maj": "21/03/2023 15:00:41",
+"zones": 36,
+"presc": 41,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91533": {
+"id": "d9cf5ada1b16a42cd437c8a22edee0ed",
+"nom": "91533_PLU_20160404",
+"type": "PLU",
+"maj": "30/06/2020 17:18:08",
+"zones": 54,
+"presc": 129,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91547": {
+"id": "6ba8f1fd688fde6b01f0984f9e3f7344",
+"nom": "91547_PLU_20211004",
+"type": "PLU",
+"maj": "17/10/2022 09:29:34",
+"zones": 50,
+"presc": 13,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91549": {
+"id": "56a849f16cc72d9351ce894984b52fcf",
+"nom": "91549_PLU_20251006",
+"type": "PLU",
+"maj": "14/10/2025 08:16:55",
+"zones": 97,
+"presc": 36,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91540": {
+"id": "92efd9ff297b5117f0582216995bb668",
+"nom": "91540_PLU_20181015",
+"type": "PLU",
+"maj": "02/06/2020 11:32:54",
+"zones": 48,
+"presc": 170,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91552": {
+"id": "6c671977f0eb1bbb247f1c337318ec82",
+"nom": "91552_PLU_20250918",
+"type": "PLU",
+"maj": "18/10/2025 09:28:41",
+"zones": 112,
+"presc": 197,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91553": {
+"id": "f5d452783f83d579e33cf5f11e087759",
+"nom": "91553_PLU_20260629",
+"type": "PLU",
+"maj": "04/08/2026 12:18:56",
+"zones": 57,
+"presc": 29,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91570": {
+"id": "32230da69af72f7a5f2899d8965d0752",
+"nom": "91570_PLU_20211213",
+"type": "PLU",
+"maj": "17/04/2023 16:27:57",
+"zones": 65,
+"presc": 121,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91568": {
+"id": "88f0906545d7395a0d71175cb60cf97c",
+"nom": "91568_PLU_20220408",
+"type": "PLU",
+"maj": "03/05/2024 03:35:06",
+"zones": 47,
+"presc": 91,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91556": {
+"id": "aaacfea9d004f48ae34a42bc0b55becf",
+"nom": "91556_PLU_20241115",
+"type": "PLU",
+"maj": "10/04/2025 15:38:26",
+"zones": 35,
+"presc": 55,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91577": {
+"id": "455d711271ff03418b7338035344f621",
+"nom": "91577_PLU_20190701",
+"type": "PLU",
+"maj": "08/02/2021 19:32:37",
+"zones": 10,
+"presc": 76,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91587": {
+"id": "ad476f176437e42f17c771fbcd9ca1d9",
+"nom": "91587_PLU_20251009",
+"type": "PLU",
+"maj": "30/10/2025 11:43:14",
+"zones": 81,
+"presc": 71,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91579": {
+"id": "c33880198b45b9f51de50cdcd3f88346",
+"nom": "91579_PLU_20250206",
+"type": "PLU",
+"maj": "14/03/2025 00:05:22",
+"zones": 54,
+"presc": 239,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91599": {
+"id": "fd2255a66e737359bfd2f8b9d405ae36",
+"nom": "91599_PLU_20150622",
+"type": "PLU",
+"maj": "02/06/2020 11:32:56",
+"zones": 83,
+"presc": 39,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91593": {
+"id": "02f432334d509d07f5172143d005f8f7",
+"nom": "91593_PLU_20191211",
+"type": "PLU",
+"maj": "02/06/2020 11:32:45",
+"zones": 45,
+"presc": 84,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91600": {
+"id": "6195c73e459f86ddfd33cf28c1f03921",
+"nom": "91600_PLU_20250512",
+"type": "PLU",
+"maj": "30/07/2025 11:43:16",
+"zones": 77,
+"presc": 80,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91617": {
+"id": "fee3755e0f75c3e36d646c5781636bb3",
+"nom": "91617_PLU_20260625",
+"type": "PLU",
+"maj": "20/07/2026 18:57:28",
+"zones": 52,
+"presc": 136,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91629": {
+"id": "0d206b606325c3be53656d1305aa6560",
+"nom": "91629_PLU_20190221",
+"type": "PLU",
+"maj": "13/05/2024 11:14:47",
+"zones": 144,
+"presc": 131,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91578": {
+"id": "f18936ce72d81056a5ea1cc9826df1a7",
+"nom": "91578_PLU_20230404",
+"type": "PLU",
+"maj": "21/11/2023 12:28:07",
+"zones": 23,
+"presc": 50,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91634": {
+"id": "0f21ddd135071ba5ed9c8f670c2e4658",
+"nom": "91634_PLU_20221205",
+"type": "PLU",
+"maj": "03/02/2023 15:45:19",
+"zones": 42,
+"presc": 164,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91630": {
+"id": "b8885ea705bda21b9c036810175ad2b0",
+"nom": "91630_PLU_20221006",
+"type": "PLU",
+"maj": "12/10/2023 11:33:37",
+"zones": 47,
+"presc": 139,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91631": {
+"id": "88d0a9bb0c07c517614d7b383602b684",
+"nom": "91631_PLU_20240229",
+"type": "PLU",
+"maj": "08/03/2024 12:02:08",
+"zones": 30,
+"presc": 108,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91645": {
+"id": "9ef5578d77e01cbfcd4a7e79501cbbae",
+"nom": "91645_PLU_20241216",
+"type": "PLU",
+"maj": "25/09/2025 17:50:45",
+"zones": 109,
+"presc": 26,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91648": {
+"id": "e44e0a18c401385134cdb2d9f7bc0599",
+"nom": "91648_PLU_20240926",
+"type": "PLU",
+"maj": "11/10/2024 00:07:46",
+"zones": 43,
+"presc": 47,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91635": {
+"id": "8eaac5d68731f997d5eaf6354b04c6b1",
+"nom": "91635_PLU_20251002",
+"type": "PLU",
+"maj": "29/10/2025 11:20:07",
+"zones": 31,
+"presc": 398,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91659": {
+"id": "d3abd00becf48e2fccbf5f13873de4f2",
+"nom": "91659_PLU_20260416",
+"type": "PLU",
+"maj": "27/05/2026 10:15:35",
+"zones": 38,
+"presc": 48,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91661": {
+"id": "af923aa8bce68292466078b81256bd4a",
+"nom": "91661_PLU_20250410",
+"type": "PLU",
+"maj": "23/04/2025 14:11:53",
+"zones": 116,
+"presc": 326,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91657": {
+"id": "7707529b2859a974a6f0ca479cef50b7",
+"nom": "91657_PLU_20151214",
+"type": "PLU",
+"maj": "02/06/2020 11:32:55",
+"zones": 86,
+"presc": 38,
+"source": "archive (lecture partielle)",
+"copie": "2026-11-06"
+},
+"DU_91662": {
+"id": "ec0d7b3966b688318f06f7cb1c8e258a",
+"nom": "91662_PLU_20240206",
+"type": "PLU",
+"maj": "10/06/2024 10:40:22",
+"zones": 57,
+"presc": 46,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91667": {
+"id": "e3d681bfddb0444d87e1a267c633d921",
+"nom": "91667_PLU_20190409",
+"type": "PLU",
+"maj": "02/06/2020 11:32:54",
+"zones": 63,
+"presc": 37,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91666": {
+"id": "cd16edb8a13bc7d84f663406fe4b6f2d",
+"nom": "91666_PLU_20250630",
+"type": "PLU",
+"maj": "10/07/2025 11:10:42",
+"zones": 61,
+"presc": 67,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91679": {
+"id": "1ebc3d0d726c169fc79730adfb9ac330",
+"nom": "91679_PLU_20260120",
+"type": "PLU",
+"maj": "27/01/2026 09:40:26",
+"zones": 33,
+"presc": 41,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91689": {
+"id": "0d992ee281ddf26dfde088c385ae233a",
+"nom": "91689_PLU_20260211",
+"type": "PLU",
+"maj": "20/02/2026 14:12:40",
+"zones": 58,
+"presc": 58,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91685": {
+"id": "4a42d368f0c5479cc7e86a28f368d449",
+"nom": "91685_PLU_20250623",
+"type": "PLU",
+"maj": "08/07/2025 09:43:10",
+"zones": 46,
+"presc": 19,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91665": {
+"id": "714243f62ec14adf1b50649ff9da1ce9",
+"nom": "91665_PLU_20250429",
+"type": "PLU",
+"maj": "20/05/2025 15:53:31",
+"zones": 32,
+"presc": 50,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91691": {
+"id": "c36ece1cf0cac5143e30593830fd2797",
+"nom": "91691_PLU_20250206",
+"type": "PLU",
+"maj": "11/03/2025 14:47:09",
+"zones": 124,
+"presc": 242,
+"source": "API Carto",
+"copie": "2026-11-06"
+},
+"DU_91692": {
+"id": "d7cb0796fab5e05419458558411e3023",
+"nom": "91692_PLU_20240926",
+"type": "PLU",
+"maj": "18/10/2024 12:21:41",
+"zones": 52,
+"presc": 42,
+"source": "API Carto",
+"copie": "2026-11-06"
+}
+},
+"erreurs": []
+}

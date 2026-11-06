@@ -382,7 +382,7 @@ function ficheUrba(body) {
       <dt>Document</dt><dd>${d ? `${esc(d.du_type || 'Document')} · ${esc(d.grid_title || sel.partition || '')}${z && z.datappro ? ' · approuvé le ' + esc(String(z.datappro).replace(/^(\d{4})(\d{2})(\d{2})$/, '$3/$2/$1')) : ''}` : sel.cc ? 'Carte communale' : sel.urba.document === 'loading' ? (sel.partition ? `${esc(sel.partition)} <span class="note">(chargement…)</span>` : 'Chargement…') : sel.partition ? `Document ${esc(sel.partition)}` : sel.urba.document === null ? '<span class="pill wa">service indisponible</span>' : 'Aucun document au GPU (RNU possible)'}</dd>
       <dt>Zone</dt><dd>${z ? `<b>${esc(z.libelle)}</b> ${esc(z.libelong || '')} <span class="pill ${constr ? 'ok' : constr === false ? 'no' : 'wa'}">${esc(z.typezone || '')}</span>` : sel.cc ? esc(sel.cc.properties.libelle || 'Secteur de carte communale') : '—'}</dd>
       <dt>Destination</dt><dd>${z && z.destdomi ? esc(z.destdomi) : 'Non renseignée au GPU'}</dd>
-      <dt>OAP</dt><dd>${pending ? 'Chargement…' : oap.length ? oap.map((x) => esc(x.properties.libelle)).join(' · ') : 'Aucune détectée'}</dd>
+      <dt>OAP</dt><dd>${pending ? 'Chargement…' : oap.length ? [...new Set(oap.map((x) => x.properties.libelle))].map(esc).join(' · ') : 'Aucune détectée'}</dd>
       <dt>Prescriptions</dt><dd>${pending ? 'Chargement…' : prescF.length ? [...new Set(prescF.map((x) => x.properties.libelle || x.properties.txt).filter(Boolean))].map(esc).join(' · ') : 'Aucune'}</dd>
     </dl>
     <div class="actions">

@@ -152,7 +152,11 @@ async function selectAt(lng, lat) {
   } catch (e) { sel = { error: e.message }; renderFiche(); }
 }
 
+let selCtrl = null;
 async function selectFeature(f, token = ++selToken, forceTab) {
+  if (selCtrl) selCtrl.abort();
+  selCtrl = new AbortController();
+  const signal = selCtrl.signal;
   sel = { feature: f, loading: true };
   map.getSource('sel').setData(f);
   map.getSource('env').setData(empty);
@@ -164,13 +168,15 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   const insee = f.properties.code_insee;
   // Affichage progressif : la fiche apparaît dès que la zone et le bâti sont connus ;
   // document, prescriptions, servitudes, risques, parkings, équipements et friches complètent ensuite.
-  const extraP = api.urbanismeAt(pt, api.EXTRA_LAYERS, { retries: 1, timeout: 15000 });
-  const occAtP = api.occupationAt(simple);
+  // Le navigateur limite à 6 requêtes simultanées par serveur : les appels rapides (bâti, parkings) partent d'abord,
+  // les appels au Géoportail de l'Urbanisme (parfois lents) ensuite, pour ne pas les bloquer.
   const frP = api.friches(insee);
   const risqP = api.risques(pt.coordinates[0], pt.coordinates[1]);
-  const coreP = api.urbanismeAt(pt, api.CORE_LAYERS, { retries: 1, timeout: 10000 });
   let bati;
   try { bati = await api.batiments(simple); } catch { bati = null; }
+  const occAtP = api.occupationAt(simple);
+  const coreP = api.urbanismeAt(pt, api.CORE_LAYERS, { retries: 1, timeout: 10000, signal });
+  const extraP = occAtP.then(() => api.urbanismeAt(pt, api.EXTRA_LAYERS, { retries: 1, timeout: 15000, signal }));
   if (token !== selToken) return;
   const urba = {};
   [...api.CORE_LAYERS, ...api.EXTRA_LAYERS].forEach((l) => (urba[l] = 'loading'));

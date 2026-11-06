@@ -92,8 +92,8 @@ export async function parcellesCommune(insee, { onProgress, signal, max = 40000 
 }
 
 // ---------- Urbanisme (Géoportail de l'Urbanisme) ----------
-export async function gpuAt(layer, geom) {
-  const fc = await getJSON(`${APICARTO}/gpu/${layer}?geom=${g(geom)}`);
+export async function gpuAt(layer, geom, opts = {}) {
+  const fc = await getJSON(`${APICARTO}/gpu/${layer}?geom=${g(geom)}`, opts);
   return fc.features || [];
 }
 export async function gpuByPartition(layer, partition, { signal } = {}) {
@@ -114,10 +114,10 @@ export async function municipality(insee) {
 }
 
 /** Tout ce que le GPU sait sur un point : document, zone, prescriptions, informations, servitudes. */
-export const CORE_LAYERS = ['document', 'zone-urba', 'secteur-cc'];
-export const EXTRA_LAYERS = ['prescription-surf', 'prescription-lin', 'info-surf', 'assiette-sup-s'];
-export async function urbanismeAt(geom, layers = [...CORE_LAYERS, ...EXTRA_LAYERS]) {
-  const res = await Promise.allSettled(layers.map((l) => gpuAt(l, geom)));
+export const CORE_LAYERS = ['zone-urba', 'secteur-cc'];
+export const EXTRA_LAYERS = ['document', 'prescription-surf', 'prescription-lin', 'info-surf', 'assiette-sup-s'];
+export async function urbanismeAt(geom, layers = [...CORE_LAYERS, ...EXTRA_LAYERS], opts = {}) {
+  const res = await Promise.allSettled(layers.map((l) => gpuAt(l, geom, opts)));
   const o = {};
   layers.forEach((l, i) => { o[l] = res[i].status === 'fulfilled' ? res[i].value : null; });
   return o;

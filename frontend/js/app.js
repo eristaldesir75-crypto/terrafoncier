@@ -162,42 +162,54 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   const pt = turf.pointOnFeature(f).geometry;
   const simple = turf.truncate(turf.simplify(f, { tolerance: 0.000005, highQuality: true }), { precision: 6 }).geometry;
   const insee = f.properties.code_insee;
-  // Couches lentes (prescriptions, servitudes) chargées à part : la fiche s'affiche sans les attendre
-  const extraP = api.urbanismeAt(pt, api.EXTRA_LAYERS);
-  let urba, bati, risq, occAt, fr;
+  // Affichage progressif : la fiche apparaît dès que la zone et le bâti sont connus ;
+  // document, prescriptions, servitudes, risques, parkings, équipements et friches complètent ensuite.
+  const extraP = api.urbanismeAt(pt, api.EXTRA_LAYERS, { retries: 1, timeout: 15000 });
+  const occAtP = api.occupationAt(simple);
+  const frP = api.friches(insee);
+  const risqP = api.risques(pt.coordinates[0], pt.coordinates[1]);
+  let urba, bati;
   try {
-    [urba, bati, risq, occAt, fr] = await Promise.all([
-      api.urbanismeAt(pt, api.CORE_LAYERS), api.batiments(simple), api.risques(pt.coordinates[0], pt.coordinates[1]), api.occupationAt(simple), api.friches(insee),
-    ]);
+    [urba, bati] = await Promise.all([api.urbanismeAt(pt, api.CORE_LAYERS), api.batiments(simple)]);
   } catch (e) { if (token === selToken) { sel = { error: e.message }; renderFiche(); } return; }
   if (token !== selToken) return;
   api.EXTRA_LAYERS.forEach((l) => (urba[l] = 'loading'));
   const zone = (urba['zone-urba'] || [])[0] || null;
   const cc = (urba['secteur-cc'] || [])[0] || null;
-  const doc = (urba.document || [])[0] || null;
-  const partition = zone?.properties.partition || cc?.properties.partition || doc?.properties.partition || null;
-  const zLabel = zone?.properties.libelle || cc?.properties.libelle || (doc ? '?' : 'RNU');
-
-  // Nature du foncier : bâtiments dont le centre est sur la parcelle, parkings, équipements, friches
-  let occ = null;
+  const partition = zone?.properties.partition || cc?.properties.partition || null;
+  const zLabel = zone?.properties.libelle || cc?.properties.libelle || (urba['zone-urba'] === null ? '?' : 'RNU');
   if (bati) {
-    const frMap = new Map(); (fr || []).forEach((x) => x.idus.forEach((i) => frMap.set(i, x)));
-    occ = analyser(f, { bat: grille(bati), park: occAt.parkings ? grille(occAt.parkings) : null, eq: occAt.equipements ? grille(occAt.equipements) : null }, frMap);
     const batSurParcelle = bati.filter((b) => { try { return turf.booleanPointInPolygon(turf.pointOnFeature(b), f); } catch { return false; } });
     map.getSource('bati').setData({ type: 'FeatureCollection', features: batSurParcelle });
   }
-  const batiInfo = occ ? { n: occ.stats.n - occ.stats.legers, emprise: occ.stats.emprise, sdp: occ.stats.sdp, hmax: occ.stats.hMax } : null;
-  sel = {
-    feature: f, urba, zone, cc, doc, partition, zLabel, key: store.ruleKey(partition, zLabel), bati: batiInfo, occ, risques: risq, pt,
-    friches: fr, occAtOk: !!(occAt.parkings && occAt.equipements), contraintes: null, commune: null,
+  const analyse = (occAt, fr) => {
+    if (!bati) return null;
+    const frMap = new Map(); (fr || []).forEach((x) => x.idus.forEach((i) => frMap.set(i, x)));
+    return analyser(f, { bat: grille(bati), park: occAt && occAt.parkings ? grille(occAt.parkings) : null, eq: occAt && occAt.equipements ? grille(occAt.equipements) : null }, frMap);
   };
+  const occ = analyse(null, null);
+  sel = {
+    feature: f, urba, zone, cc, doc: null, partition, zLabel, key: store.ruleKey(partition, zLabel),
+    bati: occ ? { n: occ.stats.n - occ.stats.legers, emprise: occ.stats.emprise, sdp: occ.stats.sdp, hmax: occ.stats.hMax } : null,
+    occ, risques: undefined, pt, friches: undefined, occAtOk: false, occComplet: false, contraintes: null, commune: null,
+  };
+  const rerender = () => { if (token !== selToken) return; if (tab === 'fiche') renderFiche(); else if (tab === 'pot') renderPot(); };
   extraP.then((x) => {
     if (token !== selToken) return;
     Object.assign(sel.urba, x);
+    sel.doc = (x.document || [])[0] || null;
+    if (!sel.partition && sel.doc) { sel.partition = sel.doc.properties.partition; sel.key = store.ruleKey(sel.partition, sel.zLabel); }
     const ps = Array.isArray(x['prescription-surf']) ? x['prescription-surf'] : null;
     sel.contraintes = ps ? contraintesDe(f, grille(ps.filter((p) => p.geometry)), occ ? occ.S : +f.properties.contenance) : null;
-    if (tab === 'fiche') renderFiche();
+    rerender();
   });
+  Promise.all([occAtP, frP]).then(([occAt, fr]) => {
+    if (token !== selToken) return;
+    sel.friches = fr; sel.occAtOk = !!(occAt.parkings && occAt.equipements); sel.occComplet = true;
+    const o = analyse(occAt, fr); if (o) sel.occ = o;
+    rerender();
+  });
+  risqP.then((r) => { if (token === selToken) { sel.risques = r; rerender(); } });
   api.communeByCode(insee).then((c) => { if (token === selToken) { sel.commune = c; if (tab === 'fiche' && ficheTab === 'commune') renderFiche(); } }).catch(() => {});
   if (tab === 'pot') renderPot(); else renderFiche();
 }
@@ -333,7 +345,7 @@ function ficheUrba(body) {
   const regl = api.reglementUrl(sel.zone, sel.partition);
   body.innerHTML = `
     <dl class="kv">
-      <dt>Document</dt><dd>${d ? `${esc(d.du_type || 'Document')} · ${esc(d.grid_title || sel.partition || '')}${z && z.datappro ? ' · approuvé le ' + esc(String(z.datappro).replace(/^(\d{4})(\d{2})(\d{2})$/, '$3/$2/$1')) : ''}` : sel.cc ? 'Carte communale' : sel.partition ? `Document ${esc(sel.partition)}` : sel.urba.document === null ? '<span class="pill wa">service indisponible</span>' : 'Aucun document au GPU (RNU possible)'}</dd>
+      <dt>Document</dt><dd>${d ? `${esc(d.du_type || 'Document')} · ${esc(d.grid_title || sel.partition || '')}${z && z.datappro ? ' · approuvé le ' + esc(String(z.datappro).replace(/^(\d{4})(\d{2})(\d{2})$/, '$3/$2/$1')) : ''}` : sel.cc ? 'Carte communale' : sel.urba.document === 'loading' ? (sel.partition ? `${esc(sel.partition)} <span class="note">(chargement…)</span>` : 'Chargement…') : sel.partition ? `Document ${esc(sel.partition)}` : sel.urba.document === null ? '<span class="pill wa">service indisponible</span>' : 'Aucun document au GPU (RNU possible)'}</dd>
       <dt>Zone</dt><dd>${z ? `<b>${esc(z.libelle)}</b> ${esc(z.libelong || '')} <span class="pill ${constr ? 'ok' : constr === false ? 'no' : 'wa'}">${esc(z.typezone || '')}</span>` : sel.cc ? esc(sel.cc.properties.libelle || 'Secteur de carte communale') : '—'}</dd>
       <dt>Destination</dt><dd>${z && z.destdomi ? esc(z.destdomi) : 'Non renseignée au GPU'}</dd>
       <dt>OAP</dt><dd>${pending ? 'Chargement…' : oap.length ? oap.map((x) => esc(x.properties.libelle)).join(' · ') : 'Aucune détectée'}</dd>
@@ -364,8 +376,8 @@ function ficheBati(body) {
       <dt>Logements</dt><dd>${st.logements}${st.logInconnus ? ` (+ ${st.logInconnus} bâtiment(s) résidentiel(s) sans nombre connu)` : ''}</dd>
       <dt>Hauteur max</dt><dd>${st.hMax ? `${f0(st.hMax)} m, ${st.etagesMax || '?'} étage(s)` : '—'}</dd>
       <dt>Bâti le plus récent</dt><dd>${st.anneeMax ? `apparu en ${st.anneeMax}` : 'Inconnu'}</dd>
-      <dt>Parking</dt><dd>${sel.occAtOk ? (occ.ctx.parkingPart ? `${Math.round(occ.ctx.parkingPart * 100)} % de la parcelle` : 'Aucun parking recensé') : 'Donnée indisponible'}</dd>
-      <dt>Friche</dt><dd>${fr ? `${esc(fr.nom || fr.type)} · ${esc(fr.statut || '')} (Cartofriches)` : sel.friches === null ? 'Cartofriches indisponible' : 'Non recensée'}</dd>
+      <dt>Parking</dt><dd>${!sel.occComplet ? 'Chargement…' : sel.occAtOk ? (occ.ctx.parkingPart ? `${Math.round(occ.ctx.parkingPart * 100)} % de la parcelle` : 'Aucun parking recensé') : 'Donnée indisponible'}</dd>
+      <dt>Friche</dt><dd>${fr ? `${esc(fr.nom || fr.type)} · ${esc(fr.statut || '')} (Cartofriches)` : sel.friches === undefined ? 'Chargement…' : sel.friches === null ? 'Cartofriches indisponible' : 'Non recensée'}</dd>
       <dt>Équipement public</dt><dd>${occ.ctx.equipement ? esc(occ.ctx.equipement) : 'Non'}</dd>
     </dl>
     ${occ.flags.length ? `<div class="chips">${occ.flags.map((x) => `<span class="chip">${esc(x.t)}</span>`).join('')}</div>` : ''}
@@ -387,7 +399,7 @@ function ficheContraintes(body) {
     <dl class="kv">
       <dt>Servitudes</dt><dd>${pending ? 'Chargement…' : sup.length ? [...new Set(sup)].map(esc).join(' · ') : 'Aucune au GPU'}</dd>
       <dt>Informations</dt><dd>${pending ? 'Chargement…' : infos.length ? [...new Set(infos)].map(esc).join(' · ') : 'Aucune'}</dd>
-      <dt>Risques (commune)</dt><dd>${sel.risques ? (sel.risques.length ? sel.risques.map(esc).join(' · ') : 'Aucun recensé') : 'Donnée indisponible'}</dd>
+      <dt>Risques (commune)</dt><dd>${sel.risques === undefined ? 'Chargement…' : sel.risques ? (sel.risques.length ? sel.risques.map(esc).join(' · ') : 'Aucun recensé') : 'Donnée indisponible'}</dd>
       <dt>Forme</dt><dd>${compacite(sel.feature) < 0.35 ? 'Étroite ou en lanière : implantation contrainte' : 'Compacte'}</dd>
     </dl>
     ${pot && pot.ok && pot.contraintes.length ? `<div><div class="label">Contraintes du calcul de potentiel</div><ul class="list">${pot.contraintes.map((c) => `<li>${esc(c.t)}</li>`).join('')}</ul></div>` : ''}`;
@@ -402,8 +414,8 @@ function ficheCommune(body) {
       <dt>Commune</dt><dd>${esc(p.nom_com)} (${esc(p.code_insee)})</dd>
       <dt>Population</dt><dd>${c && c.population ? `${f0(c.population)} habitants (Insee)` : 'Chargement…'}</dd>
       <dt>Document d'urbanisme</dt><dd>${esc(sel.doc?.properties.du_type || '')} ${esc(sel.doc?.properties.grid_title || sel.partition || 'non trouvé')}</dd>
-      <dt>Friches recensées</dt><dd>${fr === null ? 'Cartofriches indisponible' : fr && fr.length ? fr.map((x) => `${esc(x.nom || x.type)} <span class="note">(${esc(x.statut || '')}, ${m2(x.surface)})</span>`).join('<br>') : 'Aucune'}</dd>
-      <dt>Risques</dt><dd>${sel.risques ? (sel.risques.length ? sel.risques.map(esc).join(' · ') : 'Aucun recensé') : 'Donnée indisponible'}</dd>
+      <dt>Friches recensées</dt><dd>${fr === undefined ? 'Chargement…' : fr === null ? 'Cartofriches indisponible' : fr && fr.length ? fr.map((x) => `${esc(x.nom || x.type)} <span class="note">(${esc(x.statut || '')}, ${m2(x.surface)})</span>`).join('<br>') : 'Aucune'}</dd>
+      <dt>Risques</dt><dd>${sel.risques === undefined ? 'Chargement…' : sel.risques ? (sel.risques.length ? sel.risques.map(esc).join(' · ') : 'Aucun recensé') : 'Donnée indisponible'}</dd>
     </dl>
     <div class="actions">
       <a href="https://explore.data.gouv.fr/fr/immobilier?onglet=carte&filtre=tous&lat=${lat}&lng=${lng}&zoom=15" target="_blank" rel="noopener">Ventes DVF autour</a>

@@ -147,8 +147,13 @@ export function initProspection(ctx) {
     try {
       if (!bounds) ctx.map.flyTo({ center: com.centre.coordinates, zoom: 13 });
       setStatus(`Document d'urbanisme de ${esc(com.nom)}…`, 3);
-      const docs = await api.gpuAt('document', com.centre);
-      const partition = docs[0]?.properties.partition;
+      // Le PLU est identifié par la zone au centre de la commune (service rapide), le service « document » en secours
+      let partition = null;
+      try { partition = (await api.gpuAt('zone-urba', com.centre, { retries: 1 }))[0]?.properties.partition || null; } catch { partition = null; }
+      if (!partition) {
+        try { partition = (await api.gpuAt('secteur-cc', com.centre, { retries: 1 }))[0]?.properties.partition || null; } catch { partition = null; }
+      }
+      if (!partition) partition = (await api.gpuAt('document', com.centre))[0]?.properties.partition || null;
       if (!partition) throw new api.ApiError(`Aucun PLU publié au Géoportail de l'Urbanisme pour ${com.nom} (RNU ou document non numérisé)`);
 
       setStatus(`Zonage ${esc(partition)}…`, 6);

@@ -168,16 +168,13 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   const occAtP = api.occupationAt(simple);
   const frP = api.friches(insee);
   const risqP = api.risques(pt.coordinates[0], pt.coordinates[1]);
-  let urba, bati;
-  try {
-    [urba, bati] = await Promise.all([api.urbanismeAt(pt, api.CORE_LAYERS, { retries: 1, timeout: 12000 }), api.batiments(simple)]);
-  } catch (e) { if (token === selToken) { sel = { error: e.message }; renderFiche(); } return; }
+  const coreP = api.urbanismeAt(pt, api.CORE_LAYERS, { retries: 1, timeout: 10000 });
+  let bati;
+  try { bati = await api.batiments(simple); } catch { bati = null; }
   if (token !== selToken) return;
-  api.EXTRA_LAYERS.forEach((l) => (urba[l] = 'loading'));
-  const zone = (urba['zone-urba'] || [])[0] || null;
-  const cc = (urba['secteur-cc'] || [])[0] || null;
-  const partition = zone?.properties.partition || cc?.properties.partition || null;
-  const zLabel = zone?.properties.libelle || cc?.properties.libelle || (urba['zone-urba'] === null ? '?' : 'RNU');
+  const urba = {};
+  [...api.CORE_LAYERS, ...api.EXTRA_LAYERS].forEach((l) => (urba[l] = 'loading'));
+  const zone = null, cc = null, partition = null, zLabel = '?';
   if (bati) {
     const batSurParcelle = bati.filter((b) => { try { return turf.booleanPointInPolygon(turf.pointOnFeature(b), f); } catch { return false; } });
     map.getSource('bati').setData({ type: 'FeatureCollection', features: batSurParcelle });
@@ -194,13 +191,23 @@ async function selectFeature(f, token = ++selToken, forceTab) {
     occ, risques: undefined, pt, friches: undefined, occAtOk: false, occComplet: false, contraintes: null, commune: null,
   };
   const rerender = () => { if (token !== selToken) return; if (tab === 'fiche') renderFiche(); else if (tab === 'pot') renderPot(); };
+  coreP.then((x) => {
+    if (token !== selToken) return;
+    Object.assign(sel.urba, x);
+    sel.zone = (x['zone-urba'] || [])[0] || null;
+    sel.cc = (x['secteur-cc'] || [])[0] || null;
+    sel.partition = sel.zone?.properties.partition || sel.cc?.properties.partition || sel.partition || null;
+    sel.zLabel = sel.zone?.properties.libelle || sel.cc?.properties.libelle || (x['zone-urba'] === null ? '?' : 'RNU');
+    sel.key = store.ruleKey(sel.partition, sel.zLabel);
+    rerender();
+  });
   extraP.then((x) => {
     if (token !== selToken) return;
     Object.assign(sel.urba, x);
     sel.doc = (x.document || [])[0] || null;
-    if (!sel.partition && sel.doc) { sel.partition = sel.doc.properties.partition; sel.key = store.ruleKey(sel.partition, sel.zLabel); }
+    if (!sel.partition && sel.doc) { sel.partition = sel.doc.properties.partition; if (sel.urba['zone-urba'] !== 'loading') sel.key = store.ruleKey(sel.partition, sel.zLabel); }
     const ps = Array.isArray(x['prescription-surf']) ? x['prescription-surf'] : null;
-    sel.contraintes = ps ? contraintesDe(f, grille(ps.filter((p) => p.geometry)), occ ? occ.S : +f.properties.contenance) : null;
+    sel.contraintes = ps ? contraintesDe(f, grille(ps.filter((p) => p.geometry)), sel.occ ? sel.occ.S : +f.properties.contenance) : null;
     rerender();
   });
   Promise.all([occAtP, frP]).then(([occAt, fr]) => {
@@ -295,7 +302,7 @@ function renderFiche() {
       <div><span class="ref">${esc(refOf(p))} · IDU ${esc(p.idu)}</span><h2>${esc(p.nom_com || '')}, section ${esc(p.section)} n° ${esc(p.numero)}</h2></div>
       <div class="actions"><button type="button" class="ghost" id="addCrm">Ajouter au suivi</button><button type="button" class="ghost" id="copyFiche">Copier la fiche</button></div>
     </div>
-    ${sel.urba['zone-urba'] === null ? `<div class="warn">Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment : zonage et règles indisponibles. Les autres informations restent valables. <button type="button" class="ghost" id="retryGpu">Réessayer</button></div>` : ''}
+    ${sel.urba['zone-urba'] === 'loading' ? '<p class="note">Zonage du PLU en cours de chargement…</p>' : ''}${sel.urba['zone-urba'] === null ? `<div class="warn">Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment : zonage et règles indisponibles. Les autres informations restent valables. <button type="button" class="ghost" id="retryGpu">Réessayer</button></div>` : ''}
     <nav class="subtabs" role="tablist">${FICHE_TABS.map(([k, t]) => `<button type="button" role="tab" class="subtab" data-ft="${k}" aria-selected="${ficheTab === k}">${t}</button>`).join('')}</nav>
     <div id="ficheBody" class="fiche-body"></div>`;
   v.querySelectorAll('[data-ft]').forEach((b) => (b.onclick = () => { ficheTab = b.dataset.ft; renderFiche(); }));
@@ -317,7 +324,7 @@ function ficheSynthese(body) {
   body.innerHTML = `
     <div class="kpis">
       <div><span>Surface</span><strong>${m2(p.contenance)}</strong></div>
-      <div><span>Zone</span><strong>${esc(sel.zLabel)}</strong></div>
+      <div><span>Zone</span><strong>${sel.urba['zone-urba'] === 'loading' ? '…' : esc(sel.zLabel)}</strong></div>
       <div><span>Nature</span><strong class="small">${esc(occ ? occ.label : '—')}</strong></div>
       <div><span>Logements</span><strong>${pot && pot.ok ? `${pot.real}` : '?'}</strong></div>
     </div>

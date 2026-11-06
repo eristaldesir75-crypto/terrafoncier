@@ -309,3 +309,22 @@ function normPermis(x) {
     depot: x.AN_DEPOT, adresse: adr, parcelles, insee: x.COMM,
   };
 }
+
+// ---------- Ventes de logements neufs sur plan (VEFA, DVF open data via l'API du Cerema) ----------
+const ventesCache = new Map();
+export function ventesNeuves(insee, { depuis = 2020 } = {}) {
+  const k = `${insee}|${depuis}`;
+  if (ventesCache.has(k)) return ventesCache.get(k);
+  const p = (async () => {
+    const out = [];
+    let url = `https://apidf-preprod.cerema.fr/dvf_opendata/geomutations/?code_insee=${insee}&anneemut_min=${depuis}&vefa=True&page_size=500`;
+    for (let i = 0; url && i < 20; i++) {
+      const fc = await getJSON(url, { timeout: 30000, retries: 1 });
+      out.push(...(fc.features || []));
+      url = fc.next ? String(fc.next).replace(/^http:/, 'https:') : null;
+    }
+    return out;
+  })().catch((e) => { ventesCache.delete(k); throw e; });
+  ventesCache.set(k, p);
+  return p;
+}

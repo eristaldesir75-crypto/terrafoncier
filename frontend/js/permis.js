@@ -70,3 +70,43 @@ export function distances(list, pt) {
   for (const p of list) p.dist = p.centre ? turf.distance(pt, p.centre, { units: 'meters' }) : null;
   return list;
 }
+
+/**
+ * Regroupe les ventes sur plan (VEFA) par programme : même parcelle d'assiette.
+ * Prix au m² calculé seulement sur les ventes d'appartements dont la surface est publiée.
+ */
+export function programmesVefa(features, permisList = []) {
+  const parIdu = new Map();
+  for (const p of permisList) for (const c of p.parcelles) parIdu.set(`${p.insee}000${c.section}${c.numero}`, p);
+  const g = new Map();
+  for (const f of features) {
+    const pr = f.properties, idu = (pr.l_idpar || [])[0];
+    if (!idu) continue;
+    const e = g.get(idu) || { idu, ventes: 0, prix: [], m2: [], debut: pr.datemut, fin: pr.datemut, geom: f.geometry, apparts: 0 };
+    e.ventes++;
+    const v = +pr.valeurfonc || 0, s = +pr.sbati || 0;
+    if (v > 0) e.prix.push(v);
+    if (/APPARTEMENT/i.test(pr.libtypbien || '')) e.apparts++;
+    if (v > 0 && s >= 20 && /APPARTEMENT|MAISON/i.test(pr.libtypbien || '')) e.m2.push(v / s);
+    if (pr.datemut < e.debut) e.debut = pr.datemut;
+    if (pr.datemut > e.fin) e.fin = pr.datemut;
+    g.set(idu, e);
+  }
+  return [...g.values()].map((e) => {
+    let centre = null;
+    try { centre = turf.centroid(e.geom).geometry.coordinates; } catch { centre = null; }
+    const pm = parIdu.get(e.idu) || null;
+    return { ...e, centre, prixMed: mediane(e.prix), m2Med: mediane(e.m2), nM2: e.m2.length, permis: pm, promoteur: pm ? pm.demandeur : null, siren: pm ? pm.siren : null };
+  }).sort((a, b) => (b.fin || '').localeCompare(a.fin || ''));
+}
+
+/** Prix médian du neuf au m², par année. */
+export function prixParAnnee(features) {
+  const a = new Map();
+  for (const f of features) {
+    const pr = f.properties, v = +pr.valeurfonc || 0, s = +pr.sbati || 0;
+    if (!(v > 0 && s >= 20 && /APPARTEMENT|MAISON/i.test(pr.libtypbien || ''))) continue;
+    const y = pr.anneemut; if (!a.has(y)) a.set(y, []); a.get(y).push(v / s);
+  }
+  return [...a.entries()].sort((x, y) => x[0] - y[0]).map(([an, l]) => ({ an, n: l.length, m2: mediane(l) }));
+}

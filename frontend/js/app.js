@@ -62,6 +62,7 @@ const map = new maplibregl.Map({
       hits: { type: 'geojson', data: empty },
       bati: { type: 'geojson', data: empty },
       permis: { type: 'geojson', data: empty },
+      vefa: { type: 'geojson', data: empty },
     },
     layers: [
       { id: 'plan', type: 'raster', source: 'plan' },
@@ -76,6 +77,7 @@ const map = new maplibregl.Map({
       { id: 'bati-fill', type: 'fill', source: 'bati', paint: { 'fill-color': '#7a4ec9', 'fill-opacity': 0.35 } },
       { id: 'sel-fill', type: 'fill', source: 'sel', paint: { 'fill-color': '#2347c5', 'fill-opacity': 0.12 } },
       { id: 'sel-line', type: 'line', source: 'sel', paint: { 'line-color': '#2347c5', 'line-width': 3 } },
+      { id: 'vefa-pt', type: 'circle', source: 'vefa', layout: { visibility: 'none' }, paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'ventes'], 1, 5, 30, 11, 150, 17], 'circle-color': '#8e3fb8', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-opacity': 0.85 } },
       { id: 'permis-pt', type: 'circle', source: 'permis', paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'logements'], 2, 6, 50, 11, 200, 18], 'circle-color': ['match', ['get', 'etat'], 6, '#1f6b45', 5, '#e0661b', 2, '#2347c5', '#8a8f98'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-opacity': 0.9 } },
       { id: 'env-line', type: 'line', source: 'env', paint: { 'line-color': '#e0661b', 'line-width': 2, 'line-dasharray': [2, 1.5] } },
     ],
@@ -84,7 +86,7 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
 map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'top-right');
 map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
-map.on('click', (e) => { if (e.defaultPrevented || (map.getLayer('permis-pt') && map.queryRenderedFeatures(e.point, { layers: ['permis-pt'] }).length)) return; selectAt(e.lngLat.lng, e.lngLat.lat); });
+map.on('click', (e) => { if (e.defaultPrevented || (map.getLayer('permis-pt') && map.queryRenderedFeatures(e.point, { layers: ['permis-pt', 'vefa-pt'] }).length)) return; selectAt(e.lngLat.lng, e.lngLat.lat); });
 
 // Infobulle au survol des terrains de la prospection
 const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: 'tf-pop' });
@@ -100,6 +102,12 @@ map.on('click', 'permis-pt', (e) => {
   const p = e.features[0].properties;
   new maplibregl.Popup({ offset: 10, className: 'tf-pop' }).setLngLat(e.lngLat).setHTML(`<b>${esc(p.demandeur || 'Demandeur non publié')}</b><br>${p.logements} logement(s) dont ${p.collectifs} collectif(s)${+p.sociaux ? `, ${p.sociaux} social(aux)` : ''}<br>${esc(p.etatLib)} · autorisé le ${esc(p.autorisation || '?')}<br><small>${esc(p.num)} · ${esc(p.adresse || '')}</small>`).addTo(map);
 });
+map.on('click', 'vefa-pt', (e) => {
+  const p = e.features[0].properties;
+  new maplibregl.Popup({ offset: 10, className: 'tf-pop' }).setLngLat(e.lngLat).setHTML(`<b>Ventes sur plan · ${esc(p.promoteur || 'programme')}</b><br>${p.ventes} vente(s) du ${esc(p.debut)} au ${esc(p.fin)}<br>${+p.m2Med ? `<b>${f0(+p.m2Med)} €/m²</b> (médiane de ${p.nM2} vente(s))<br>` : ''}${+p.prixMed ? `Prix médian ${f0(+p.prixMed)} €` : ''}<br><small>Parcelle ${esc(p.idu)} · DVF</small>`).addTo(map);
+});
+map.on('mouseenter', 'vefa-pt', () => (map.getCanvas().style.cursor = 'pointer'));
+map.on('mouseleave', 'vefa-pt', () => (map.getCanvas().style.cursor = ''));
 map.on('mouseenter', 'permis-pt', () => (map.getCanvas().style.cursor = 'pointer'));
 map.on('mouseleave', 'permis-pt', () => (map.getCanvas().style.cursor = ''));
 const vis = (id, on) => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
@@ -129,7 +137,13 @@ map.on('load', () => {
   $('#lay-noms').checked = f.noms !== false;
   if (f.sat) { $('#fond-ortho').checked = true; appliquerFond(); }
 });
-$('#lay-permis').addEventListener('change', (e) => { vis('permis-pt', e.target.checked); try { localStorage.setItem('tf-lay-permis', e.target.checked ? '1' : '0'); } catch { /* */ } });
+$('#lay-permis').addEventListener('change', (e) => { vis('permis-pt', e.target.checked); if (e.target.checked && sel && sel.feature && !sel.loading) chargerProjets(selToken); try { localStorage.setItem('tf-lay-permis', e.target.checked ? '1' : '0'); } catch { /* */ } });
+$('#lay-vefa').addEventListener('change', (e) => {
+  vis('vefa-pt', e.target.checked);
+  try { localStorage.setItem('tf-lay-vefa', e.target.checked ? '1' : '0'); } catch { /* */ }
+  if (e.target.checked && sel && sel.feature && !sel.loading) chargerProjets(selToken);
+});
+try { if (localStorage.getItem('tf-lay-vefa') === '1') { $('#lay-vefa').checked = true; map.on('load', () => vis('vefa-pt', true)); } } catch { /* */ }
 try { if (localStorage.getItem('tf-lay-permis') === '0') { $('#lay-permis').checked = false; map.on('load', () => vis('permis-pt', false)); } } catch { /* */ }
 $('#lay-cadastre').addEventListener('change', (e) => vis('cadastre', e.target.checked));
 $('#lay-zonage').addEventListener('change', (e) => vis('zonage', e.target.checked));
@@ -205,6 +219,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   map.getSource('env').setData(empty);
   map.getSource('bati').setData(empty);
   map.getSource('permis').setData(empty);
+  map.getSource('vefa').setData(empty);
   if (forceTab) showTab(forceTab);
   else if (tab !== 'pot' && tab !== 'pro' && tab !== 'crm') showTab('fiche');
   const pt = turf.pointOnFeature(f).geometry;
@@ -287,6 +302,8 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   risqP.then((r) => { if (token === selToken) { sel.risques = r; rerender(); } });
   api.communeByCode(insee).then((c) => { if (token === selToken) { sel.commune = c; if (tab === 'fiche' && ficheTab === 'commune') renderFiche(); } }).catch(() => {});
   if (tab === 'pot') renderPot(); else renderFiche();
+  // constructions récentes et ventes neuves : chargées d'office si une des cases de la carte est cochée
+  if ($('#lay-permis').checked || $('#lay-vefa').checked) setTimeout(() => { if (token === selToken) chargerProjets(token); }, 2500);
 }
 
 // ---------- Règles (saisie / IA) ----------
@@ -568,21 +585,8 @@ const STATUTS_PROJ = { tous: () => true, encours: (p) => p.etat === 2 || p.etat 
 let projOpts = { ...PROJ_DEF };
 try { projOpts = { ...PROJ_DEF, ...JSON.parse(localStorage.getItem('tf-projets') || '{}') }; } catch { /* stockage indisponible */ }
 function ficheProjets(body) {
-  const insee = sel.feature.properties.code_insee, token = selToken;
-  if (sel.permis === undefined) {
-    sel.permis = 'loading';
-    api.permisLogements(insee, { minLogements: 2 }).then(async (l) => {
-      if (token !== selToken) return;
-      sel.permis = l; sel.permisLoc = 0;
-      if (tab === 'fiche' && ficheTab === 'projets') renderFiche();
-      // localisation des opérations récentes (les plus importantes d'abord)
-      const cibles = l.filter((p) => p.logements >= 5 || (p.autorisation || '') >= '2018').sort((a, b) => b.logements - a.logements).slice(0, 120);
-      await permis.localiser(cibles, { onProgress: (d, n) => { if (token === selToken) { sel.permisLoc = d / n; const st = $('#projLoc'); if (st) st.textContent = `Localisation des opérations sur la carte : ${d} / ${n}`; } } });
-      if (token !== selToken) return;
-      permis.distances(l, sel.pt.coordinates); sel.permisLoc = 1;
-      if (tab === 'fiche' && ficheTab === 'projets') renderFiche(); else dessinerPermis();
-    }).catch((e) => { if (token === selToken) { sel.permis = { erreur: e.message }; if (tab === 'fiche' && ficheTab === 'projets') renderFiche(); } });
-  }
+  const insee = sel.feature.properties.code_insee;
+  chargerProjets(selToken);
   if (sel.permis === 'loading') { body.innerHTML = '<p class="note">Recherche des permis de construire de logements de la commune (base Sitadel)…</p>'; return; }
   if (sel.permis.erreur) { body.innerHTML = `<div class="warn">Base des permis indisponible : ${esc(sel.permis.erreur)}. <button type="button" class="ghost" id="projRetry">Réessayer</button></div>`; $('#projRetry', body).onclick = () => { sel.permis = undefined; renderFiche(); }; return; }
   const o = projOpts, an = (p) => +(String(p.autorisation || p.depot || '').slice(0, 4)) || 0;
@@ -620,6 +624,7 @@ function ficheProjets(body) {
         <tr><td>Densité</td><td class="n">${dPot ? f0(dPot) + ' logts/ha' : '—'}</td><td class="n">${S.densiteMed ? f0(S.densiteMed) + ' logts/ha' : '—'}</td></tr>
         <tr><td>Logements par opération</td><td class="n">${pot && pot.ok ? pot.real : '—'}</td><td class="n">${f0(S.lgtMed)}</td></tr>
         <tr><td>Niveaux</td><td class="n">${pot && pot.ok ? pot.niv : '—'}</td><td class="n">${f1(S.nivMed)}</td></tr>
+        ${Array.isArray(sel.ventes) && permis.prixParAnnee(sel.ventes).length ? `<tr><td>Prix du neuf (dernière année)</td><td class="n">—</td><td class="n">${f0(permis.prixParAnnee(sel.ventes).slice(-1)[0].m2)} €/m²</td></tr>` : ''}
         <tr><td>Surface habitable moyenne</td><td class="n">${f0(store.settings().sMoy)} m² (hypothèse)</td><td class="n">${S.shabMed ? f0(S.shabMed) + ' m²' : '—'}</td></tr>
       </table>
       <p class="note">${dPot && S.densiteMed ? (dPot > 1.3 * S.densiteMed ? 'Votre hypothèse est plus dense que ce qui s\'est construit : à justifier auprès de la commune.' : dPot < 0.7 * S.densiteMed ? 'Les opérations voisines sont plus denses : un programme plus important est peut-être acceptable.' : 'Votre hypothèse est cohérente avec les opérations voisines.') : 'Renseignez les règles de la zone pour comparer.'}</p></div>
@@ -627,6 +632,7 @@ function ficheProjets(body) {
       <tr><th>Demandeur</th><th class="n">Opérations</th><th class="n">Logements</th><th class="n">Collectifs</th><th class="n">Sociaux</th><th>Dernier permis</th></tr>
       ${S.promoteurs.slice(0, 15).map((x) => `<tr><td>${promoLien(x)}</td><td class="n">${x.ops}</td><td class="n">${x.logements}</td><td class="n">${x.collectifs}</td><td class="n">${x.sociaux}</td><td>${esc(x.derniere)}</td></tr>`).join('')}
     </table></div><p class="note">Le nom n'est publié que pour les sociétés. Une SCCV ou une SCI porte souvent une seule opération d'un promoteur : la fiche entreprise donne ses dirigeants.</p></div>` : ''}
+    ${vefaHtml()}
     <div class="res-head"><div class="label">Opérations (${L.length})</div>${L.length ? '<button type="button" class="ghost" id="projCsv">Exporter en CSV</button>' : ''}</div>
     ${L.length ? `<div class="tw"><table class="res-table">
       <tr><th>Demandeur</th><th class="n">Logts</th><th class="n">Coll.</th><th class="n">Soc.</th><th class="n">Terrain</th><th class="n">Densité</th><th class="n">Niv.</th><th>État</th><th>Autorisé</th><th class="n">Distance</th></tr>
@@ -642,6 +648,9 @@ function ficheProjets(body) {
     try { localStorage.setItem('tf-projets', JSON.stringify(projOpts)); } catch { /* stockage indisponible */ }
     renderFiche();
   };
+  dessinerVefa();
+  const GV = (sel.programmes || []).slice().sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
+  body.querySelectorAll('tr[data-vf]').forEach((tr) => (tr.onclick = (ev) => { if (ev.target.closest('a')) return; const g = GV[+tr.dataset.vf]; if (g && g.centre) map.flyTo({ center: g.centre, zoom: 17 }); }));
   body.querySelectorAll('tr[data-pj]').forEach((tr) => (tr.onclick = (ev) => { if (ev.target.closest('a')) return; const p = L[+tr.dataset.pj]; if (p.centre) map.flyTo({ center: p.centre, zoom: 17 }); }));
   const csv = $('#projCsv', body);
   if (csv) csv.onclick = () => {
@@ -650,6 +659,52 @@ function ficheProjets(body) {
       ...L.map((p) => [p.num, p.demandeur, p.siren, p.adresse, p.parcelles[0] ? p.parcelles[0].section + ' ' + p.parcelles[0].numero : '', p.logements, p.collectifs, p.individuels, p.sociaux, p.terrain, p.shab, p.niveaux, permis.densite(p) ? Math.round(permis.densite(p)) : '', p.etatLib, p.autorisation, p.chantier, p.achevement, p.dist ? Math.round(p.dist) : ''].map(c).join(';'))];
     download(`constructions-${insee}.csv`, '﻿' + rows.join('\n'), 'text/csv');
   };
+}
+// Chargement des permis (Sitadel) et des ventes sur plan (DVF) de la commune, puis localisation des opérations
+function chargerProjets(token) {
+  if (!sel || !sel.feature) return;
+  const insee = sel.feature.properties.code_insee;
+  const refresh = () => { if (token !== selToken) return; if (tab === 'fiche' && ficheTab === 'projets') renderFiche(); else { dessinerPermis(); dessinerVefa(); } };
+  if (sel.permis === undefined) {
+    sel.permis = 'loading';
+    api.permisLogements(insee, { minLogements: 2 }).then(async (l) => {
+      if (token !== selToken) return;
+      sel.permis = l; sel.permisLoc = 0;
+      refresh();
+      const cibles = l.filter((p) => p.logements >= 5 || (p.autorisation || '') >= '2018').sort((a, b) => b.logements - a.logements).slice(0, 120);
+      await permis.localiser(cibles, { onProgress: (d, n) => { if (token === selToken) { sel.permisLoc = d / n; const st = $('#projLoc'); if (st) st.textContent = `Localisation des opérations sur la carte : ${d} / ${n}`; } } });
+      if (token !== selToken) return;
+      permis.distances(l, sel.pt.coordinates); sel.permisLoc = 1;
+      if (Array.isArray(sel.ventes)) sel.programmes = permis.programmesVefa(sel.ventes, l);
+      refresh();
+    }).catch((e) => { if (token === selToken) { sel.permis = { erreur: e.message }; refresh(); } });
+  }
+  if (sel.ventes === undefined) {
+    sel.ventes = 'loading';
+    api.ventesNeuves(insee, { depuis: 2020 }).then((v) => {
+      if (token !== selToken) return;
+      sel.ventes = v;
+      sel.programmes = permis.programmesVefa(v, Array.isArray(sel.permis) ? sel.permis : []);
+      for (const g of sel.programmes) g.dist = g.centre ? turf.distance(sel.pt.coordinates, g.centre, { units: 'meters' }) : null;
+      refresh();
+    }).catch((e) => { if (token === selToken) { sel.ventes = { erreur: e.message }; refresh(); } });
+  }
+}
+function dessinerVefa() {
+  const L = Array.isArray(sel?.programmes) ? sel.programmes : [];
+  map.getSource('vefa').setData({ type: 'FeatureCollection', features: L.filter((g) => g.centre).map((g) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: g.centre }, properties: { idu: g.idu, ventes: g.ventes, debut: g.debut, fin: g.fin, m2Med: g.m2Med || 0, nM2: g.nM2, prixMed: g.prixMed || 0, promoteur: g.promoteur || '' } })) });
+}
+function vefaHtml() {
+  if (sel.ventes === 'loading' || sel.ventes === undefined) return '<p class="note">Chargement des ventes de logements neufs (DVF)…</p>';
+  if (sel.ventes.erreur) return `<p class="note">Ventes DVF indisponibles pour le moment (${esc(sel.ventes.erreur)}).</p>`;
+  const ans = permis.prixParAnnee(sel.ventes), G = (sel.programmes || []).slice().sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
+  const promoLien = (g) => g.siren ? `<a href="https://annuaire-entreprises.data.gouv.fr/entreprise/${encodeURIComponent(g.siren)}" target="_blank" rel="noopener">${esc(g.promoteur)}</a>` : '<span class="note">—</span>';
+  return `<div class="vefa-sec"><div class="label">Ventes de logements neufs sur plan (VEFA) depuis 2020</div>
+    <p class="note">${sel.ventes.length} vente(s) en ${G.length} programme(s). Prix réels enregistrés par les notaires (DVF), publiés avec quelques mois de décalage. ${$('#lay-vefa').checked ? 'Points violets sur la carte.' : 'Cochez « Ventes neuves (prix) » sur la carte pour les voir.'}</p>
+    ${ans.length ? `<div class="tw"><table><tr><th>Année</th>${ans.map((a) => `<th class="n">${a.an}</th>`).join('')}</tr><tr><td>Prix médian du neuf</td>${ans.map((a) => `<td class="n"><b>${f0(a.m2)} €/m²</b><br><small class="note">${a.n} vente(s)</small></td>`).join('')}</tr></table></div>` : '<p class="note">Aucune vente avec surface publiée : prix au m² non calculable.</p>'}
+    ${G.length ? `<div class="tw"><table class="res-table"><tr><th>Programme (parcelle)</th><th>Promoteur (permis)</th><th class="n">Ventes</th><th class="n">€/m²</th><th>Période</th><th class="n">Distance</th></tr>
+      ${G.slice(0, 40).map((g, i) => `<tr data-vf="${i}" class="clic"><td>${esc(g.idu.slice(8))}</td><td>${promoLien(g)}</td><td class="n">${g.ventes}</td><td class="n">${g.m2Med ? f0(g.m2Med) : '—'}</td><td>${esc(g.debut)} → ${esc(g.fin)}</td><td class="n">${g.dist !== null && g.dist !== undefined ? (g.dist < 1000 ? f0(g.dist) + ' m' : (Math.round(g.dist / 100) / 10).toLocaleString('fr-FR') + ' km') : '—'}</td></tr>`).join('')}
+    </table></div>` : ''}</div>`;
 }
 function dessinerPermis(list) {
   const L = list || (Array.isArray(sel?.permis) ? sel.permis.filter((p) => p.etat !== 4 && p.logements >= projOpts.min) : []);

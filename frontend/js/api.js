@@ -21,7 +21,8 @@ async function getJSON(url, { timeout = 20000, signal, retries = 2 } = {}) {
       if (!r.ok) throw Object.assign(new ApiError(`Le service a répondu ${r.status} (${host})`), { final: true });
       const j = await r.json();
       // API Carto peut répondre 200 avec un message d'erreur du serveur IGN surchargé, sans « features »
-      if (j && typeof j === 'object' && !Array.isArray(j) && !('features' in j) && (j.message || j.code)) {
+      // (une commune de geo.api.gouv.fr a aussi un champ « code » : seul un message d'erreur compte)
+      if (j && typeof j === 'object' && !Array.isArray(j) && !('features' in j) && (j.type === 'error' || (j.message && typeof j.code !== 'string'))) {
         throw new ApiError(`Le service ${host} est momentanément indisponible`);
       }
       return j;

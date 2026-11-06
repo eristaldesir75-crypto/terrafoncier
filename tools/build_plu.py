@@ -227,7 +227,7 @@ def depuis_archive(doc):
             if gdf.crs is None:
                 gdf = gdf.set_crs(2154)
             gdf = gdf.to_crs(4326)
-            couches[m.group(1).lower()] = json.loads(gdf.to_json(drop_id=True))["features"]
+            couches[m.group(1).lower()] = json.loads(gdf.to_json(drop_id=True, default=str))["features"]
         return couches, mode
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

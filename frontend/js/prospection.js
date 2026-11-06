@@ -153,7 +153,10 @@ export function initProspection(ctx) {
       if (!partition) {
         try { partition = (await api.gpuAt('secteur-cc', com.centre, { retries: 1 }))[0]?.properties.partition || null; } catch { partition = null; }
       }
-      if (!partition) partition = (await api.gpuAt('document', com.centre))[0]?.properties.partition || null;
+      if (!partition) {
+        try { partition = (await api.gpuAt('document', com.centre, { retries: 1 }))[0]?.properties.partition || null; }
+        catch { throw new api.ApiError("Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment. Réessayez dans quelques minutes"); }
+      }
       if (!partition) throw new api.ApiError(`Aucun PLU publié au Géoportail de l'Urbanisme pour ${com.nom} (RNU ou document non numérisé)`);
 
       setStatus(`Zonage ${esc(partition)}…`, 6);

@@ -170,7 +170,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   const risqP = api.risques(pt.coordinates[0], pt.coordinates[1]);
   let urba, bati;
   try {
-    [urba, bati] = await Promise.all([api.urbanismeAt(pt, api.CORE_LAYERS), api.batiments(simple)]);
+    [urba, bati] = await Promise.all([api.urbanismeAt(pt, api.CORE_LAYERS, { retries: 1, timeout: 12000 }), api.batiments(simple)]);
   } catch (e) { if (token === selToken) { sel = { error: e.message }; renderFiche(); } return; }
   if (token !== selToken) return;
   api.EXTRA_LAYERS.forEach((l) => (urba[l] = 'loading'));
@@ -295,9 +295,11 @@ function renderFiche() {
       <div><span class="ref">${esc(refOf(p))} · IDU ${esc(p.idu)}</span><h2>${esc(p.nom_com || '')}, section ${esc(p.section)} n° ${esc(p.numero)}</h2></div>
       <div class="actions"><button type="button" class="ghost" id="addCrm">Ajouter au suivi</button><button type="button" class="ghost" id="copyFiche">Copier la fiche</button></div>
     </div>
+    ${sel.urba['zone-urba'] === null ? `<div class="warn">Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment : zonage et règles indisponibles. Les autres informations restent valables. <button type="button" class="ghost" id="retryGpu">Réessayer</button></div>` : ''}
     <nav class="subtabs" role="tablist">${FICHE_TABS.map(([k, t]) => `<button type="button" role="tab" class="subtab" data-ft="${k}" aria-selected="${ficheTab === k}">${t}</button>`).join('')}</nav>
     <div id="ficheBody" class="fiche-body"></div>`;
   v.querySelectorAll('[data-ft]').forEach((b) => (b.onclick = () => { ficheTab = b.dataset.ft; renderFiche(); }));
+  const rg = $('#retryGpu', v); if (rg) rg.onclick = () => selectFeature(sel.feature);
   $('#addCrm', v).onclick = () => {
     const pot = potentielSel(), s = noteSel(pot);
     const ok = store.addToCrm({ idu: p.idu, ref: refOf(p), commune: p.nom_com, zone: sel.zLabel, contenance: p.contenance, centre: sel.pt.coordinates, geometry: turf.truncate(sel.feature, { precision: 6 }).geometry, nature: sel.occ?.label || '', note: '', score: s ? s.tot : null });

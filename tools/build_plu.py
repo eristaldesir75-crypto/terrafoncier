@@ -52,7 +52,7 @@ def get(url, *, params=None, tries=3, timeout=40, stream=False):
 
 def gpu_json(path, params=None):
     r = get(f"{GPU}{path}", params=params)
-    if r.status_code == 404:
+    if r.status_code in (400, 404):  # grille inconnue du GPU (EPCI récent, etc.)
         return None
     r.raise_for_status()
     return r.json()
@@ -206,13 +206,19 @@ def depuis_archive(doc):
 
 
 def depuis_apicarto(partition, layer):
-    out, start = [], 0
-    while start < 50000:
+    """Pages de 1000 ; le service ignore parfois la pagination et renvoie tout, ou la même page : dédoublonnage par identifiant."""
+    out, vus, start = [], set(), 0
+    while start < 100000:
         r = get(f"{APICARTO}/{layer}", params={"partition": partition, "_limit": 1000, "_start": start}, tries=5, timeout=120)
         r.raise_for_status()
         f = r.json().get("features", [])
-        out += f
-        if len(f) < 1000:
+        nouveaux = 0
+        for x in f:
+            k = x.get("id") or json.dumps(x.get("properties"), sort_keys=True)[:200] + str(len(json.dumps(x.get("geometry"))))
+            if k in vus:
+                continue
+            vus.add(k); out.append(x); nouveaux += 1
+        if len(f) != 1000 or nouveaux == 0:
             break
         start += 1000
     return out
@@ -224,7 +230,7 @@ def copie_document(doc, dest):
     try:
         couches, source = depuis_archive(doc)
     except Exception as e:
-        log(f"  {part} : archive illisible ({e}), secours API Carto")
+        log(f"  {part} : archive illisible ({type(e).__name__}: {str(e)[:300]}), secours API Carto")
     if not (couches.get("zone_urba") or couches.get("secteur_cc")):
         try:
             z = depuis_apicarto(part, "zone-urba") or depuis_apicarto(part, "secteur-cc")
@@ -238,8 +244,15 @@ def copie_document(doc, dest):
         raise RuntimeError(f"{part} : zonage vide")
     d = dest / "p" / part
     d.mkdir(parents=True, exist_ok=True)
-    (d / "zones.json").write_text(json.dumps({"type": "FeatureCollection", "features": zones}, ensure_ascii=False, separators=(",", ":")))
-    (d / "presc.json").write_text(json.dumps({"type": "FeatureCollection", "features": presc}, ensure_ascii=False, separators=(",", ":")))
+    for nom, feats in (("zones.json", zones), ("presc.json", presc)):
+        txt = json.dumps({"type": "FeatureCollection", "features": feats}, ensure_ascii=False, separators=(",", ":"))
+        if len(txt) > 80e6:  # limite GitHub de 100 Mo par fichier : coordonnées au mètre près
+            for f in feats:
+                f["geometry"]["coordinates"] = arrondi(f["geometry"]["coordinates"], 5)
+            txt = json.dumps({"type": "FeatureCollection", "features": feats}, ensure_ascii=False, separators=(",", ":"))
+        if len(txt) > 95e6:
+            raise RuntimeError(f"{part} : {nom} trop volumineux ({len(txt)/1e6:.0f} Mo)")
+        (d / nom).write_text(txt)
     return {"id": did, "nom": doc.get("originalName"), "type": doc.get("type"), "maj": doc.get("updateDate"),
             "zones": len(zones), "presc": len(presc), "source": source, "copie": time.strftime("%Y-%m-%d")}
 

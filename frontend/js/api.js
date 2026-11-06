@@ -123,6 +123,32 @@ export async function urbanismeAt(geom, layers = [...CORE_LAYERS, ...EXTRA_LAYER
   return o;
 }
 
+/**
+ * Même information que urbanismeAt, lue sur le service cartographique (WMS) du Géoportail de l'Urbanisme.
+ * Ce service tourne sur une autre infrastructure qu'API Carto : il sert de secours quand API Carto est saturé,
+ * et il renvoie aussi les prescriptions graphiques (hauteur, emprise, pleine terre) avec leur valeur.
+ * Retourne un objet { 'zone-urba': [...], 'secteur-cc': [...], 'prescription-surf': [...], 'info-surf': [...], ... }.
+ */
+const WMS_DU = 'https://data.geopf.fr/wms-v/ows';
+const WMS_KEYS = { zone_urba: 'zone-urba', secteur_cc: 'secteur-cc', prescription_surf: 'prescription-surf', prescription_lin: 'prescription-lin', prescription_pct: 'prescription-pct', info_surf: 'info-surf', info_lin: 'info-lin', info_pct: 'info-pct', doc_urba: 'document' };
+export async function duAt(lng, lat, opts = {}) {
+  const d = 0.0002; // ± 20 m autour du point, 101 × 101 pixels : un pixel ≈ 0,3 m
+  const u = `${WMS_DU}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&LAYERS=du&QUERY_LAYERS=du&STYLES=&CRS=EPSG:4326`
+    + `&BBOX=${lat - d},${lng - d},${lat + d},${lng + d}&WIDTH=101&HEIGHT=101&I=50&J=50&INFO_FORMAT=application/json&FEATURE_COUNT=200`;
+  const fc = await getJSON(u, { timeout: 20000, retries: 1, ...opts });
+  const out = { 'zone-urba': [], 'secteur-cc': [], 'prescription-surf': [], 'prescription-lin': [], 'info-surf': [] };
+  const seen = new Set();
+  for (const f of fc.features || []) {
+    const id = String(f.id || '');
+    if (seen.has(id)) continue; seen.add(id);
+    const m = id.match(/^([a-z]+_[a-z]+)_du_/);
+    const k = m && WMS_KEYS[m[1]];
+    if (!k) continue;
+    (out[k] = out[k] || []).push(f);
+  }
+  return out;
+}
+
 /** URL d'accès au règlement pour une zone du GPU. */
 export function reglementUrl(zone, partition) {
   const p = zone && zone.properties;

@@ -5,6 +5,7 @@ import * as store from './store.js';
 import { grille, analyser } from './occupation.js';
 import { noter, contraintesDe, compacite } from './score.js';
 import { initProspection, CRIT_DEFAUT } from './prospection.js';
+import { reglesGraphiques, fusionRegles } from './regles.js';
 
 // ---------- Utilitaires ----------
 const $ = (s, el = document) => el.querySelector(s);
@@ -162,10 +163,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   map.getSource('env').setData(empty);
   map.getSource('bati').setData(empty);
   if (forceTab) showTab(forceTab);
-  else if (tab !== 'pot' && tab !== 'pro' && tab !== 'crm') // Diagnostic (console du navigateur) : état courant de la fiche
-window.tfDebug = () => ({ tab, ficheTab, selToken, sel });
-
-showTab('fiche');
+  else if (tab !== 'pot' && tab !== 'pro' && tab !== 'crm') showTab('fiche');
   const pt = turf.pointOnFeature(f).geometry;
   const simple = turf.truncate(turf.simplify(f, { tolerance: 0.000005, highQuality: true }), { precision: 6 }).geometry;
   const insee = f.properties.code_insee;
@@ -174,6 +172,8 @@ showTab('fiche');
   // Le navigateur limite à 6 requêtes simultanées par serveur : les appels rapides (bâti, parkings) partent d'abord,
   // les appels au Géoportail de l'Urbanisme (parfois lents) ensuite, pour ne pas les bloquer.
   const frP = api.friches(insee);
+  // Service cartographique du GPU : autre serveur qu'API Carto, sert de secours et donne les règles du plan graphique
+  const duP = api.duAt(pt.coordinates[0], pt.coordinates[1], { signal }).catch(() => null);
   const risqP = api.risques(pt.coordinates[0], pt.coordinates[1]);
   let bati;
   try { bati = await api.batiments(simple); } catch { bati = null; }
@@ -197,10 +197,25 @@ showTab('fiche');
   sel = {
     feature: f, urba, zone, cc, doc: null, partition, zLabel, key: store.ruleKey(partition, zLabel),
     bati: occ ? { n: occ.stats.n - occ.stats.legers, emprise: occ.stats.emprise, sdp: occ.stats.sdp, hmax: occ.stats.hMax } : null,
-    occ, risques: undefined, pt, friches: undefined, occAtOk: false, occComplet: false, contraintes: null, commune: null,
+    occ, risques: undefined, pt, friches: undefined, occAtOk: false, occComplet: false, contraintes: null, commune: null, graph: null, viaWms: false,
   };
   const rerender = () => { if (token !== selToken) return; if (tab === 'fiche') renderFiche(); else if (tab === 'pot') renderPot(); };
-  coreP.then((x) => {
+  const appliquerGraph = () => {
+    const ps = Array.isArray(sel.urba['prescription-surf']) ? sel.urba['prescription-surf'] : null;
+    sel.graph = ps ? reglesGraphiques(ps) : null;
+  };
+  // API Carto en panne : zonage et prescriptions repris du service cartographique (même base GPU)
+  const secours = (x, layers) => {
+    if (!layers.every((l) => x[l] === null)) return Promise.resolve(x);
+    return duP.then((d) => {
+      if (!d) return x;
+      const y = { ...x };
+      layers.forEach((l) => { if (d[l]) y[l] = d[l]; });
+      sel.viaWms = true;
+      return y;
+    });
+  };
+  coreP.then((x0) => secours(x0, ['zone-urba', 'secteur-cc'])).then((x) => {
     if (token !== selToken) return;
     Object.assign(sel.urba, x);
     sel.zone = (x['zone-urba'] || [])[0] || null;
@@ -210,9 +225,10 @@ showTab('fiche');
     sel.key = store.ruleKey(sel.partition, sel.zLabel);
     rerender();
   });
-  extraP.then((x) => {
+  extraP.then((x0) => secours(x0, ['prescription-surf', 'prescription-lin', 'info-surf'])).then((x) => {
     if (token !== selToken) return;
     Object.assign(sel.urba, x);
+    appliquerGraph();
     sel.doc = (x.document || [])[0] || null;
     if (!sel.partition && sel.doc) { sel.partition = sel.doc.properties.partition; if (sel.urba['zone-urba'] !== 'loading') sel.key = store.ruleKey(sel.partition, sel.zLabel); }
     const ps = Array.isArray(x['prescription-surf']) ? x['prescription-surf'] : null;
@@ -291,7 +307,7 @@ const FICHE_TABS = [['synthese', 'Synthèse'], ['urba', 'Urbanisme'], ['bati', '
 
 function potentielSel() {
   if (!sel || !sel.feature) return null;
-  const rules = store.getRules(sel.key) || {};
+  const rules = fusionRegles(store.getRules(sel.key), sel.graph).regles;
   return computePotentiel(sel.feature, rules, store.settings(), { contenance: sel.feature.properties.contenance, batiSdp: sel.bati?.sdp, constructible: zoneConstructible(sel.zone) });
 }
 function noteSel(pot) {
@@ -311,7 +327,7 @@ function renderFiche() {
       <div><span class="ref">${esc(refOf(p))} · IDU ${esc(p.idu)}</span><h2>${esc(p.nom_com || '')}, section ${esc(p.section)} n° ${esc(p.numero)}</h2></div>
       <div class="actions"><button type="button" class="ghost" id="addCrm">Ajouter au suivi</button><button type="button" class="ghost" id="copyFiche">Copier la fiche</button></div>
     </div>
-    ${sel.urba['zone-urba'] === 'loading' ? '<p class="note">Zonage du PLU en cours de chargement…</p>' : ''}${sel.urba['zone-urba'] === null ? `<div class="warn">Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment : zonage et règles indisponibles. Les autres informations restent valables. <button type="button" class="ghost" id="retryGpu">Réessayer</button></div>` : ''}
+    ${sel.urba['zone-urba'] === 'loading' ? '<p class="note">Zonage du PLU en cours de chargement…</p>' : ''}${sel.viaWms ? '<p class="note"><span class="pill wa">secours</span> API Carto (IGN) saturé : zonage et prescriptions lus sur le service cartographique du Géoportail de l\'Urbanisme, même source officielle.</p>' : ''}${sel.urba['zone-urba'] === null ? `<div class="warn">Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment : zonage et règles indisponibles. Les autres informations restent valables. <button type="button" class="ghost" id="retryGpu">Réessayer</button></div>` : ''}
     <nav class="subtabs" role="tablist">${FICHE_TABS.map(([k, t]) => `<button type="button" role="tab" class="subtab" data-ft="${k}" aria-selected="${ficheTab === k}">${t}</button>`).join('')}</nav>
     <div id="ficheBody" class="fiche-body"></div>`;
   v.querySelectorAll('[data-ft]').forEach((b) => (b.onclick = () => { ficheTab = b.dataset.ft; renderFiche(); }));
@@ -343,7 +359,7 @@ function ficheSynthese(body) {
       <dt>Zone</dt><dd>${z ? `<b>${esc(z.libelle)}</b> ${esc(z.libelong || '')} <span class="pill ${constr ? 'ok' : constr === false ? 'no' : 'wa'}">${esc(z.typezone || '')}</span>` : sel.urba['zone-urba'] === null ? '<span class="pill wa">service indisponible</span> <button type="button" class="ghost" id="retryUrba">Réessayer</button>' : '—'}</dd>
       <dt>Bâti</dt><dd>${occ ? `${occ.stats.n - occ.stats.legers} bâtiment(s), ${Math.round(occ.ces * 100)} % d'emprise${occ.stats.logements ? `, ${occ.stats.logements} logement(s)` : ''}` : 'Donnée indisponible'}</dd>
       <dt>Signaux</dt><dd>${occ && occ.flags.length ? occ.flags.map((x) => esc(x.t)).join(' · ') : 'Aucun'}</dd>
-      <dt>Potentiel</dt><dd>${pot && pot.ok ? `${m2(pot.sdp)} de plancher, ${pot.lg} logements théoriques, ${pot.real} réalisables` : constr === false ? 'Zone A ou N : pas de logement' : 'Règles de la zone à renseigner (onglet Urbanisme)'}</dd>
+      <dt>Potentiel</dt><dd>${pot && pot.ok ? `${m2(pot.sdp)} de plancher, ${pot.lg} logements théoriques, ${pot.real} réalisables` : constr === false ? 'Zone A ou N : pas de logement' : sel.urba['prescription-surf'] === 'loading' ? 'Lecture des règles du PLU…' : 'Règles de la zone à renseigner (onglet Urbanisme)'}</dd>
     </dl>
     <div class="actions"><button type="button" id="goPot">Détail du potentiel</button></div>`;
   $('#goPot', body).onclick = () => showTab('pot');
@@ -373,7 +389,8 @@ function ficheUrba(body) {
       ${regl ? `<a href="${esc(regl)}" target="_blank" rel="noopener">Règlement</a>` : ''}
       <a href="${api.gpuViewerUrl(lng, lat)}" target="_blank" rel="noopener">Géoportail de l'Urbanisme</a>
     </div>
-    ${planGraphique.length ? `<p class="note"><span class="pill wa">plan graphique</span> ${[...new Set(planGraphique)].map(esc).join(', ')} : la valeur est fixée sur un plan du PLU, pas seulement dans le règlement écrit. Vérifiez-la sur le Géoportail de l'Urbanisme avant de saisir les règles.</p>` : ''}
+    ${sel.graph && sel.graph.n ? `<div class="rules-plan"><div class="label">Règles du plan graphique à cette parcelle</div><ul class="list">${Object.values(sel.graph.sources).map((t) => `<li>${esc(t)}</li>`).join('')}</ul><p class="note"><span class="pill ok">GPU</span> Valeurs publiées par la collectivité au Géoportail de l'Urbanisme. Elles remplacent, pour cette parcelle, la valeur saisie pour la zone dans le calcul du potentiel.</p></div>` : ''}
+    ${planGraphique.length && !(sel.graph && sel.graph.n) ? `<p class="note"><span class="pill wa">plan graphique</span> ${[...new Set(planGraphique)].map(esc).join(', ')} : la valeur est fixée sur un plan du PLU, pas seulement dans le règlement écrit. Vérifiez-la sur le Géoportail de l'Urbanisme avant de saisir les règles.</p>` : ''}
     <div id="rulesSlot"></div>`;
   const slot = $('#rulesSlot', body);
   if (!z && !sel.cc && sel.zLabel === '?') slot.innerHTML = '<p class="note">Zone non déterminée : réessayez pour charger le zonage avant de saisir des règles.</p>';
@@ -449,6 +466,7 @@ function ficheText() {
     `Parcelle ${refOf(p)} — ${p.nom_com}`, `Contenance : ${m2(p.contenance)}`,
     `Zone : ${sel.zLabel} ${sel.zone?.properties.libelong || ''}`,
     `Nature du foncier : ${sel.occ ? sel.occ.label + ' (' + sel.occ.raisons.join(' ; ') + ')' : 'inconnue'}`,
+    ...(sel.graph && sel.graph.n ? ['Plan graphique du PLU : ' + Object.values(sel.graph.sources).join(' ; ')] : []),
     ...(rules ? RULE_FIELDS.map((fd) => `- ${fd.label} : ${rules[fd.k] ?? 'non renseigné'}${rules.citations?.[fd.k]?.article ? ' (' + rules.citations[fd.k].article + ', p. ' + rules.citations[fd.k].page + ')' : ''}`) : ['Règles : non saisies']),
     pot && pot.ok ? `Potentiel : emprise ${m2(pot.E)}, SDP ${m2(pot.sdp)}, ${pot.lg} logements théoriques, ${pot.real} réalisables` : `Potentiel : ${pot ? pot.raison : 'non calculé'}`,
     s ? `Note de potentiel foncier : ${s.tot}/100${s.partiel ? ' (partielle)' : ''} — ${s.parts.map((x) => `${x.label} ${x.v ?? '-'}/${x.max}`).join(', ')}` : '',
@@ -475,6 +493,7 @@ function renderPot() {
       <div><strong>${m2(pot.sdp)}</strong><span>surface de plancher</span></div>
       <div><strong>${pot.lg} → ${pot.real}</strong><span>logements théorique → réalisable</span></div>
     </div>
+    ${(() => { const fu = fusionRegles(store.getRules(sel.key), sel.graph); const L = RULE_FIELDS.filter((fd) => fu.origine[fd.k]).map((fd) => { const v = fu.regles[fd.k]; return `${esc(fd.label.replace(/ \(.*\)$/, ''))} ${fd.pct ? Math.round(v * 100) + ' %' : v + ' ' + fd.unit} <span class="pill ${fu.origine[fd.k] === 'plan' ? 'ok' : 'wa'}">${fu.origine[fd.k] === 'plan' ? 'plan graphique' : 'zone'}</span>`; }); return L.length ? `<p class="note">Règles utilisées : ${L.join(' · ')}</p>` : ''; })()}
     <div><div class="label">Plafonds d'emprise — le plus bas s'applique</div>
       <table><tr><th>Plafond</th><th class="n">Surface</th></tr>
       ${pot.caps.map((c) => `<tr class="${c === pot.lim ? 'limit' : ''}"><td>${esc(c.n)}${c === pot.lim ? ' · limitant' : ''}</td><td class="n">${m2(c.v)}</td></tr>`).join('')}</table>

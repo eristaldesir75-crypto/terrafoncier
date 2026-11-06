@@ -181,3 +181,6 @@ body.wide .layout{grid-template-columns:minmax(0,1fr) min(62vw,980px)}
 .pipeline strong{display:block;font:700 17px var(--f-display)}
 .pipeline span{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
 @media (max-width:620px){.pipeline{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+.rules-plan{border:1px solid var(--line,#ddd);border-radius:8px;padding:10px 12px;margin:10px 0}
+.rules-plan .list{margin:4px 0}

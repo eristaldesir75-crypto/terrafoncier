@@ -6,6 +6,7 @@ import * as store from './store.js';
 import { computePotentiel, parseQuery } from './potentiel.js';
 import { NATURES, grille, analyser } from './occupation.js';
 import { noter, contraintesDe, compacite } from './score.js';
+import { reglesGraphiquesParcelle, fusionRegles } from './regles.js';
 
 const NATURES_DEFAUT = Object.keys(NATURES).filter((k) => NATURES[k].opp);
 const TUILE = 0.01; // degrés (≈ 1,1 km × 0,75 km)
@@ -154,6 +155,10 @@ export function initProspection(ctx) {
         try { partition = (await api.gpuAt('secteur-cc', com.centre, { retries: 1 }))[0]?.properties.partition || null; } catch { partition = null; }
       }
       if (!partition) {
+        // Secours : service cartographique du GPU (autre serveur), puis service « document »
+        try { const d = await api.duAt(com.centre.coordinates[0], com.centre.coordinates[1], { signal }); partition = (d['zone-urba'][0] || d['secteur-cc'][0])?.properties.partition || null; } catch { partition = null; }
+      }
+      if (!partition) {
         try { partition = (await api.gpuAt('document', com.centre, { retries: 1 }))[0]?.properties.partition || null; }
         catch { throw new api.ApiError("Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment. Réessayez dans quelques minutes"); }
       }
@@ -219,7 +224,10 @@ export function initProspection(ctx) {
         if (c.oapSeul && !oap) { compte.contraintes++; continue; }
         if (c.exclContraintes && contraintes.some((x) => x.k === 'ebc' || x.k === 'er')) { compte.contraintes++; continue; }
         const key = store.ruleKey(partition, k.zone.properties.libelle);
-        const rules = store.getRules(key);
+        // Règles de la zone (saisies ou extraites), complétées par le plan graphique du PLU à la parcelle
+        const graph = reglesGraphiquesParcelle(k.f, idxPresc);
+        const fu = fusionRegles(store.getRules(key), graph);
+        const rules = fu.utile ? fu.regles : null;
         let pot = null, aConfirmer = !rules;
         if (rules) {
           pot = computePotentiel(k.f, rules, hyp, { contenance: o.S, batiSdp: o.stats.sdp });
@@ -233,7 +241,7 @@ export function initProspection(ctx) {
         }
         const s = noter({ S: o.S, crit: critN, occ: o, pot: pot && pot.ok ? pot : null, contraintes, compacite: compacite(k.f) });
         if (s.tot < (c.scoreMin || 0)) { compte.score++; continue; }
-        out.push({ f: k.f, zone: k.zone, key, occ: o, pot: pot && pot.ok ? pot : null, contraintes, oap, s, aConfirmer });
+        out.push({ f: k.f, zone: k.zone, key, occ: o, pot: pot && pot.ok ? pot : null, contraintes, oap, s, aConfirmer, graph: graph && graph.n ? graph : null });
       }
       out.sort((a, b) => b.s.tot - a.s.tot);
       st.results = { com, partition, list: out, compte, cand: cand.length, secs: Math.round((performance.now() - t0) / 1000), avertissements, date: new Date().toISOString() };
@@ -320,7 +328,7 @@ export function initProspection(ctx) {
     const cells = COLS.map((x) => { const v = x.v(h, i); return `<td class="${x.n ? 'n' : ''}">${x.k === 'score' ? `<span class="score s${Math.floor(v / 20)}">${v}</span>${h.s.partiel ? '<small class="part">partielle</small>' : ''}` : esc(x.fmt ? x.fmt(v) : v)}</td>`; }).join('');
     const detail = open ? `<tr class="detail"><td colspan="${COLS.length}">
       <div class="why">${h.s.parts.map((p) => `<div class="why-row"><span>${esc(p.label)}</span><span class="bar"><i style="width:${p.v === null ? 0 : Math.round((100 * p.v) / p.max)}%"></i></span><b>${p.v === null ? '—' : p.v}/${p.max}</b><small>${esc(p.why)}</small></div>`).join('')}</div>
-      <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? ' · potentiel à confirmer (règles de zone manquantes)' : ''}</p>
+      <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? ' · potentiel à confirmer (règles de zone manquantes)' : ''}${h.graph ? ' · plan graphique : ' + Object.values(h.graph.sources).map(esc).join(', ') : ''}</p>
       <div class="actions"><button type="button" data-fiche="${i}">Ouvrir la fiche</button></div></td></tr>` : '';
     return `<tr data-i="${i}" class="${open ? 'open' : ''}">${cells}</tr>${detail}`;
   }
@@ -336,7 +344,8 @@ export function initProspection(ctx) {
     const r = st.results; if (!r) return;
     const hyp = store.settings(), critN = critPourNote(), missing = new Map();
     r.list.forEach((h) => {
-      const rules = store.getRules(h.key);
+      const fu = fusionRegles(store.getRules(h.key), h.graph);
+      const rules = fu.utile ? fu.regles : null;
       if (rules) {
         const pot = computePotentiel(h.f, rules, hyp, { contenance: h.occ.S, batiSdp: h.occ.stats.sdp });
         h.pot = pot.ok ? pot : null; h.aConfirmer = !pot.ok;

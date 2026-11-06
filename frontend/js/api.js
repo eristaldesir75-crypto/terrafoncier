@@ -269,3 +269,43 @@ export async function extractRules(backend, payload) {
   }
   return r.json();
 }
+
+// ---------- Permis de construire de logements (Sitadel, SDES, mis à jour chaque mois) ----------
+// Autorisations délivrées depuis 2013. Le demandeur n'est publié que pour les personnes morales (promoteurs, bailleurs, SCI).
+const SITADEL = 'https://data.statistiques.developpement-durable.gouv.fr/dido/api/v1/datafiles/8b35affb-55fc-4c1f-915b-7750f974446a/rows';
+const permisCache = new Map();
+export function permisLogements(insee, { minLogements = 2 } = {}) {
+  const k = `${insee}|${minLogements}`;
+  if (permisCache.has(k)) return permisCache.get(k);
+  const p = (async () => {
+    const out = [];
+    for (let page = 1; page <= 30; page++) {
+      const j = await getJSON(`${SITADEL}?page=${page}&pageSize=100&COMM=eq:${insee}&NB_LGT_TOT_CREES=gte:${minLogements}`, { timeout: 20000, retries: 1 });
+      const d = j.data || [];
+      out.push(...d);
+      if (d.length < 100 || out.length >= (j.total || 0)) break;
+    }
+    return out.map(normPermis);
+  })().catch((e) => { permisCache.delete(k); throw e; });
+  permisCache.set(k, p);
+  return p;
+}
+const ETATS_DAU = { 2: 'Autorisé', 4: 'Annulé', 5: 'Chantier commencé', 6: 'Terminé' };
+function normPermis(x) {
+  const parcelles = [];
+  for (let i = 1; i <= 25; i++) {
+    const s = String(x[`SEC_CADASTRE${i}`] || '').trim().toUpperCase(), n = String(x[`NUM_CADASTRE${i}`] || '').replace(/\D/g, '');
+    if (s && s !== '0' && n && +n > 0) parcelles.push({ section: s.padStart(2, '0'), numero: n.padStart(4, '0') });
+  }
+  const adr = [x.ADR_NUM_TER, x.ADR_LIBVOIE_TER || x.ADR_LIEUDIT_TER].filter(Boolean).join(' ');
+  return {
+    num: x.NUM_DAU, type: x.TYPE_DAU, etat: x.ETAT_DAU, etatLib: ETATS_DAU[x.ETAT_DAU] || 'Inconnu',
+    demandeur: x.DENOM_DEM || null, siren: x.SIREN_DEM || null,
+    logements: +x.NB_LGT_TOT_CREES || 0, collectifs: +x.NB_LGT_COL_CREES || 0, individuels: +x.NB_LGT_IND_CREES || 0,
+    sociaux: +x.NB_LGT_PRET_LOC_SOCIAL || 0, residence: +x.NB_LGT_RES || 0, demolis: +x.NB_LGT_DEMOLIS || 0,
+    terrain: +x.SUPERFICIE_TERRAIN || 0, shab: +x.SURF_HAB_CREEE || 0, niveaux: +x.NB_NIV_MAX || 0,
+    t: [x.NB_LGT_1P, x.NB_LGT_2P, x.NB_LGT_3P, x.NB_LGT_4P, x.NB_LGT_5P, x.NB_LGT_6P_PLUS].map((v) => +v || 0),
+    autorisation: x.DATE_REELLE_AUTORISATION || null, chantier: x.DATE_REELLE_DOC || null, achevement: x.DATE_REELLE_DAACT || null,
+    depot: x.AN_DEPOT, adresse: adr, parcelles, insee: x.COMM,
+  };
+}

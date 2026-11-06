@@ -7,6 +7,7 @@ import { noter, contraintesDe, compacite } from './score.js';
 import { initProspection, CRIT_DEFAUT } from './prospection.js';
 import { reglesGraphiques, fusionRegles } from './regles.js';
 import { reglesParZone, plage } from './zones.js';
+import * as permis from './permis.js';
 
 // ---------- Utilitaires ----------
 const $ = (s, el = document) => el.querySelector(s);
@@ -60,6 +61,7 @@ const map = new maplibregl.Map({
       env: { type: 'geojson', data: empty },
       hits: { type: 'geojson', data: empty },
       bati: { type: 'geojson', data: empty },
+      permis: { type: 'geojson', data: empty },
     },
     layers: [
       { id: 'plan', type: 'raster', source: 'plan' },
@@ -74,6 +76,7 @@ const map = new maplibregl.Map({
       { id: 'bati-fill', type: 'fill', source: 'bati', paint: { 'fill-color': '#7a4ec9', 'fill-opacity': 0.35 } },
       { id: 'sel-fill', type: 'fill', source: 'sel', paint: { 'fill-color': '#2347c5', 'fill-opacity': 0.12 } },
       { id: 'sel-line', type: 'line', source: 'sel', paint: { 'line-color': '#2347c5', 'line-width': 3 } },
+      { id: 'permis-pt', type: 'circle', source: 'permis', paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'logements'], 2, 6, 50, 11, 200, 18], 'circle-color': ['match', ['get', 'etat'], 6, '#1f6b45', 5, '#e0661b', 2, '#2347c5', '#8a8f98'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-opacity': 0.9 } },
       { id: 'env-line', type: 'line', source: 'env', paint: { 'line-color': '#e0661b', 'line-width': 2, 'line-dasharray': [2, 1.5] } },
     ],
   },
@@ -81,7 +84,7 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
 map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'top-right');
 map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
-map.on('click', (e) => selectAt(e.lngLat.lng, e.lngLat.lat));
+map.on('click', (e) => { if (e.defaultPrevented || (map.getLayer('permis-pt') && map.queryRenderedFeatures(e.point, { layers: ['permis-pt'] }).length)) return; selectAt(e.lngLat.lng, e.lngLat.lat); });
 
 // Infobulle au survol des terrains de la prospection
 const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: 'tf-pop' });
@@ -92,6 +95,13 @@ map.on('mousemove', 'hits-fill', (e) => {
 });
 map.on('mouseleave', 'hits-fill', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
 
+map.on('click', 'permis-pt', (e) => {
+  e.preventDefault && e.preventDefault();
+  const p = e.features[0].properties;
+  new maplibregl.Popup({ offset: 10, className: 'tf-pop' }).setLngLat(e.lngLat).setHTML(`<b>${esc(p.demandeur || 'Demandeur non publié')}</b><br>${p.logements} logement(s) dont ${p.collectifs} collectif(s)${+p.sociaux ? `, ${p.sociaux} social(aux)` : ''}<br>${esc(p.etatLib)} · autorisé le ${esc(p.autorisation || '?')}<br><small>${esc(p.num)} · ${esc(p.adresse || '')}</small>`).addTo(map);
+});
+map.on('mouseenter', 'permis-pt', () => (map.getCanvas().style.cursor = 'pointer'));
+map.on('mouseleave', 'permis-pt', () => (map.getCanvas().style.cursor = ''));
 const vis = (id, on) => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
 // Fond : plan IGN ou satellite (photo aérienne IGN, récente ou ancienne), avec noms des rues et cadastre par-dessus
 function appliquerFond() {
@@ -119,6 +129,8 @@ map.on('load', () => {
   $('#lay-noms').checked = f.noms !== false;
   if (f.sat) { $('#fond-ortho').checked = true; appliquerFond(); }
 });
+$('#lay-permis').addEventListener('change', (e) => { vis('permis-pt', e.target.checked); try { localStorage.setItem('tf-lay-permis', e.target.checked ? '1' : '0'); } catch { /* */ } });
+try { if (localStorage.getItem('tf-lay-permis') === '0') { $('#lay-permis').checked = false; map.on('load', () => vis('permis-pt', false)); } } catch { /* */ }
 $('#lay-cadastre').addEventListener('change', (e) => vis('cadastre', e.target.checked));
 $('#lay-zonage').addEventListener('change', (e) => vis('zonage', e.target.checked));
 $('#lay-presc').addEventListener('change', (e) => vis('presc', e.target.checked));
@@ -192,6 +204,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   map.getSource('sel').setData(f);
   map.getSource('env').setData(empty);
   map.getSource('bati').setData(empty);
+  map.getSource('permis').setData(empty);
   if (forceTab) showTab(forceTab);
   else if (tab !== 'pot' && tab !== 'pro' && tab !== 'crm') showTab('fiche');
   const pt = turf.pointOnFeature(f).geometry;
@@ -333,7 +346,7 @@ function rulesBlock(key, zoneLabel, onChange, ctx = {}) {
 }
 
 // ---------- Vue Parcelle (fiche à onglets) ----------
-const FICHE_TABS = [['synthese', 'Synthèse'], ['urba', 'Urbanisme'], ['bati', 'Bâti et occupation'], ['contraintes', 'Contraintes'], ['commune', 'Commune']];
+const FICHE_TABS = [['synthese', 'Synthèse'], ['urba', 'Urbanisme'], ['bati', 'Bâti et occupation'], ['contraintes', 'Contraintes'], ['projets', 'Constructions récentes'], ['commune', 'Commune']];
 
 function potentielSel() {
   if (!sel || !sel.feature) return null;
@@ -369,7 +382,7 @@ function renderFiche() {
   };
   $('#copyFiche', v).onclick = () => copy(ficheText());
   const body = $('#ficheBody', v);
-  ({ synthese: ficheSynthese, urba: ficheUrba, bati: ficheBati, contraintes: ficheContraintes, commune: ficheCommune }[ficheTab] || ficheSynthese)(body);
+  ({ synthese: ficheSynthese, urba: ficheUrba, bati: ficheBati, contraintes: ficheContraintes, projets: ficheProjets, commune: ficheCommune }[ficheTab] || ficheSynthese)(body);
 }
 
 function ficheSynthese(body) {
@@ -547,6 +560,100 @@ function ficheContraintes(body) {
       <dt>Forme</dt><dd>${compacite(sel.feature) < 0.35 ? 'Étroite ou en lanière : implantation contrainte' : 'Compacte'}</dd>
     </dl>
     ${pot && pot.ok && pot.contraintes.length ? `<div><div class="label">Contraintes du calcul de potentiel</div><ul class="list">${pot.contraintes.map((c) => `<li>${esc(c.t)}</li>`).join('')}</ul></div>` : ''}`;
+}
+
+// ---------- Constructions récentes (permis de logements Sitadel) ----------
+const PROJ_DEF = { depuis: 2018, min: 5, rayon: 0, annules: false, tri: 'dist', statut: 'tous' };
+const STATUTS_PROJ = { tous: () => true, encours: (p) => p.etat === 2 || p.etat === 5, termines: (p) => p.etat === 6 };
+let projOpts = { ...PROJ_DEF };
+try { projOpts = { ...PROJ_DEF, ...JSON.parse(localStorage.getItem('tf-projets') || '{}') }; } catch { /* stockage indisponible */ }
+function ficheProjets(body) {
+  const insee = sel.feature.properties.code_insee, token = selToken;
+  if (sel.permis === undefined) {
+    sel.permis = 'loading';
+    api.permisLogements(insee, { minLogements: 2 }).then(async (l) => {
+      if (token !== selToken) return;
+      sel.permis = l; sel.permisLoc = 0;
+      if (tab === 'fiche' && ficheTab === 'projets') renderFiche();
+      // localisation des opérations récentes (les plus importantes d'abord)
+      const cibles = l.filter((p) => p.logements >= 5 || (p.autorisation || '') >= '2018').sort((a, b) => b.logements - a.logements).slice(0, 120);
+      await permis.localiser(cibles, { onProgress: (d, n) => { if (token === selToken) { sel.permisLoc = d / n; const st = $('#projLoc'); if (st) st.textContent = `Localisation des opérations sur la carte : ${d} / ${n}`; } } });
+      if (token !== selToken) return;
+      permis.distances(l, sel.pt.coordinates); sel.permisLoc = 1;
+      if (tab === 'fiche' && ficheTab === 'projets') renderFiche(); else dessinerPermis();
+    }).catch((e) => { if (token === selToken) { sel.permis = { erreur: e.message }; if (tab === 'fiche' && ficheTab === 'projets') renderFiche(); } });
+  }
+  if (sel.permis === 'loading') { body.innerHTML = '<p class="note">Recherche des permis de construire de logements de la commune (base Sitadel)…</p>'; return; }
+  if (sel.permis.erreur) { body.innerHTML = `<div class="warn">Base des permis indisponible : ${esc(sel.permis.erreur)}. <button type="button" class="ghost" id="projRetry">Réessayer</button></div>`; $('#projRetry', body).onclick = () => { sel.permis = undefined; renderFiche(); }; return; }
+  const o = projOpts, an = (p) => +(String(p.autorisation || p.depot || '').slice(0, 4)) || 0;
+  let L = sel.permis.filter((p) => an(p) >= o.depuis && p.logements >= o.min && (o.annules || p.etat !== 4) && (STATUTS_PROJ[o.statut] || STATUTS_PROJ.tous)(p) && (!o.rayon || (p.dist !== null && p.dist !== undefined && p.dist <= o.rayon)));
+  const tri = { dist: (a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9), date: (a, b) => String(b.autorisation).localeCompare(String(a.autorisation)), lgt: (a, b) => b.logements - a.logements }[o.tri];
+  L = L.slice().sort(tri);
+  const S = permis.synthese(L);
+  dessinerPermis(L);
+  // comparaison avec la parcelle étudiée
+  const pot = potentielSel(), Sp = +sel.feature.properties.contenance || 0;
+  const dPot = pot && pot.ok && Sp ? (pot.real * 10000) / Sp : null;
+  const f1 = (n) => (n === null || n === undefined ? '—' : (Math.round(n * 10) / 10).toLocaleString('fr-FR'));
+  const etatPill = (p) => `<span class="pill ${p.etat === 6 ? 'ok' : p.etat === 5 ? 'wa' : p.etat === 4 ? 'no' : ''}">${esc(p.etatLib)}</span>`;
+  const promoLien = (x) => x.siren ? `<a href="https://annuaire-entreprises.data.gouv.fr/entreprise/${encodeURIComponent(x.siren)}" target="_blank" rel="noopener">${esc(x.nom)}</a>` : esc(x.nom);
+  body.innerHTML = `
+    <form class="proj-filtres" id="projF">
+      <label>Depuis <select id="pjDepuis">${[2013, 2016, 2018, 2020, 2022, 2024].map((y) => `<option ${o.depuis === y ? 'selected' : ''}>${y}</option>`).join('')}</select></label>
+      <label>Taille <select id="pjMin"><option value="2" ${o.min === 2 ? 'selected' : ''}>2 logements et plus</option><option value="5" ${o.min === 5 ? 'selected' : ''}>5 et plus</option><option value="20" ${o.min === 20 ? 'selected' : ''}>20 et plus</option></select></label>
+      <label>Autour <select id="pjRayon"><option value="0" ${!o.rayon ? 'selected' : ''}>Toute la commune</option><option value="500" ${o.rayon === 500 ? 'selected' : ''}>500 m</option><option value="1000" ${o.rayon === 1000 ? 'selected' : ''}>1 km</option><option value="2000" ${o.rayon === 2000 ? 'selected' : ''}>2 km</option></select></label>
+      <label>Statut <select id="pjStatut"><option value="tous" ${o.statut === 'tous' ? 'selected' : ''}>Tous</option><option value="encours" ${o.statut === 'encours' ? 'selected' : ''}>En cours (autorisés, en chantier)</option><option value="termines" ${o.statut === 'termines' ? 'selected' : ''}>Terminés</option></select></label>
+      <label>Tri <select id="pjTri"><option value="dist" ${o.tri === 'dist' ? 'selected' : ''}>Plus proches</option><option value="date" ${o.tri === 'date' ? 'selected' : ''}>Plus récents</option><option value="lgt" ${o.tri === 'lgt' ? 'selected' : ''}>Plus gros</option></select></label>
+      <label class="chk"><input type="checkbox" id="pjAnn" ${o.annules ? 'checked' : ''}> Permis annulés</label>
+      <label class="chk"><input type="checkbox" id="pjCarte" ${$('#lay-permis').checked ? 'checked' : ''}> Afficher sur la carte</label>
+    </form>
+    ${sel.permisLoc < 1 ? `<p class="note" id="projLoc">Localisation des opérations sur la carte…</p>` : ''}
+    <div class="kpis">
+      <div><span>Opérations</span><strong>${S.ops}</strong></div>
+      <div><span>Logements</span><strong>${f0(S.logements)}</strong></div>
+      <div><span>Dont collectifs</span><strong>${f0(S.collectifs)}</strong></div>
+      <div><span>Dont sociaux</span><strong>${S.logements ? Math.round((100 * S.sociaux) / S.logements) + ' %' : '—'}</strong></div>
+    </div>
+    <p class="note">${S.termines} terminée(s), ${S.chantiers} en chantier, ${S.autorises} autorisée(s) non commencée(s)${S.annules ? `, ${S.annules} annulée(s)` : ''}. Source : permis de construire Sitadel (SDES), mis à jour chaque mois.</p>
+    <div class="compare"><div class="label">Comparatif avec votre parcelle (opérations de 5 logements collectifs ou plus)</div>
+      <table><tr><th></th><th class="n">Votre parcelle</th><th class="n">Opérations voisines (médiane)</th></tr>
+        <tr><td>Densité</td><td class="n">${dPot ? f0(dPot) + ' logts/ha' : '—'}</td><td class="n">${S.densiteMed ? f0(S.densiteMed) + ' logts/ha' : '—'}</td></tr>
+        <tr><td>Logements par opération</td><td class="n">${pot && pot.ok ? pot.real : '—'}</td><td class="n">${f0(S.lgtMed)}</td></tr>
+        <tr><td>Niveaux</td><td class="n">${pot && pot.ok ? pot.niv : '—'}</td><td class="n">${f1(S.nivMed)}</td></tr>
+        <tr><td>Surface habitable moyenne</td><td class="n">${f0(store.settings().sMoy)} m² (hypothèse)</td><td class="n">${S.shabMed ? f0(S.shabMed) + ' m²' : '—'}</td></tr>
+      </table>
+      <p class="note">${dPot && S.densiteMed ? (dPot > 1.3 * S.densiteMed ? 'Votre hypothèse est plus dense que ce qui s\'est construit : à justifier auprès de la commune.' : dPot < 0.7 * S.densiteMed ? 'Les opérations voisines sont plus denses : un programme plus important est peut-être acceptable.' : 'Votre hypothèse est cohérente avec les opérations voisines.') : 'Renseignez les règles de la zone pour comparer.'}</p></div>
+    ${S.promoteurs.length ? `<div><div class="label">Qui construit (demandeurs des permis)</div><div class="tw"><table>
+      <tr><th>Demandeur</th><th class="n">Opérations</th><th class="n">Logements</th><th class="n">Collectifs</th><th class="n">Sociaux</th><th>Dernier permis</th></tr>
+      ${S.promoteurs.slice(0, 15).map((x) => `<tr><td>${promoLien(x)}</td><td class="n">${x.ops}</td><td class="n">${x.logements}</td><td class="n">${x.collectifs}</td><td class="n">${x.sociaux}</td><td>${esc(x.derniere)}</td></tr>`).join('')}
+    </table></div><p class="note">Le nom n'est publié que pour les sociétés. Une SCCV ou une SCI porte souvent une seule opération d'un promoteur : la fiche entreprise donne ses dirigeants.</p></div>` : ''}
+    <div class="res-head"><div class="label">Opérations (${L.length})</div>${L.length ? '<button type="button" class="ghost" id="projCsv">Exporter en CSV</button>' : ''}</div>
+    ${L.length ? `<div class="tw"><table class="res-table">
+      <tr><th>Demandeur</th><th class="n">Logts</th><th class="n">Coll.</th><th class="n">Soc.</th><th class="n">Terrain</th><th class="n">Densité</th><th class="n">Niv.</th><th>État</th><th>Autorisé</th><th class="n">Distance</th></tr>
+      ${L.slice(0, 200).map((p, i) => `<tr data-pj="${i}" class="${p.centre ? 'clic' : ''}"><td>${p.siren ? promoLien({ nom: p.demandeur, siren: p.siren }) : '<span class="note">non publié</span>'}<br><small class="note">${esc(p.adresse || '')} ${p.parcelles[0] ? '· ' + esc(p.parcelles[0].section + ' ' + p.parcelles[0].numero) : ''}</small></td>
+        <td class="n">${p.logements}</td><td class="n">${p.collectifs}</td><td class="n">${p.sociaux}</td><td class="n">${p.terrain ? m2(p.terrain) : '—'}</td><td class="n">${permis.densite(p) ? f0(permis.densite(p)) : '—'}</td><td class="n">${p.niveaux || '—'}</td>
+        <td>${etatPill(p)}</td><td>${esc(p.autorisation || '')}</td><td class="n">${p.dist !== null && p.dist !== undefined ? (p.dist < 1000 ? f0(p.dist) + ' m' : f1(p.dist / 1000) + ' km') : '—'}</td></tr>`).join('')}
+    </table></div><p class="note">Points sur la carte : vert terminé, orange en chantier, bleu autorisé. Touchez une ligne pour centrer la carte sur l'opération.</p>` : '<p class="empty">Aucune opération avec ces critères.</p>'}`;
+  const F = $('#projF', body);
+  $('#pjCarte', F).onchange = (e) => { e.stopPropagation(); $('#lay-permis').checked = e.target.checked; $('#lay-permis').dispatchEvent(new Event('change')); };
+  F.onchange = (e) => {
+    if (e.target.id === 'pjCarte') return;
+    projOpts = { depuis: +$('#pjDepuis', F).value, min: +$('#pjMin', F).value, rayon: +$('#pjRayon', F).value, tri: $('#pjTri', F).value, statut: $('#pjStatut', F).value, annules: $('#pjAnn', F).checked };
+    try { localStorage.setItem('tf-projets', JSON.stringify(projOpts)); } catch { /* stockage indisponible */ }
+    renderFiche();
+  };
+  body.querySelectorAll('tr[data-pj]').forEach((tr) => (tr.onclick = (ev) => { if (ev.target.closest('a')) return; const p = L[+tr.dataset.pj]; if (p.centre) map.flyTo({ center: p.centre, zoom: 17 }); }));
+  const csv = $('#projCsv', body);
+  if (csv) csv.onclick = () => {
+    const c = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
+    const rows = [['Numéro', 'Demandeur', 'SIREN', 'Adresse', 'Parcelle', 'Logements', 'Collectifs', 'Individuels', 'Sociaux', 'Terrain (m²)', 'Surface habitable créée (m²)', 'Niveaux', 'Densité (logts/ha)', 'État', 'Autorisation', 'Ouverture chantier', 'Achèvement', 'Distance (m)'].join(';'),
+      ...L.map((p) => [p.num, p.demandeur, p.siren, p.adresse, p.parcelles[0] ? p.parcelles[0].section + ' ' + p.parcelles[0].numero : '', p.logements, p.collectifs, p.individuels, p.sociaux, p.terrain, p.shab, p.niveaux, permis.densite(p) ? Math.round(permis.densite(p)) : '', p.etatLib, p.autorisation, p.chantier, p.achevement, p.dist ? Math.round(p.dist) : ''].map(c).join(';'))];
+    download(`constructions-${insee}.csv`, '﻿' + rows.join('\n'), 'text/csv');
+  };
+}
+function dessinerPermis(list) {
+  const L = list || (Array.isArray(sel?.permis) ? sel.permis.filter((p) => p.etat !== 4 && p.logements >= projOpts.min) : []);
+  map.getSource('permis').setData({ type: 'FeatureCollection', features: L.filter((p) => p.centre).map((p) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: p.centre }, properties: { num: p.num, demandeur: p.demandeur, logements: p.logements, collectifs: p.collectifs, sociaux: p.sociaux, etat: p.etat, etatLib: p.etatLib, autorisation: p.autorisation, adresse: p.adresse } })) });
 }
 
 function ficheCommune(body) {

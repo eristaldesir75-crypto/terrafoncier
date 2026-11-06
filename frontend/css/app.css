@@ -194,3 +194,9 @@ body.wide .layout{grid-template-columns:minmax(0,1fr) min(62vw,980px)}
 .zones-table tr.cur td{background:rgba(35,71,197,.08)}
 .zones-table td{vertical-align:top}
 .chk{display:inline-flex;gap:6px;align-items:center;font-size:13px}
+.proj-filtres{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:end;margin-bottom:10px}
+.proj-filtres label{display:flex;flex-direction:column;font-size:12px;gap:2px}
+.proj-filtres label.chk{flex-direction:row;align-items:center}
+.proj-filtres select{font:inherit;font-size:13px;padding:3px 6px;border-radius:6px}
+.compare{border:1px solid var(--line,#ddd);border-radius:8px;padding:10px 12px;margin:10px 0}
+tr.clic{cursor:pointer}

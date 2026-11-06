@@ -114,7 +114,7 @@ export function gpuByPartition(layer, partition, opts = {}) {
 async function gpuByPartitionBrut(layer, partition, { signal } = {}) {
   const out = [];
   for (let start = 0; start < 20000; start += 1000) {
-    const fc = await getJSON(`${APICARTO}/gpu/${layer}?partition=${encodeURIComponent(partition)}&_limit=1000&_start=${start}`, { signal, timeout: 40000 });
+    const fc = await getJSON(`${APICARTO}/gpu/${layer}?partition=${encodeURIComponent(partition)}&_limit=1000&_start=${start}`, { signal, timeout: 60000 });
     const f = fc.features || [];
     out.push(...f);
     const total = fc.totalFeatures || fc.numberMatched || null;

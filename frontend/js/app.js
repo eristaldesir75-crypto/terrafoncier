@@ -142,8 +142,14 @@ async function selectFeature(f, token = ++selToken) {
   const zLabel = zone?.properties.libelle || cc?.properties.libelle || (doc ? '?' : 'RNU');
   let batiInfo = null;
   if (bati) {
-    const inside = bati.filter((b) => { try { return turf.booleanIntersects(b, f); } catch { return false; } });
-    const emprise = inside.reduce((a, b) => { try { return a + turf.area(turf.intersect(turf.featureCollection([b, f])) || b); } catch { return a + turf.area(b); } }, 0);
+    // Un bâtiment compte s'il est en majorité sur la parcelle (les voisins qui touchent la limite sont écartés)
+    const inside = [];
+    let emprise = 0;
+    for (const b of bati) {
+      let part = 0;
+      try { const x = turf.intersect(turf.featureCollection([b, f])); part = x ? turf.area(x) : 0; } catch { part = 0; }
+      if (part >= 5 && part >= 0.5 * turf.area(b)) { inside.push(b); emprise += part; }
+    }
     const sdp = inside.reduce((a, b) => a + turf.area(b) * Math.max(1, +(b.properties.nombre_d_etages || 1)), 0);
     const hmax = Math.max(0, ...inside.map((b) => +(b.properties.hauteur || 0)));
     batiInfo = { n: inside.length, emprise, sdp, hmax };
@@ -232,7 +238,7 @@ function renderFiche() {
     <dl class="kv">
       <dt>Contenance</dt><dd>${m2(p.contenance)} <span class="note">(calculée : ${m2(turf.area(sel.feature))})</span></dd>
       <dt>Document</dt><dd>${d ? `${esc(d.du_type || 'Document')} · ${esc(d.grid_title || sel.partition || '')}${z && z.datappro ? ' · approuvé le ' + esc(String(z.datappro).replace(/^(\d{4})(\d{2})(\d{2})$/, '$3/$2/$1')) : ''}` : sel.cc ? 'Carte communale' : 'Aucun document au GPU (RNU possible)'}</dd>
-      <dt>Zone</dt><dd>${z ? `<b>${esc(z.libelle)}</b> ${esc(z.libelong || '')} <span class="pill ${constr ? 'ok' : constr === false ? 'no' : 'wa'}">${esc(z.typezone || '')}</span>` : sel.cc ? esc(sel.cc.properties.libelle || 'Secteur de carte communale') : '—'}</dd>
+      <dt>Zone</dt><dd>${z ? `<b>${esc(z.libelle)}</b> ${esc(z.libelong || '')} <span class="pill ${constr ? 'ok' : constr === false ? 'no' : 'wa'}">${esc(z.typezone || '')}</span>` : sel.cc ? esc(sel.cc.properties.libelle || 'Secteur de carte communale') : sel.urba['zone-urba'] === null ? '<span class="pill wa">service indisponible</span> <button type="button" class="ghost" id="retryUrba">Réessayer</button>' : '—'}</dd>
       <dt>OAP</dt><dd>${oap ? 'Oui, voir prescriptions' : 'Aucune détectée'}</dd>
       <dt>Prescriptions</dt><dd>${pending ? 'Chargement…' : presc.length ? presc.map(esc).join(' · ') : 'Aucune'}</dd>
       <dt>Informations</dt><dd>${pending ? 'Chargement…' : infos.length ? infos.map(esc).join(' · ') : 'Aucune'}</dd>
@@ -249,9 +255,11 @@ function renderFiche() {
     ${planGraphique.length ? `<p class="note"><span class="pill wa">plan graphique</span> ${planGraphique.map(esc).join(', ')} : la valeur est fixée sur un plan du PLU, pas seulement dans le règlement écrit. Vérifiez-la sur le Géoportail de l'Urbanisme avant de saisir les règles.</p>` : ''}
     <div id="rulesSlot"></div>
     <div class="actions"><button type="button" id="goPot">Calculer le potentiel</button><button type="button" class="ghost" id="addCrm">Ajouter au suivi</button><button type="button" class="ghost" id="copyFiche">Copier la fiche</button></div>`;
-  if (constr !== false) $('#rulesSlot', v).appendChild(rulesBlock(sel.key, sel.zLabel, renderFiche));
+  if (!z && !sel.cc && sel.zLabel === '?') $('#rulesSlot', v).innerHTML = '<p class="note">Zone non déterminée : réessayez pour charger le zonage avant de saisir des règles.</p>';
+  else if (constr !== false) $('#rulesSlot', v).appendChild(rulesBlock(sel.key, sel.zLabel, renderFiche));
   else $('#rulesSlot', v).innerHTML = '<p class="note">Zone agricole ou naturelle : pas de potentiel de logement.</p>';
   $('#goPot', v).onclick = () => showTab('pot');
+  const retry = $('#retryUrba', v); if (retry) retry.onclick = () => selectFeature(sel.feature);
   $('#addCrm', v).onclick = () => {
     const ok = store.addToCrm({ idu: p.idu, ref: refOf(p), commune: p.nom_com, zone: sel.zLabel, contenance: p.contenance, centre: sel.pt.coordinates, geometry: turf.truncate(sel.feature.geometry ? sel.feature : sel.feature, { precision: 6 }).geometry });
     toast(ok ? 'Ajouté au suivi' : 'Déjà dans le suivi');

@@ -8,19 +8,34 @@ const GEORISQUES = 'https://georisques.gouv.fr/api/v1';
 
 export class ApiError extends Error {}
 
-async function getJSON(url, { timeout = 20000, signal } = {}) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeout);
-  if (signal) signal.addEventListener('abort', () => ctrl.abort(), { once: true });
-  try {
-    const r = await fetch(url, { signal: ctrl.signal });
-    if (!r.ok) throw new ApiError(`Le service a répondu ${r.status} (${new URL(url).host})`);
-    return await r.json();
-  } catch (e) {
-    if (e.name === 'AbortError') throw new ApiError(`Délai dépassé (${new URL(url).host})`);
-    if (e instanceof ApiError) throw e;
-    throw new ApiError(`Service injoignable (${new URL(url).host})`);
-  } finally { clearTimeout(t); }
+async function getJSON(url, { timeout = 20000, signal, retries = 2 } = {}) {
+  const host = new URL(url).host;
+  for (let attempt = 0; ; attempt++) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeout);
+    const onAbort = () => ctrl.abort();
+    if (signal) signal.addEventListener('abort', onAbort, { once: true });
+    try {
+      const r = await fetch(url, { signal: ctrl.signal });
+      if (r.status === 429 || r.status >= 500) throw new ApiError(`Le service ${host} est surchargé (${r.status})`);
+      if (!r.ok) throw Object.assign(new ApiError(`Le service a répondu ${r.status} (${host})`), { final: true });
+      const j = await r.json();
+      // API Carto peut répondre 200 avec un message d'erreur du serveur IGN surchargé, sans « features »
+      if (j && typeof j === 'object' && !Array.isArray(j) && !('features' in j) && (j.message || j.code)) {
+        throw new ApiError(`Le service ${host} est momentanément indisponible`);
+      }
+      return j;
+    } catch (e) {
+      const aborted = e.name === 'AbortError';
+      if (signal && signal.aborted) throw e;
+      const err = e instanceof ApiError ? e : new ApiError(aborted ? `Délai dépassé (${host})` : `Service injoignable (${host})`);
+      if (err.final || attempt >= retries) throw err;
+      await new Promise((ok) => setTimeout(ok, 1200 * (attempt + 1)));
+    } finally {
+      clearTimeout(t);
+      if (signal) signal.removeEventListener('abort', onAbort);
+    }
+  }
 }
 
 const g = (geom) => encodeURIComponent(JSON.stringify(geom));

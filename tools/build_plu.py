@@ -36,7 +36,7 @@ def log(*a):
     print(*a, flush=True)
 
 
-def get(url, *, params=None, tries=4, timeout=60, stream=False):
+def get(url, *, params=None, tries=3, timeout=40, stream=False):
     last = None
     for i in range(tries):
         try:
@@ -46,7 +46,7 @@ def get(url, *, params=None, tries=4, timeout=60, stream=False):
             return r
         except Exception as e:  # réseau ou serveur surchargé : on réessaie en espaçant
             last = e
-            time.sleep(3 * (i + 1) ** 2)
+            time.sleep(2 * (i + 1))
     raise RuntimeError(f"{url} : {last}")
 
 
@@ -118,8 +118,11 @@ def cartographie_communes(deps):
                 entry["rnu"] = bool(g.get("rnu"))
             return insee, entry, parts
 
-        with ThreadPoolExecutor(6) as ex:
-            for fut in as_completed([ex.submit(une, c) for c in coms]):
+        t0 = time.time()
+        with ThreadPoolExecutor(8) as ex:
+            for k, fut in enumerate(as_completed([ex.submit(une, c) for c in coms]), 1):
+                if k % 50 == 0:
+                    log(f"  {k}/{len(coms)} communes ({time.time() - t0:.0f} s)")
                 try:
                     insee, entry, parts = fut.result()
                 except Exception as e:
@@ -247,9 +250,10 @@ def main():
     ap.add_argument("--prev", default="prev", help="copie précédente (branche data)")
     ap.add_argument("--out", default="out")
     ap.add_argument("--max-docs", type=int, default=0, help="limite pour un essai")
+    ap.add_argument("--deps", default="", help="départements à traiter (essai), sinon ceux de la configuration")
     a = ap.parse_args()
     cfg = json.loads(Path(a.config).read_text())
-    deps = [str(d).zfill(2) for d in cfg["departements"]]
+    deps = [str(d).zfill(2) for d in (a.deps.split(",") if a.deps else cfg["departements"])]
     prev, out = Path(a.prev), Path(a.out)
     if out.exists():
         shutil.rmtree(out)

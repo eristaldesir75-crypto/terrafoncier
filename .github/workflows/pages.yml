@@ -2,56 +2,22 @@ name: Publier le site
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: "17 2 * * 0" # chaque dimanche vers 3 h (heure de Paris) : copie des PLU modifiés
   workflow_dispatch:
-    inputs:
-      donnees:
-        description: "Mettre à jour la copie des PLU"
-        type: boolean
-        default: true
-      max_docs:
-        description: "Limiter le nombre de documents copiés (0 = tous, pour un essai)"
-        default: "0"
+  workflow_call:
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
-concurrency: { group: pages, cancel-in-progress: false }
 jobs:
-  donnees:
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.donnees)
-    runs-on: ubuntu-latest
-    timeout-minutes: 340
-    steps:
-      - uses: actions/checkout@v4
-      - name: Copie précédente (branche data)
-        run: |
-          git fetch origin data --depth=1 && git worktree add prev origin/data || mkdir -p prev
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.12" }
-      - run: pip install requests geopandas pyogrio remotezip
-      - name: Copie des PLU
-        run: python tools/build_plu.py --config data-config.json --prev prev/plu --out out/plu --max-docs "${{ inputs.max_docs || '0' }}"
-      - name: Publication sur la branche data (un seul commit, sans historique)
-        run: |
-          cd out
-          git init -q -b data
-          git config user.name "terrafoncier-bot"
-          git config user.email "terrafoncier-bot@users.noreply.github.com"
-          git add -A
-          git commit -qm "Copie des PLU du $(date -u +%F)"
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" data
   deploy:
-    needs: [donnees]
-    if: always() && needs.donnees.result != 'failure'
     runs-on: ubuntu-latest
+    concurrency: { group: pages-deploy, cancel-in-progress: false }
     environment: { name: github-pages, url: "${{ steps.d.outputs.page_url }}" }
     steps:
       - uses: actions/checkout@v4
-      - name: Ajout des données copiées
+      - name: Ajout de la copie des PLU (branche data)
         run: |
-          git fetch origin data --depth=1 && git worktree add data origin/data && mkdir -p frontend/data && cp -r data/plu frontend/data/ || echo "Pas encore de copie des PLU"
+          if git fetch origin data --depth=1; then git worktree add data origin/data && mkdir -p frontend/data && cp -r data/plu frontend/data/; else echo "Pas encore de copie des PLU"; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: frontend }

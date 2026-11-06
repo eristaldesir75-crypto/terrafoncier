@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TerraFoncier</title>
+<meta name="description" content="Prospection foncière gratuite : cadastre, PLU, potentiel constructible et suivi des opportunités.">
+<meta name="theme-color" content="#2347c5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="28" height="28" rx="6" fill="var(--accent)"/><path d="M8 22 L14 10 L18 17 L21 13 L25 22 Z" fill="#fff"/></svg>
+    <h1>TerraFoncier</h1>
+  </div>
+  <form class="search" id="searchForm" role="search" autocomplete="off">
+    <input type="search" id="q" aria-label="Rechercher une adresse, une commune ou une parcelle" placeholder="Adresse, commune, ou « 45302 AB 123 »">
+    <button type="submit">Chercher</button>
+    <ul class="suggest" id="suggest" hidden></ul>
+  </form>
+  <button class="ghost icon" id="btnSettings" type="button" aria-label="Réglages">Réglages</button>
+</header>
+
+<main class="layout">
+  <section class="mapcol">
+    <div id="map" aria-label="Carte"></div>
+    <div class="layers" id="layers">
+      <label><input type="radio" name="fond" value="plan" id="fond-plan" checked> Plan</label>
+      <label><input type="radio" name="fond" value="ortho" id="fond-ortho"> Photo</label>
+      <label><input type="checkbox" id="lay-cadastre" checked> Cadastre</label>
+      <label><input type="checkbox" id="lay-zonage" checked> Zonage PLU</label>
+      <label><input type="checkbox" id="lay-presc"> Prescriptions</label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-v="fiche" aria-selected="true" id="tab-fiche">Parcelle</button>
+      <button class="tab" role="tab" data-v="pot" aria-selected="false" id="tab-pot">Potentiel</button>
+      <button class="tab" role="tab" data-v="pro" aria-selected="false" id="tab-pro">Prospection</button>
+      <button class="tab" role="tab" data-v="crm" aria-selected="false" id="tab-crm">Suivi</button>
+    </nav>
+    <div class="view" id="v-fiche"></div>
+    <div class="view" id="v-pot" hidden></div>
+    <div class="view" id="v-pro" hidden></div>
+    <div class="view" id="v-crm" hidden></div>
+  </section>
+</main>
+
+<dialog id="settings">
+  <form method="dialog" class="settings">
+    <h2>Réglages</h2>
+    <label for="set-backend">Adresse du serveur IA (optionnel)
+      <input type="url" id="set-backend" placeholder="https://mon-serveur.onrender.com">
+    </label>
+    <p class="note">Sans serveur IA, les règles du PLU se saisissent à la main, zone par zone, puis sont réutilisées partout.</p>
+    <fieldset>
+      <legend>Hypothèses de calcul</legend>
+      <label for="set-het">Hauteur d'étage (m) <input type="number" id="set-het" step="0.1" min="2.5" max="4"></label>
+      <label for="set-k">Coefficient emprise → SDP <input type="number" id="set-k" step="0.05" min="0.5" max="0.95"></label>
+      <label for="set-smoy">Surface moyenne d'un logement collectif (m²) <input type="number" id="set-smoy" step="5" min="35" max="120"></label>
+      <label for="set-lot">Surface d'un lot individuel (m²) <input type="number" id="set-lot" step="10" min="150" max="1500"></label>
+    </fieldset>
+    <div class="actions"><button value="save" id="set-save">Enregistrer</button><button value="cancel" class="ghost">Fermer</button></div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
+<script type="module" src="js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {})); }
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Déploiement en un clic sur Render (offre gratuite) : New + > Blueprint > ce dépôt
+services:
+  - type: web
+    name: terrafoncier-ia
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: LLM_PROVIDER        # gemini (gratuit), mistral (gratuit) ou anthropic (payant)
+        value: gemini
+      - key: GEMINI_API_KEY      # clé gratuite : https://aistudio.google.com/apikey
+        sync: false
+      - key: MISTRAL_API_KEY     # optionnel, si LLM_PROVIDER=mistral
+        sync: false
+      - key: ANTHROPIC_API_KEY   # optionnel, si LLM_PROVIDER=anthropic
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "*"

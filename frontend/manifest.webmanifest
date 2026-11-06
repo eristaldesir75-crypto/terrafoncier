@@ -1,0 +1,16 @@
+{
+  "name": "TerraFoncier — prospection foncière",
+  "short_name": "TerraFoncier",
+  "description": "Cadastre, PLU, potentiel constructible et suivi des opportunités foncières.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f7",
+  "theme_color": "#2347c5",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

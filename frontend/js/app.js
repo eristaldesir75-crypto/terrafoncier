@@ -624,7 +624,7 @@ function ficheProjets(body) {
         <tr><td>Densité</td><td class="n">${dPot ? f0(dPot) + ' logts/ha' : '—'}</td><td class="n">${S.densiteMed ? f0(S.densiteMed) + ' logts/ha' : '—'}</td></tr>
         <tr><td>Logements par opération</td><td class="n">${pot && pot.ok ? pot.real : '—'}</td><td class="n">${f0(S.lgtMed)}</td></tr>
         <tr><td>Niveaux</td><td class="n">${pot && pot.ok ? pot.niv : '—'}</td><td class="n">${f1(S.nivMed)}</td></tr>
-        ${Array.isArray(sel.ventes) && permis.prixParAnnee(sel.ventes).length ? `<tr><td>Prix du neuf (dernière année)</td><td class="n">—</td><td class="n">${f0(permis.prixParAnnee(sel.ventes).slice(-1)[0].m2)} €/m²</td></tr>` : ''}
+        ${Array.isArray(sel.ventes) && permis.prixParAnnee(sel.ventes).length ? `<tr><td>Prix du neuf (dernière année)</td><td class="n">—</td><td class="n">${f0(permis.prixParAnnee(sel.ventes).slice(-1)[0].m2)} €/m² <small class="note">(${permis.prixParAnnee(sel.ventes).slice(-1)[0].n} vente(s) avec surface)</small></td></tr>` : ''}
         <tr><td>Surface habitable moyenne</td><td class="n">${f0(store.settings().sMoy)} m² (hypothèse)</td><td class="n">${S.shabMed ? f0(S.shabMed) + ' m²' : '—'}</td></tr>
       </table>
       <p class="note">${dPot && S.densiteMed ? (dPot > 1.3 * S.densiteMed ? 'Votre hypothèse est plus dense que ce qui s\'est construit : à justifier auprès de la commune.' : dPot < 0.7 * S.densiteMed ? 'Les opérations voisines sont plus denses : un programme plus important est peut-être acceptable.' : 'Votre hypothèse est cohérente avec les opérations voisines.') : 'Renseignez les règles de la zone pour comparer.'}</p></div>
@@ -675,7 +675,7 @@ function chargerProjets(token) {
       await permis.localiser(cibles, { onProgress: (d, n) => { if (token === selToken) { sel.permisLoc = d / n; const st = $('#projLoc'); if (st) st.textContent = `Localisation des opérations sur la carte : ${d} / ${n}`; } } });
       if (token !== selToken) return;
       permis.distances(l, sel.pt.coordinates); sel.permisLoc = 1;
-      if (Array.isArray(sel.ventes)) sel.programmes = permis.programmesVefa(sel.ventes, l);
+      if (Array.isArray(sel.ventes)) sel.programmes = programmesSel();
       refresh();
     }).catch((e) => { if (token === selToken) { sel.permis = { erreur: e.message }; refresh(); } });
   }
@@ -684,11 +684,15 @@ function chargerProjets(token) {
     api.ventesNeuves(insee, { depuis: 2020 }).then((v) => {
       if (token !== selToken) return;
       sel.ventes = v;
-      sel.programmes = permis.programmesVefa(v, Array.isArray(sel.permis) ? sel.permis : []);
-      for (const g of sel.programmes) g.dist = g.centre ? turf.distance(sel.pt.coordinates, g.centre, { units: 'meters' }) : null;
+      sel.programmes = programmesSel();
       refresh();
     }).catch((e) => { if (token === selToken) { sel.ventes = { erreur: e.message }; refresh(); } });
   }
+}
+function programmesSel() {
+  const G = permis.programmesVefa(sel.ventes, Array.isArray(sel.permis) ? sel.permis : []);
+  for (const g of G) g.dist = g.centre ? turf.distance(sel.pt.coordinates, g.centre, { units: 'meters' }) : null;
+  return G;
 }
 function dessinerVefa() {
   const L = Array.isArray(sel?.programmes) ? sel.programmes : [];
@@ -700,7 +704,7 @@ function vefaHtml() {
   const ans = permis.prixParAnnee(sel.ventes), G = (sel.programmes || []).slice().sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
   const promoLien = (g) => g.siren ? `<a href="https://annuaire-entreprises.data.gouv.fr/entreprise/${encodeURIComponent(g.siren)}" target="_blank" rel="noopener">${esc(g.promoteur)}</a>` : '<span class="note">—</span>';
   return `<div class="vefa-sec"><div class="label">Ventes de logements neufs sur plan (VEFA) depuis 2020</div>
-    <p class="note">${sel.ventes.length} vente(s) en ${G.length} programme(s). Prix réels enregistrés par les notaires (DVF), publiés avec quelques mois de décalage. ${$('#lay-vefa').checked ? 'Points violets sur la carte.' : 'Cochez « Ventes neuves (prix) » sur la carte pour les voir.'}</p>
+    <p class="note">${sel.ventes.length} vente(s) en ${G.length} programme(s). Prix réels enregistrés par les notaires (DVF), publiés avec quelques mois de décalage. La surface n'est souvent pas publiée pour les ventes sur plan : le prix au m² ne porte que sur les ventes où elle l'est. ${$('#lay-vefa').checked ? 'Points violets sur la carte.' : 'Cochez « Ventes neuves (prix) » sur la carte pour les voir.'}</p>
     ${ans.length ? `<div class="tw"><table><tr><th>Année</th>${ans.map((a) => `<th class="n">${a.an}</th>`).join('')}</tr><tr><td>Prix médian du neuf</td>${ans.map((a) => `<td class="n"><b>${f0(a.m2)} €/m²</b><br><small class="note">${a.n} vente(s)</small></td>`).join('')}</tr></table></div>` : '<p class="note">Aucune vente avec surface publiée : prix au m² non calculable.</p>'}
     ${G.length ? `<div class="tw"><table class="res-table"><tr><th>Programme (parcelle)</th><th>Promoteur (permis)</th><th class="n">Ventes</th><th class="n">€/m²</th><th>Période</th><th class="n">Distance</th></tr>
       ${G.slice(0, 40).map((g, i) => `<tr data-vf="${i}" class="clic"><td>${esc(g.idu.slice(8))}</td><td>${promoLien(g)}</td><td class="n">${g.ventes}</td><td class="n">${g.m2Med ? f0(g.m2Med) : '—'}</td><td>${esc(g.debut)} → ${esc(g.fin)}</td><td class="n">${g.dist !== null && g.dist !== undefined ? (g.dist < 1000 ? f0(g.dist) + ' m' : (Math.round(g.dist / 100) / 10).toLocaleString('fr-FR') + ' km') : '—'}</td></tr>`).join('')}

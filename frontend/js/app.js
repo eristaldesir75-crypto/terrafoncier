@@ -237,7 +237,7 @@ function renderFiche() {
     <div><span class="ref">${esc(refOf(p))} · IDU ${esc(p.idu)}</span><h2 style="font-size:19px;margin-top:2px">${esc(p.nom_com || '')}, section ${esc(p.section)} n° ${esc(p.numero)}</h2></div>
     <dl class="kv">
       <dt>Contenance</dt><dd>${m2(p.contenance)} <span class="note">(calculée : ${m2(turf.area(sel.feature))})</span></dd>
-      <dt>Document</dt><dd>${d ? `${esc(d.du_type || 'Document')} · ${esc(d.grid_title || sel.partition || '')}${z && z.datappro ? ' · approuvé le ' + esc(String(z.datappro).replace(/^(\d{4})(\d{2})(\d{2})$/, '$3/$2/$1')) : ''}` : sel.cc ? 'Carte communale' : 'Aucun document au GPU (RNU possible)'}</dd>
+      <dt>Document</dt><dd>${d ? `${esc(d.du_type || 'Document')} · ${esc(d.grid_title || sel.partition || '')}${z && z.datappro ? ' · approuvé le ' + esc(String(z.datappro).replace(/^(\d{4})(\d{2})(\d{2})$/, '$3/$2/$1')) : ''}` : sel.cc ? 'Carte communale' : sel.partition ? `Document ${esc(sel.partition)}` : sel.urba.document === null ? '<span class="pill wa">service indisponible</span>' : 'Aucun document au GPU (RNU possible)'}</dd>
       <dt>Zone</dt><dd>${z ? `<b>${esc(z.libelle)}</b> ${esc(z.libelong || '')} <span class="pill ${constr ? 'ok' : constr === false ? 'no' : 'wa'}">${esc(z.typezone || '')}</span>` : sel.cc ? esc(sel.cc.properties.libelle || 'Secteur de carte communale') : sel.urba['zone-urba'] === null ? '<span class="pill wa">service indisponible</span> <button type="button" class="ghost" id="retryUrba">Réessayer</button>' : '—'}</dd>
       <dt>OAP</dt><dd>${oap ? 'Oui, voir prescriptions' : 'Aucune détectée'}</dd>
       <dt>Prescriptions</dt><dd>${pending ? 'Chargement…' : presc.length ? presc.map(esc).join(' · ') : 'Aucune'}</dd>

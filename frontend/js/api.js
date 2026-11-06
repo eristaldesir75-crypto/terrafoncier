@@ -96,7 +96,22 @@ export async function gpuAt(layer, geom, opts = {}) {
   const fc = await getJSON(`${APICARTO}/gpu/${layer}?geom=${g(geom)}`, opts);
   return fc.features || [];
 }
-export async function gpuByPartition(layer, partition, { signal } = {}) {
+// Les couches d'un PLU entier sont lourdes : gardées en mémoire pendant la visite (fiche, tableau des zones, prospection)
+const partCache = new Map();
+export function gpuByPartition(layer, partition, opts = {}) {
+  const k = `${layer}|${partition}`;
+  if (!partCache.has(k)) {
+    const p = gpuByPartitionBrut(layer, partition, {}).catch((e) => { partCache.delete(k); throw e; });
+    partCache.set(k, p);
+  }
+  const p = partCache.get(k);
+  if (!opts.signal) return p;
+  return new Promise((ok, ko) => {
+    opts.signal.addEventListener('abort', () => ko(new DOMException('Arrêté', 'AbortError')), { once: true });
+    p.then(ok, ko);
+  });
+}
+async function gpuByPartitionBrut(layer, partition, { signal } = {}) {
   const out = [];
   for (let start = 0; start < 20000; start += 1000) {
     const fc = await getJSON(`${APICARTO}/gpu/${layer}?partition=${encodeURIComponent(partition)}&_limit=1000&_start=${start}`, { signal, timeout: 40000 });

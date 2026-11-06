@@ -1,7 +1,7 @@
 // Met en cache l'interface pour une ouverture rapide et hors ligne (les données restent en ligne).
 // Stratégie « réseau d'abord » avec revalidation : une nouvelle version publiée est toujours prise en compte.
-const CACHE = 'terrafoncier-v13';
-const SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/api.js', 'js/potentiel.js', 'js/store.js', 'js/occupation.js', 'js/score.js', 'js/prospection.js', 'js/regles.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png'];
+const CACHE = 'terrafoncier-v14';
+const SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/api.js', 'js/potentiel.js', 'js/store.js', 'js/occupation.js', 'js/score.js', 'js/prospection.js', 'js/regles.js', 'js/zones.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png'];
 self.addEventListener('install', (e) => e.waitUntil(
   caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())
 ));

@@ -6,6 +6,7 @@ import { grille, analyser } from './occupation.js';
 import { noter, contraintesDe, compacite } from './score.js';
 import { initProspection, CRIT_DEFAUT } from './prospection.js';
 import { reglesGraphiques, fusionRegles } from './regles.js';
+import { reglesParZone, plage } from './zones.js';
 
 // ---------- Utilitaires ----------
 const $ = (s, el = document) => el.querySelector(s);
@@ -50,6 +51,8 @@ const map = new maplibregl.Map({
     sources: {
       plan: { type: 'raster', tiles: [wmts('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'normal', 'image/png')], tileSize: 256, maxzoom: 19, attribution: '© IGN Géoplateforme' },
       ortho: { type: 'raster', tiles: [wmts('ORTHOIMAGERY.ORTHOPHOTOS', 'normal', 'image/jpeg')], tileSize: 256, maxzoom: 19, attribution: '© IGN Géoplateforme' },
+      orthoHist: { type: 'raster', tiles: [wmts('ORTHOIMAGERY.ORTHOPHOTOS2016-2020', 'normal', 'image/jpeg')], tileSize: 256, maxzoom: 18, attribution: '© IGN Géoplateforme' },
+      noms: { type: 'raster', tiles: [wmts('GEOGRAPHICALNAMES.NAMES', 'normal', 'image/png')], tileSize: 256, maxzoom: 18, attribution: '© IGN Géoplateforme' },
       cadastre: { type: 'raster', tiles: [wmts('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'PCI vecteur', 'image/png')], tileSize: 256, maxzoom: 19, attribution: 'Cadastre © DGFiP / IGN' },
       zonage: { type: 'raster', tiles: [wms('du')], tileSize: 256, attribution: "Géoportail de l'Urbanisme" },
       presc: { type: 'raster', tiles: [wms('prescription,info')], tileSize: 256 },
@@ -61,9 +64,11 @@ const map = new maplibregl.Map({
     layers: [
       { id: 'plan', type: 'raster', source: 'plan' },
       { id: 'ortho', type: 'raster', source: 'ortho', layout: { visibility: 'none' } },
+      { id: 'orthoHist', type: 'raster', source: 'orthoHist', layout: { visibility: 'none' } },
       { id: 'zonage', type: 'raster', source: 'zonage', minzoom: 11, paint: { 'raster-opacity': 0.45 } },
       { id: 'presc', type: 'raster', source: 'presc', minzoom: 13, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8 } },
       { id: 'cadastre', type: 'raster', source: 'cadastre', minzoom: 15 },
+      { id: 'noms', type: 'raster', source: 'noms', layout: { visibility: 'none' } },
       { id: 'hits-fill', type: 'fill', source: 'hits', paint: { 'fill-color': ['step', ['get', 'score'], SCORE_COLORS[0], 20, SCORE_COLORS[1], 40, SCORE_COLORS[2], 60, SCORE_COLORS[3], 80, SCORE_COLORS[4]], 'fill-opacity': 0.6 } },
       { id: 'hits-line', type: 'line', source: 'hits', paint: { 'line-color': '#18222d', 'line-width': 0.8, 'line-opacity': 0.6 } },
       { id: 'bati-fill', type: 'fill', source: 'bati', paint: { 'fill-color': '#7a4ec9', 'fill-opacity': 0.35 } },
@@ -88,7 +93,32 @@ map.on('mousemove', 'hits-fill', (e) => {
 map.on('mouseleave', 'hits-fill', () => { map.getCanvas().style.cursor = ''; popup.remove(); });
 
 const vis = (id, on) => map.getLayer(id) && map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
-document.querySelectorAll('input[name=fond]').forEach((r) => r.addEventListener('change', () => { vis('plan', r.value === 'plan' && r.checked); vis('ortho', r.value === 'ortho' && r.checked); }));
+// Fond : plan IGN ou satellite (photo aérienne IGN, récente ou ancienne), avec noms des rues et cadastre par-dessus
+function appliquerFond() {
+  const sat = $('#fond-ortho').checked;
+  const recent = $('#orthoAn').value === 'ORTHOIMAGERY.ORTHOPHOTOS';
+  vis('plan', !sat); vis('ortho', sat && recent); vis('orthoHist', sat && !recent); vis('noms', sat && $('#lay-noms').checked);
+  $('#satOpts').hidden = !sat;
+  // sur la photo, le zonage est allégé pour garder la lecture du terrain
+  if (sat && +$('#zonageOpa').value === 45) { $('#zonageOpa').value = 25; map.setPaintProperty('zonage', 'raster-opacity', 0.25); }
+  if (!sat && +$('#zonageOpa').value === 25) { $('#zonageOpa').value = 45; map.setPaintProperty('zonage', 'raster-opacity', 0.45); }
+  try { localStorage.setItem('tf-fond', JSON.stringify({ sat, an: $('#orthoAn').value, noms: $('#lay-noms').checked })); } catch { /* stockage indisponible */ }
+}
+document.querySelectorAll('input[name=fond]').forEach((r) => r.addEventListener('change', appliquerFond));
+$('#lay-noms').addEventListener('change', appliquerFond);
+$('#orthoAn').addEventListener('change', (e) => {
+  const v = e.target.value, vieux = v.includes('1950');
+  if (v !== 'ORTHOIMAGERY.ORTHOPHOTOS') map.getSource('orthoHist').setTiles([wmts(v, vieux ? 'BDORTHOHISTORIQUE' : 'normal', vieux ? 'image/png' : 'image/jpeg')]);
+  appliquerFond();
+});
+$('#zonageOpa').addEventListener('input', (e) => map.setPaintProperty('zonage', 'raster-opacity', +e.target.value / 100));
+map.on('load', () => {
+  let f = null; try { f = JSON.parse(localStorage.getItem('tf-fond') || 'null'); } catch { f = null; }
+  if (!f) return;
+  if (f.an) { $('#orthoAn').value = f.an; if (f.an !== 'ORTHOIMAGERY.ORTHOPHOTOS') $('#orthoAn').dispatchEvent(new Event('change')); }
+  $('#lay-noms').checked = f.noms !== false;
+  if (f.sat) { $('#fond-ortho').checked = true; appliquerFond(); }
+});
 $('#lay-cadastre').addEventListener('change', (e) => vis('cadastre', e.target.checked));
 $('#lay-zonage').addEventListener('change', (e) => vis('zonage', e.target.checked));
 $('#lay-presc').addEventListener('change', (e) => vis('presc', e.target.checked));
@@ -325,7 +355,7 @@ function renderFiche() {
   v.innerHTML = `
     <div class="fiche-head">
       <div><span class="ref">${esc(refOf(p))} · IDU ${esc(p.idu)}</span><h2>${esc(p.nom_com || '')}, section ${esc(p.section)} n° ${esc(p.numero)}</h2></div>
-      <div class="actions"><button type="button" class="ghost" id="addCrm">Ajouter au suivi</button><button type="button" class="ghost" id="copyFiche">Copier la fiche</button></div>
+      <div class="actions"><button type="button" class="ghost" id="addCrm">Ajouter au suivi</button><button type="button" class="ghost" id="copyFiche">Copier la fiche</button><a class="btn-link" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${sel.pt.coordinates[1]},${sel.pt.coordinates[0]}" target="_blank" rel="noopener">Street View</a></div>
     </div>
     ${sel.urba['zone-urba'] === 'loading' ? '<p class="note">Zonage du PLU en cours de chargement…</p>' : ''}${sel.viaWms ? '<p class="note"><span class="pill wa">secours</span> API Carto (IGN) saturé : zonage et prescriptions lus sur le service cartographique du Géoportail de l\'Urbanisme, même source officielle.</p>' : ''}${sel.urba['zone-urba'] === null ? `<div class="warn">Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment : zonage et règles indisponibles. Les autres informations restent valables. <button type="button" class="ghost" id="retryGpu">Réessayer</button></div>` : ''}
     <nav class="subtabs" role="tablist">${FICHE_TABS.map(([k, t]) => `<button type="button" role="tab" class="subtab" data-ft="${k}" aria-selected="${ficheTab === k}">${t}</button>`).join('')}</nav>
@@ -391,11 +421,89 @@ function ficheUrba(body) {
     </div>
     ${sel.graph && sel.graph.n ? `<div class="rules-plan"><div class="label">Règles du plan graphique à cette parcelle</div><ul class="list">${Object.values(sel.graph.sources).map((t) => `<li>${esc(t)}</li>`).join('')}</ul><p class="note"><span class="pill ok">GPU</span> Valeurs publiées par la collectivité au Géoportail de l'Urbanisme. Elles remplacent, pour cette parcelle, la valeur saisie pour la zone dans le calcul du potentiel.</p></div>` : ''}
     ${planGraphique.length && !(sel.graph && sel.graph.n) ? `<p class="note"><span class="pill wa">plan graphique</span> ${[...new Set(planGraphique)].map(esc).join(', ')} : la valeur est fixée sur un plan du PLU, pas seulement dans le règlement écrit. Vérifiez-la sur le Géoportail de l'Urbanisme avant de saisir les règles.</p>` : ''}
-    <div id="rulesSlot"></div>`;
+    ${constr !== false && (z || sel.cc) ? reglesParcelleHtml() : ''}
+    <div id="rulesSlot"></div>
+    ${sel.partition ? `<div class="zones-sec"><div class="label">Toutes les zones du PLU</div><p class="note">Règles de constructibilité de chaque zone du document ${esc(sel.partition)} : valeurs du plan graphique, vos règles enregistrées, lien vers le règlement.</p><div id="zonesSlot"><button type="button" id="loadZones">Afficher le tableau des zones</button></div></div>` : ''}`;
+  const lz = $('#loadZones', body); if (lz) lz.onclick = () => renderZones($('#zonesSlot', body), sel.partition, sel.zLabel);
   const slot = $('#rulesSlot', body);
   if (!z && !sel.cc && sel.zLabel === '?') slot.innerHTML = '<p class="note">Zone non déterminée : réessayez pour charger le zonage avant de saisir des règles.</p>';
   else if (constr !== false) slot.appendChild(rulesBlock(sel.key, sel.zLabel, renderFiche));
   else slot.innerHTML = '<p class="note">Zone agricole ou naturelle : pas de potentiel de logement.</p>';
+}
+
+// Règles applicables à la parcelle, champ par champ, avec leur origine
+function reglesParcelleHtml() {
+  const saved = store.getRules(sel.key);
+  const fu = fusionRegles(saved, sel.graph);
+  const rows = RULE_FIELDS.map((fd) => {
+    const v = fu.regles[fd.k], o = fu.origine[fd.k];
+    const val = v === null ? '—' : fd.pct ? `${Math.round(v * 100)} %` : `${String(v).replace('.', ',')} ${fd.unit}`;
+    const src = o === 'plan' ? '<span class="pill ok">plan graphique</span>' : o === 'zone' ? `<span class="pill ${saved && saved.source === 'ia' ? 'ok' : 'wa'}">${saved && saved.source === 'ia' ? 'IA, cité' : 'saisi'}</span>` : '<span class="pill no">à renseigner</span>';
+    return `<tr><td>${esc(fd.label.replace(/ \(.*\)$/, ''))}</td><td class="n"><b>${esc(val)}</b></td><td>${src}</td></tr>`;
+  }).join('');
+  const pend = sel.urba['prescription-surf'] === 'loading';
+  return `<div><div class="label">Règles de constructibilité applicables à la parcelle</div>
+    <div class="tw"><table class="rules-table"><tr><th>Règle</th><th class="n">Valeur</th><th>Origine</th></tr>${rows}</table></div>
+    <p class="note">${pend ? 'Lecture du plan graphique en cours… ' : ''}Le plan graphique prime sur la valeur de zone. Les règles « à renseigner » se lisent dans le règlement écrit : saisissez-les ci-dessous une fois pour toute la zone.</p></div>`;
+}
+
+// Tableau des règles de toutes les zones d'un PLU
+const zonesCache = new Map();
+async function renderZones(slot, partition, zCourante) {
+  slot.innerHTML = '<p class="note">Chargement du zonage et du plan graphique du PLU… (jusqu\'à une minute quand le service de l\'IGN est chargé)</p>';
+  let data;
+  try {
+    if (!zonesCache.has(partition)) {
+      zonesCache.set(partition, (async () => {
+        const [zs, ps] = await Promise.all([api.gpuByPartition('zone-urba', partition), api.gpuByPartition('prescription-surf', partition).catch(() => null)]);
+        return { liste: reglesParZone(zs, ps || []), prescOk: !!ps };
+      })().catch((e) => { zonesCache.delete(partition); throw e; }));
+    }
+    data = await zonesCache.get(partition);
+  } catch (e) {
+    slot.innerHTML = `<div class="warn">Zonage du PLU indisponible : ${esc(e.message)}. <button type="button" class="ghost" id="zRetry">Réessayer</button></div>`;
+    $('#zRetry', slot).onclick = () => renderZones(slot, partition, zCourante);
+    return;
+  }
+  const vosRegles = (z) => {
+    const r = store.getRules(store.ruleKey(partition, z.libelle));
+    if (!r) return '';
+    return RULE_FIELDS.filter((fd) => r[fd.k] !== null && r[fd.k] !== undefined).map((fd) => `${fd.k === 'ces' ? 'CES' : fd.k === 'h' ? 'H' : fd.k === 'pt' ? 'PT' : fd.k === 'recul' ? 'Recul' : fd.k === 'ret' ? 'Retrait' : 'Stat.'} ${fd.pct ? Math.round(r[fd.k] * 100) + ' %' : r[fd.k] + (fd.unit === 'pl.' ? '' : ' ' + fd.unit)}`).join(', ');
+  };
+  const haut = (z) => [plage(z.hEgout, 'm') && `${plage(z.hEgout, 'm')} à l'égout`, plage(z.hFaitage, 'm') && `${plage(z.hFaitage, 'm')} au faîtage`].filter(Boolean).join(', ');
+  const dest = (z) => [z.destdomi && `dominante : ${z.destdomi}`, z.destoui && `autorisé : ${z.destoui}`, z.destcdt && `sous conditions : ${z.destcdt}`, z.destnon && `interdit : ${z.destnon}`].filter(Boolean).join(' · ');
+  const draw = () => {
+    const q = ($('#zFiltre', slot)?.value || '').trim().toUpperCase();
+    const seulC = $('#zConstr', slot)?.checked ?? true;
+    const L = data.liste.filter((z) => (!q || z.libelle.toUpperCase().includes(q) || z.libelong.toUpperCase().includes(q)) && (!seulC || !/^(A|N)$/i.test(z.typezone)));
+    $('#zTable', slot).innerHTML = `<table class="res-table zones-table">
+      <thead><tr><th>Zone</th><th>Type</th><th class="n">Emprise max</th><th class="n">Hauteur max</th><th class="n">Pleine terre</th><th>Vos règles</th><th></th></tr></thead>
+      <tbody>${L.map((z, i) => `<tr class="${z.libelle === zCourante ? 'cur' : ''}">
+        <td><b>${esc(z.libelle)}</b><br><small class="note">${esc(z.libelong)}${dest(z) ? '<br>' + esc(dest(z)) : ''}${z.oap ? `<br>${z.oap} secteur(s) d'OAP` : ''}</small></td>
+        <td><span class="pill ${/^U|^AU/i.test(z.typezone) && !/AUS/i.test(z.typezone) ? 'ok' : 'no'}">${esc(z.typezone)}</span></td>
+        <td class="n">${esc(plage(z.ces, '%') || '—')}</td><td class="n">${esc(haut(z) || '—')}</td><td class="n">${esc(plage(z.pt, '%') || '—')}</td>
+        <td>${esc(vosRegles(z) || '—')}</td>
+        <td><button type="button" class="ghost" data-z="${i}">Règles</button>${z.urlfic ? ` <a href="${esc(z.urlfic)}" target="_blank" rel="noopener">Règlement</a>` : ''}</td></tr>
+        <tr class="zrow" hidden><td colspan="7" data-slot="${i}"></td></tr>`).join('')}</tbody></table>`;
+    $('#zTable', slot).querySelectorAll('[data-z]').forEach((b) => (b.onclick = () => {
+      const z = L[+b.dataset.z], tr = b.closest('tr').nextElementSibling, td = tr.firstElementChild;
+      tr.hidden = !tr.hidden;
+      if (!tr.hidden && !td.firstChild) td.appendChild(rulesBlock(store.ruleKey(partition, z.libelle), z.libelle, () => { draw(); if (sel) { if (tab === 'fiche') renderFiche(); } }, { zone: { properties: { urlfic: z.urlfic } }, partition }));
+    }));
+  };
+  const nPlan = data.liste.filter((z) => z.ces.length || z.hEgout.length || z.hFaitage.length || z.pt.length).length;
+  slot.innerHTML = `
+    <div class="res-head"><div class="field-row"><input type="search" id="zFiltre" placeholder="Filtrer : UR, UC, 1AU…" aria-label="Filtrer les zones"><label class="chk"><input type="checkbox" id="zConstr" checked> Zones U et AU seulement</label></div><button type="button" class="ghost" id="zCsv">Exporter en CSV</button></div>
+    <p class="note">${data.liste.length} zones · ${nPlan} avec des valeurs au plan graphique${data.prescOk ? '' : ' · plan graphique indisponible pour le moment'}. Les colonnes Emprise, Hauteur et Pleine terre viennent du plan graphique publié au Géoportail de l'Urbanisme ; « — » signifie que la règle est uniquement dans le règlement écrit.</p>
+    <div class="tw" id="zTable"></div>`;
+  $('#zFiltre', slot).oninput = draw; $('#zConstr', slot).onchange = draw;
+  $('#zCsv', slot).onclick = () => {
+    const c = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
+    const lignes = [['Zone', 'Type', 'Description', 'Emprise max (plan)', 'Hauteur max (plan)', 'Pleine terre min (plan)', "Secteurs d'OAP", 'Vos règles', 'Règlement'].join(';'),
+      ...data.liste.map((z) => [z.libelle, z.typezone, z.libelong, plage(z.ces, '%'), haut(z), plage(z.pt, '%'), z.oap, vosRegles(z), z.urlfic].map(c).join(';'))];
+    download(`regles-zones-${partition}.csv`, '﻿' + lignes.join('\n'), 'text/csv');
+  };
+  draw();
 }
 
 function ficheBati(body) {

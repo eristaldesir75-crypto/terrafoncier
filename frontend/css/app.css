@@ -184,3 +184,13 @@ body.wide .layout{grid-template-columns:minmax(0,1fr) min(62vw,980px)}
 
 .rules-plan{border:1px solid var(--line,#ddd);border-radius:8px;padding:10px 12px;margin:10px 0}
 .rules-plan .list{margin:4px 0}
+.sat-opts{display:inline-flex;gap:8px;align-items:center}
+.sat-opts select{font:inherit;font-size:12px;padding:2px 4px;border-radius:6px}
+.layers .opa{display:inline-flex;gap:6px;align-items:center}
+.layers .opa input[type=range]{width:80px}
+.btn-link{display:inline-flex;align-items:center;padding:6px 10px;border:1px solid var(--line,#ccd);border-radius:8px;text-decoration:none;font-size:14px}
+.rules-table td:first-child{white-space:nowrap}
+.zones-sec{margin-top:14px;border-top:1px solid var(--line,#ddd);padding-top:12px}
+.zones-table tr.cur td{background:rgba(35,71,197,.08)}
+.zones-table td{vertical-align:top}
+.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px}

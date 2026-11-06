@@ -33,9 +33,22 @@
     <div id="map" aria-label="Carte"></div>
     <div class="layers" id="layers">
       <label><input type="radio" name="fond" value="plan" id="fond-plan" checked> Plan</label>
-      <label><input type="radio" name="fond" value="ortho" id="fond-ortho"> Photo</label>
+      <label><input type="radio" name="fond" value="ortho" id="fond-ortho"> Satellite</label>
+      <span class="sat-opts" id="satOpts" hidden>
+        <select id="orthoAn" aria-label="Année de la photo aérienne">
+          <option value="ORTHOIMAGERY.ORTHOPHOTOS">Photo récente</option>
+          <option value="ORTHOIMAGERY.ORTHOPHOTOS2021-2023">2021-2023</option>
+          <option value="ORTHOIMAGERY.ORTHOPHOTOS2016-2020">2016-2020</option>
+          <option value="ORTHOIMAGERY.ORTHOPHOTOS2011-2015">2011-2015</option>
+          <option value="ORTHOIMAGERY.ORTHOPHOTOS2006-2010">2006-2010</option>
+          <option value="ORTHOIMAGERY.ORTHOPHOTOS2000-2005">2000-2005</option>
+          <option value="ORTHOIMAGERY.ORTHOPHOTOS.1950-1965">1950-1965</option>
+        </select>
+        <label><input type="checkbox" id="lay-noms" checked> Noms</label>
+      </span>
       <label><input type="checkbox" id="lay-cadastre" checked> Cadastre</label>
       <label><input type="checkbox" id="lay-zonage" checked> Zonage PLU</label>
+      <label class="opa" title="Transparence du zonage PLU">Opacité <input type="range" id="zonageOpa" min="0" max="90" step="5" value="45" aria-label="Opacité du zonage PLU"></label>
       <label><input type="checkbox" id="lay-presc"> Prescriptions</label>
       <label id="lay-hits-wrap" hidden><input type="checkbox" id="lay-hits" checked> Résultats</label>
     </div>

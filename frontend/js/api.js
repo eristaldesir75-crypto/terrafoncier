@@ -142,6 +142,71 @@ export async function batiments(geom) {
   } catch { return null; }
 }
 
+/** Objets BD TOPO d'une couche dans une emprise [ouest, sud, est, nord], par pages de 1000. */
+async function bdtopoBBox(source, bbox, { signal } = {}) {
+  const poly = { type: 'Polygon', coordinates: [[[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[2], bbox[3]], [bbox[0], bbox[3]], [bbox[0], bbox[1]]]] };
+  const out = [];
+  for (let start = 0; start < 20000; start += 1000) {
+    const fc = await getJSON(`${APICARTO}/wfs-geoportail/search?source=${source}&geom=${g(poly)}&_limit=1000&_start=${start}`, { signal, timeout: 40000 });
+    const f = fc.features || [];
+    out.push(...f);
+    if (f.length < 1000) break;
+  }
+  return out;
+}
+
+/**
+ * Bâtiments, parkings et équipements BD TOPO pour une liste de tuiles (emprises), 4 tuiles à la fois.
+ * Les doublons (un objet à cheval sur deux tuiles) sont retirés par identifiant.
+ */
+export async function occupationTiles(tiles, { signal, onProgress } = {}) {
+  const seen = { bat: new Set(), park: new Set(), eq: new Set() };
+  const res = { batiments: [], parkings: [], equipements: [] };
+  let next = 0, done = 0;
+  const add = (kind, key, list) => list.forEach((f) => { const id = f.properties.cleabs || f.id; if (!seen[kind].has(id)) { seen[kind].add(id); res[key].push(f); } });
+  async function worker() {
+    while (next < tiles.length) {
+      const t = tiles[next++];
+      const [b, e, z] = await Promise.all([
+        bdtopoBBox('BDTOPO_V3:batiment', t, { signal }),
+        bdtopoBBox('BDTOPO_V3:equipement_de_transport', t, { signal }),
+        bdtopoBBox('BDTOPO_V3:zone_d_activite_ou_d_interet', t, { signal }),
+      ]);
+      add('bat', 'batiments', b);
+      add('park', 'parkings', e.filter((x) => x.properties.nature === 'Parking'));
+      add('eq', 'equipements', z);
+      done++;
+      onProgress && onProgress(done, tiles.length);
+    }
+  }
+  await Promise.all([worker(), worker(), worker(), worker()]);
+  return res;
+}
+
+/** Parkings et équipements autour d'une géométrie (fiche parcelle). */
+export async function occupationAt(geom) {
+  const q = (source) => getJSON(`${APICARTO}/wfs-geoportail/search?source=${source}&geom=${g(geom)}&_limit=200`).then((fc) => fc.features || []).catch(() => null);
+  const [e, z] = await Promise.all([q('BDTOPO_V3:equipement_de_transport'), q('BDTOPO_V3:zone_d_activite_ou_d_interet')]);
+  return { parkings: e ? e.filter((x) => x.properties.nature === 'Parking') : null, equipements: z };
+}
+
+// ---------- Friches (Cartofriches, Cerema) ----------
+const frichesCache = new Map();
+/** Friches recensées dans une commune ; chaque friche liste les parcelles (IDU) de son unité foncière. */
+export async function friches(insee) {
+  if (frichesCache.has(insee)) return frichesCache.get(insee);
+  const p = getJSON(`https://apidf-preprod.cerema.fr/cartofriches/friches/?code_insee=${insee}`, { timeout: 30000, retries: 1 })
+    .then((fc) => (fc.features || fc.results || []).map((x) => {
+      const pr = x.properties || x;
+      let idus = [];
+      try { idus = JSON.parse(String(pr.unite_fonciere_refcad || '[]').replace(/'/g, '"')); } catch { idus = []; }
+      return { id: pr.site_id, nom: pr.site_nom, type: pr.site_type, statut: pr.site_statut, adresse: pr.site_adresse, surface: pr.unite_fonciere_surface, idus };
+    }))
+    .catch(() => null);
+  frichesCache.set(insee, p);
+  return p;
+}
+
 // ---------- Risques (Géorisques) ----------
 export async function risques(lng, lat) {
   try {

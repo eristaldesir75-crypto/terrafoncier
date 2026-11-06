@@ -37,7 +37,9 @@
       <label><input type="checkbox" id="lay-cadastre" checked> Cadastre</label>
       <label><input type="checkbox" id="lay-zonage" checked> Zonage PLU</label>
       <label><input type="checkbox" id="lay-presc"> Prescriptions</label>
+      <label id="lay-hits-wrap" hidden><input type="checkbox" id="lay-hits" checked> Résultats</label>
     </div>
+    <div class="legend" id="legend" hidden></div>
   </section>
 
   <section class="panel">
@@ -45,7 +47,8 @@
       <button class="tab" role="tab" data-v="fiche" aria-selected="true" id="tab-fiche">Parcelle</button>
       <button class="tab" role="tab" data-v="pot" aria-selected="false" id="tab-pot">Potentiel</button>
       <button class="tab" role="tab" data-v="pro" aria-selected="false" id="tab-pro">Prospection</button>
-      <button class="tab" role="tab" data-v="crm" aria-selected="false" id="tab-crm">Suivi</button>
+      <button class="tab" role="tab" data-v="crm" aria-selected="false" id="tab-crm">Tableau de bord</button>
+      <button class="ghost wide-btn" type="button" id="btnWide" aria-pressed="false" title="Agrandir le panneau pour les tableaux">Agrandir</button>
     </nav>
     <div class="view" id="v-fiche"></div>
     <div class="view" id="v-pot" hidden></div>

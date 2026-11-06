@@ -611,3 +611,6 @@ dlg.addEventListener('close', () => {
 $('#legend').innerHTML = `<b>Note</b>${['0-19', '20-39', '40-59', '60-79', '80-100'].map((t, i) => `<span><i style="background:${SCORE_COLORS[i]}"></i>${t}</span>`).join('')}`;
 
 showTab('fiche');
+
+// Diagnostic (console du navigateur) : état courant de l'application
+window.tfDebug = () => ({ tab, ficheTab, selToken, sel });

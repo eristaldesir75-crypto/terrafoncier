@@ -162,7 +162,10 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   map.getSource('env').setData(empty);
   map.getSource('bati').setData(empty);
   if (forceTab) showTab(forceTab);
-  else if (tab !== 'pot' && tab !== 'pro' && tab !== 'crm') showTab('fiche');
+  else if (tab !== 'pot' && tab !== 'pro' && tab !== 'crm') // Diagnostic (console du navigateur) : état courant de la fiche
+window.tfDebug = () => ({ tab, ficheTab, selToken, sel });
+
+showTab('fiche');
   const pt = turf.pointOnFeature(f).geometry;
   const simple = turf.truncate(turf.simplify(f, { tolerance: 0.000005, highQuality: true }), { precision: 6 }).geometry;
   const insee = f.properties.code_insee;

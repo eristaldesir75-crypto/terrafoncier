@@ -148,21 +148,26 @@ export function initProspection(ctx) {
     try {
       if (!bounds) ctx.map.flyTo({ center: com.centre.coordinates, zoom: 13 });
       setStatus(`Document d'urbanisme de ${esc(com.nom)}…`, 3);
-      // Le PLU est identifié par la zone au centre de la commune (service rapide), le service « document » en secours
+      // Le PLU est identifié par la zone trouvée en un point de la commune. Le centre officiel peut tomber
+      // dans un fleuve ou un espace non zoné (Tours, Chinon) : plusieurs points autour sont essayés.
       let partition = null;
-      try { partition = (await api.gpuAt('zone-urba', com.centre, { retries: 1 }))[0]?.properties.partition || null; } catch { partition = null; }
-      if (!partition) {
-        try { partition = (await api.gpuAt('secteur-cc', com.centre, { retries: 1 }))[0]?.properties.partition || null; } catch { partition = null; }
+      const [cx, cy] = com.centre.coordinates;
+      const points = [[0, 0], [0.006, 0], [-0.006, 0], [0, 0.004], [0, -0.004], [0.012, 0.008], [-0.012, -0.008], [0.012, -0.008], [-0.012, 0.008]];
+      for (let i = 0; i < points.length && !partition; i += 3) {
+        const res = await Promise.all(points.slice(i, i + 3).map(([dx, dy]) => api.duAt(cx + dx, cy + dy, { signal }).catch(() => null)));
+        for (const d of res) { const z = d && (d['zone-urba'][0] || d['secteur-cc'][0]); if (z && z.properties.partition && !partition) partition = z.properties.partition; }
       }
       if (!partition) {
-        // Secours : service cartographique du GPU (autre serveur), puis service « document »
-        try { const d = await api.duAt(com.centre.coordinates[0], com.centre.coordinates[1], { signal }); partition = (d['zone-urba'][0] || d['secteur-cc'][0])?.properties.partition || null; } catch { partition = null; }
+        try { partition = (await api.gpuAt('zone-urba', com.centre, { retries: 1 }))[0]?.properties.partition || null; } catch { partition = null; }
       }
       if (!partition) {
+        let rnu = null;
+        try { rnu = (await api.municipality(com.code))?.properties.is_rnu ?? null; } catch { rnu = null; }
+        if (rnu) throw new api.ApiError(`${com.nom} est au RNU : pas de PLU ni de carte communale, c'est le règlement national d'urbanisme qui s'applique`);
         try { partition = (await api.gpuAt('document', com.centre, { retries: 1 }))[0]?.properties.partition || null; }
         catch { throw new api.ApiError("Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment. Réessayez dans quelques minutes"); }
       }
-      if (!partition) throw new api.ApiError(`Aucun PLU publié au Géoportail de l'Urbanisme pour ${com.nom} (RNU ou document non numérisé)`);
+      if (!partition) throw new api.ApiError(`Aucun PLU publié au Géoportail de l'Urbanisme pour ${com.nom} (document non numérisé)`);
 
       setStatus(`Zonage ${esc(partition)}…`, 6);
       const zones = (await api.gpuByPartition('zone-urba', partition, { signal })).filter((z) => z.geometry);

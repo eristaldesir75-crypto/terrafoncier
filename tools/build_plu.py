@@ -146,16 +146,44 @@ def arrondi(o, nd=6):
     return o
 
 
-def nettoie(features, props, partition, doc_id):
+# Prescriptions utilisées par le site : EBC, emplacements réservés, patrimoine, OAP, emprise, hauteur, pleine terre
+PRESC_CODES = {"01", "05", "07", "18", "38", "39", "43"}
+PRESC_RE = re.compile(r"(?i)espaces? bois|EBC|emplacements? r[ée]serv|patrimoin|paysag|orientations? d.am[ée]nagement|\bOAP\b|hauteur|emprise|pleine terre")
+
+
+def utile(p):
+    t = str(p.get("typepsc") or "").zfill(2)
+    return t in PRESC_CODES or bool(PRESC_RE.search(str(p.get("libelle") or "")))
+
+
+def simplifie(g):
+    """Contours simplifiés à 50 cm près (les PLU sont souvent très densifiés en sommets)."""
+    try:
+        from shapely.geometry import shape, mapping
+        s = shape(g).simplify(0.000005, preserve_topology=True)
+        if s.is_empty:
+            return g
+        m = mapping(s)
+        return {"type": m["type"], "coordinates": json.loads(json.dumps(m["coordinates"]))}
+    except Exception:
+        return g
+
+
+def nettoie(features, props, partition, doc_id, filtre=None):
     out = []
     for f in features:
         g = f.get("geometry")
         if not g:
             continue
+        if filtre and not filtre({k.lower(): v for k, v in (f.get("properties") or {}).items()}):
+            continue
+        g = simplifie(g)
         p0 = {k.lower(): v for k, v in (f.get("properties") or {}).items()}
         p = {k: p0.get(k) for k in props if p0.get(k) not in (None, "")}
         if not p.get("urlfic") and p.get("nomfic"):
             p["urlfic"] = f"{GPU}/document/{doc_id}/files/{p['nomfic']}"
+        if p.get("typepsc") is not None:
+            p["typepsc"] = str(p["typepsc"]).zfill(2)
         p["partition"] = partition
         out.append({"type": "Feature", "properties": p, "geometry": {"type": g["type"], "coordinates": arrondi(g["coordinates"])}})
     return out
@@ -239,7 +267,7 @@ def copie_document(doc, dest):
         except Exception as e:
             raise RuntimeError(f"{part} : aucune source disponible ({e})")
     zones = nettoie(couches.get("zone_urba") or couches.get("secteur_cc") or [], ZONE_PROPS, part, did)
-    presc = nettoie(couches.get("prescription_surf") or [], PRESC_PROPS, part, did)
+    presc = nettoie(couches.get("prescription_surf") or [], PRESC_PROPS, part, did, filtre=utile)
     if not zones:
         raise RuntimeError(f"{part} : zonage vide")
     d = dest / "p" / part

@@ -101,7 +101,8 @@ const partCache = new Map();
 export function gpuByPartition(layer, partition, opts = {}) {
   const k = `${layer}|${partition}`;
   if (!partCache.has(k)) {
-    const p = gpuByPartitionBrut(layer, partition, {}).catch((e) => { partCache.delete(k); throw e; });
+    // copie hebdomadaire publiée avec le site d'abord (rapide, indépendante de l'IGN), API Carto sinon
+    const p = copieLocale(layer, partition).then((c) => c || gpuByPartitionBrut(layer, partition, {})).catch((e) => { partCache.delete(k); throw e; });
     partCache.set(k, p);
   }
   const p = partCache.get(k);
@@ -111,6 +112,34 @@ export function gpuByPartition(layer, partition, opts = {}) {
     p.then(ok, ko);
   });
 }
+// ---------- Copie hebdomadaire des PLU (data/plu, construite par le traitement « Copie des PLU ») ----------
+let indexCopie = null;
+export function copiePlu() {
+  if (!indexCopie) indexCopie = fetch('data/plu/index.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  return indexCopie;
+}
+async function copieLocale(layer, partition) {
+  if (!['zone-urba', 'secteur-cc', 'prescription-surf'].includes(layer)) return null;
+  const idx = await copiePlu();
+  const doc = idx && idx.documents && idx.documents[partition];
+  if (!doc) return null;
+  const cc = doc.type === 'CC';
+  if ((layer === 'zone-urba' && cc) || (layer === 'secteur-cc' && !cc)) return [];
+  try {
+    const r = await fetch(`data/plu/p/${encodeURIComponent(partition)}/${layer === 'prescription-surf' ? 'presc' : 'zones'}.json`);
+    if (!r.ok) return null;
+    return (await r.json()).features || [];
+  } catch { return null; }
+}
+const communesCopie = new Map();
+/** Document(s) d'urbanisme d'une commune d'après la copie : { partitions: [...] } ou { rnu: true }, null si non copiée. */
+export async function communeCopie(insee) {
+  const dep = /^97/.test(insee) ? insee.slice(0, 3) : insee.slice(0, 2);
+  if (!communesCopie.has(dep)) communesCopie.set(dep, fetch(`data/plu/communes/${dep}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  const c = await communesCopie.get(dep);
+  return (c && c[insee]) || null;
+}
+
 async function gpuByPartitionBrut(layer, partition, { signal } = {}) {
   const out = [];
   for (let start = 0; start < 20000; start += 1000) {

@@ -151,9 +151,12 @@ export function initProspection(ctx) {
       // Le PLU est identifié par la zone trouvée en un point de la commune. Le centre officiel peut tomber
       // dans un fleuve ou un espace non zoné (Tours, Chinon) : plusieurs points autour sont essayés.
       let partition = null;
+      const copie = await api.communeCopie(com.code);
+      if (copie && copie.rnu) throw new api.ApiError(`${com.nom} est au RNU : pas de PLU ni de carte communale, c'est le règlement national d'urbanisme qui s'applique`);
+      if (copie && copie.partitions && copie.partitions.length) partition = copie.partitions.find((x) => !/PSMV/i.test(x)) || copie.partitions[0];
       const [cx, cy] = com.centre.coordinates;
       const points = [[0, 0], [0.006, 0], [-0.006, 0], [0, 0.004], [0, -0.004], [0.012, 0.008], [-0.012, -0.008], [0.012, -0.008], [-0.012, 0.008]];
-      for (let i = 0; i < points.length && !partition; i += 3) {
+      for (let i = 0; !partition && i < points.length; i += 3) {
         const res = await Promise.all(points.slice(i, i + 3).map(([dx, dy]) => api.duAt(cx + dx, cy + dy, { signal }).catch(() => null)));
         for (const d of res) { const z = d && (d['zone-urba'][0] || d['secteur-cc'][0]); if (z && z.properties.partition && !partition) partition = z.properties.partition; }
       }

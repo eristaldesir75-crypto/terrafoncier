@@ -522,9 +522,10 @@ async function renderZones(slot, partition, zCourante) {
     }));
   };
   const nPlan = data.liste.filter((z) => z.ces.length || z.hEgout.length || z.hFaitage.length || z.pt.length).length;
+  const idxC = await api.copiePlu(), dc = idxC && idxC.documents && idxC.documents[partition];
   slot.innerHTML = `
     <div class="res-head"><div class="field-row"><input type="search" id="zFiltre" placeholder="Filtrer : UR, UC, 1AU…" aria-label="Filtrer les zones"><label class="chk"><input type="checkbox" id="zConstr" checked> Zones U et AU seulement</label></div><button type="button" class="ghost" id="zCsv">Exporter en CSV</button></div>
-    <p class="note">${data.liste.length} zones · ${nPlan} avec des valeurs au plan graphique${data.prescOk ? '' : ' · <b>plan graphique non chargé (service IGN lent)</b> <button type="button" class="ghost" id="zRetryPlan">Réessayer</button>'}. Les colonnes Emprise, Hauteur et Pleine terre viennent du plan graphique publié au Géoportail de l'Urbanisme ; « — » signifie que la règle est uniquement dans le règlement écrit.</p>
+    <p class="note">${dc ? `<span class="pill ok">copie du ${esc(dc.copie)}</span> ${esc(dc.nom || '')}, mis à jour au GPU le ${esc(String(dc.maj || '').slice(0, 10))} · ` : ''}${data.liste.length} zones · ${nPlan} avec des valeurs au plan graphique${data.prescOk ? '' : ' · <b>plan graphique non chargé (service IGN lent)</b> <button type="button" class="ghost" id="zRetryPlan">Réessayer</button>'}. Les colonnes Emprise, Hauteur et Pleine terre viennent du plan graphique publié au Géoportail de l'Urbanisme ; « — » signifie que la règle est uniquement dans le règlement écrit.</p>
     <div class="tw" id="zTable"></div>`;
   const rp = $('#zRetryPlan', slot); if (rp) rp.onclick = () => { zonesCache.delete(partition); renderZones(slot, partition, zCourante); };
   $('#zFiltre', slot).oninput = draw; $('#zConstr', slot).onchange = draw;

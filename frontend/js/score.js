@@ -93,7 +93,9 @@ export function noter(o) {
 
   const got = parts.filter((p) => p.v !== null);
   const sum = got.reduce((a, p) => a + p.v, 0), maxi = got.reduce((a, p) => a + p.max, 0);
-  return { tot: Math.round((100 * sum) / maxi), partiel, parts };
+  // sans les règles du PLU, la note reste plafonnée : une opportunité confirmée passe devant
+  const tot = Math.round((100 * sum) / maxi);
+  return { tot: partiel ? Math.min(tot, 85) : tot, partiel, parts };
 }
 
 /** Compacité d'une parcelle (1 = disque, proche de 0 = lanière). */

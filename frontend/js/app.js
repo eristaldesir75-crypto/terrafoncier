@@ -26,7 +26,7 @@ const refOf = (p) => (p ? `${p.code_insee} ${p.section} ${String(p.numero).padSt
 // Zones d'activités, d'équipements ou à urbaniser à long terme (2AU, AUs) : écartées des recherches de logement
 const zoneHorsLogement = (z) => {
   const p = z.properties, lib = p.libelle || '', long = p.libelong || '', t = (p.typezone || '').toUpperCase();
-  return t === 'AUS' || /^2AU/i.test(lib) || /activit|[ée]quipement|industri|commerc|portuaire|a[ée]roport/i.test(long) || /(^|-)(U?AE|UE|UX|UI|UY)\d*(-|$)/i.test(lib);
+  return t === 'AUS' || /^2AU/i.test(lib) || /activit|[ée]quipement|industri|commerc|portuaire|a[ée]roport|parcs?\b|jardins|cimeti|sports?\b|loisirs/i.test(long) || /(^|-)(U?AE|UE|UX|UI|UY)\d*(-|$)/i.test(lib);
 };
 const zoneConstructible = (z) => {
   if (!z) return null;

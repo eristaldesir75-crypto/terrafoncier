@@ -7,6 +7,7 @@ import { computePotentiel, parseQuery } from './potentiel.js';
 import { NATURES, grille, analyser } from './occupation.js';
 import { noter, contraintesDe, compacite, POIDS_NATURE } from './score.js';
 import { voisinages, regroupements, fusion, sansDoublons } from './remembrement.js';
+import * as permis from './permis.js';
 import { reglesGraphiquesParcelle, fusionRegles } from './regles.js';
 
 const NATURES_DEFAUT = Object.keys(NATURES).filter((k) => NATURES[k].opp);
@@ -22,6 +23,33 @@ export const CRIT_DEFAUT = {
 const MAISONS = ['maison', 'maison_grand'];
 const natLabel = (k) => (k === 'remembrement' ? 'Remembrement' : NATURES[k] ? NATURES[k].label : k);
 const pause = () => new Promise((ok) => setTimeout(ok, 0));
+const mediane = (a) => { const s = a.slice().sort((x, y) => x - y); if (!s.length) return null; const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+
+/**
+ * Densités réellement autorisées : opérations de 5 logements collectifs ou plus depuis 2015 (permis Sitadel),
+ * localisées par leur parcelle, médiane par zone du PLU et pour la commune.
+ */
+async function densitesVoisines(insee, idxZones) {
+  const l = await api.permisLogements(insee, { minLogements: 5 });
+  const ops = l.filter((p) => p.etat !== 4 && p.collectifs >= 5 && (p.autorisation || '') >= '2015');
+  await permis.localiser(ops);
+  const zones = new Map(), tous = [];
+  for (const p of ops) {
+    const d = permis.densite(p);
+    if (!d || d > 800) continue;
+    tous.push(d);
+    if (!p.centre) continue;
+    const pt = turf.point(p.centre);
+    const z = idxZones.pres([p.centre[0], p.centre[1], p.centre[0], p.centre[1]]).find((zz) => turf.booleanPointInPolygon(pt, zz));
+    if (!z) continue;
+    const k = z.properties.libelle;
+    if (!zones.has(k)) zones.set(k, []);
+    zones.get(k).push(d);
+  }
+  const res = { commune: { med: mediane(tous), n: tous.length }, zones: new Map() };
+  for (const [k, v] of zones) res.zones.set(k, { med: mediane(v), n: v.length });
+  return res;
+}
 
 /**
  * @param ctx { map, setHits, selectFeature, rulesBlock, toast, download, esc, f0, m2, refOf, zoneConstructible, zoneHorsLogement, onResults }
@@ -176,6 +204,34 @@ export function initProspection(ctx) {
     } else if (c.collectif) return 'attente';
     if (c.hMin && rules && rules.h !== null && rules.h !== undefined && rules.h < c.hMin) return 'regles';
     return null;
+  }
+
+  /**
+   * Terrains sans règles PLU connues : nombre de logements estimé d'après la densité des opérations collectives
+   * autorisées dans la même zone (3 au moins), sinon dans la commune. Ceux qui atteignent le programme entrent
+   * dans les résultats avec la mention « estimation » ; les autres restent en attente de règles.
+   */
+  function appliquerEstimations(r) {
+    const d = r.densites, c = st.crit;
+    if (!d) return;
+    const critN = critPourNote(), garde = [];
+    const base = (lib) => { const z = d.zones.get(lib); if (z && z.n >= 3) return { ...z, base: `zone ${lib}` }; if (d.commune.n >= 3) return { ...d.commune, base: 'commune' }; return null; };
+    const estimer = (h) => {
+      const b = base(h.zone.properties.libelle);
+      h.estim = b ? { lg: Math.floor((h.occ.S * b.med) / 10000), dens: Math.round(b.med), n: b.n, base: b.base } : null;
+    };
+    for (const h of r.list) if (!h.pot) estimer(h);
+    for (const h of r.attente) {
+      estimer(h);
+      const ok = h.estim && h.estim.lg >= Math.max(5, Math.ceil((c.lmin || 0) * 0.5));
+      if (ok) {
+        h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot: null, contraintes: h.contraintes, compacite: compacite(h.f) });
+        if (h.s.tot >= (c.scoreMin || 0)) { r.list.push(h); continue; }
+      }
+      garde.push(h);
+    }
+    r.attente.length = 0; r.attente.push(...garde);
+    r.list.sort((a, b) => b.s.tot - a.s.tot);
   }
 
   async function run() {
@@ -376,12 +432,20 @@ export function initProspection(ctx) {
       // regroupements en attente de règles : 2 au plus par parcelle aussi
       const attSeules = attente.filter((h) => !h.groupe), attGrp = sansDoublons(attente.filter((h) => h.groupe), 2);
       attente.length = 0; attente.push(...attSeules, ...attGrp);
-      if (attente.length) avertissements.push(`${f0(attente.length)} terrain(s) mis de côté : règles du PLU inconnues pour leur zone. Renseignez-les dans « zones sans règles » ci-dessous, ils entreront dans les résultats.`);
+
       out.sort((a, b) => b.s.tot - a.s.tot);
       st.results = { com, partition, list: out, attente, compte, cand: cand.length, groupes: nbGroupes, secs: Math.round((performance.now() - t0) / 1000), avertissements, date: new Date().toISOString(), classer };
       st.zonesMissing = [...missing.values()].sort((a, b) => b.n - a.n);
+      // logements estimés d'après les opérations voisines pour les terrains sans règles PLU
+      setStatus('Estimation des logements d\'après les opérations collectives autorisées alentour…', 97);
+      try { st.results.densites = await densitesVoisines(com.code, idxZones); } catch { st.results.densites = null; avertissements.push('Permis de construire (Sitadel) indisponibles : pas d\'estimation des logements pour les zones sans règles'); }
+      const avantEstim = st.results.attente.length;
+      appliquerEstimations(st.results);
+      const entres = avantEstim - st.results.attente.length;
+      if (entres) avertissements.push(`${f0(entres)} terrain(s) sans règles PLU connues ajoutés avec un nombre de logements estimé d'après la densité des opérations collectives autorisées alentour (mention « ≈ »). À confirmer avec le règlement de la zone.`);
       store.addHistorique({ date: st.results.date, commune: com.nom, code: com.code, total: parcels.length, retenus: out.length, top: out.slice(0, 5).map((h) => ({ ref: refOf(h.f.properties), score: h.s.tot, nature: h.occ.label })) });
       st.compteRef = compte;
+      if (st.results.attente.length) avertissements.push(`${f0(st.results.attente.length)} terrain(s) mis de côté : règles du PLU inconnues pour leur zone et pas assez d'opérations voisines pour estimer. Renseignez les règles dans « zones sans règles » ci-dessous, ils entreront dans les résultats.`);
       setStatus(resume(st.results));
       ctx.setHits(out);
       ctx.onResults && ctx.onResults(true);
@@ -436,7 +500,7 @@ export function initProspection(ctx) {
     { k: 'nature', t: 'Nature', v: (h) => h.occ.label },
     { k: 'ces', t: 'Bâti', v: (h) => h.occ.ces, fmt: (x) => `${Math.round(x * 100)} %`, n: true },
     { k: 'niv', t: 'Niv.', v: (h) => (h.pot ? h.pot.niv : -1), fmt: (x) => (x < 0 ? '?' : x <= 1 ? 'RDC' : 'R+' + (x - 1)), n: true },
-    { k: 'lgt', t: 'Logts', v: (h) => (h.pot ? h.pot.real : -1), fmt: (x) => (x < 0 ? '?' : x), n: true },
+    { k: 'lgt', t: 'Logts', v: (h) => (h.pot ? h.pot.real : h.estim ? h.estim.lg - 0.1 : -1), fmt: (x) => (x < 0 ? '?' : Number.isInteger(x) ? x : `≈ ${Math.round(x + 0.1)}`), n: true },
     { k: 'score', t: 'Note', v: (h) => h.s.tot, n: true },
   ];
 
@@ -492,14 +556,14 @@ export function initProspection(ctx) {
     const detail = open ? `<tr class="detail"><td colspan="${COLS.length}">
       <div class="why">${h.s.parts.map((p) => `<div class="why-row"><span>${esc(p.label)}</span><span class="bar"><i style="width:${p.v === null ? 0 : Math.round((100 * p.v) / p.max)}%"></i></span><b>${p.v === null ? '—' : p.v}/${p.max}</b><small>${esc(p.why)}</small></div>`).join('')}</div>
       ${h.groupe ? `<p><span class="pill wa">remembrement</span> ${h.membres.length} parcelles voisines, propriétaires probablement différents : ${h.membres.map((m, j) => `<b>${esc(refOf(m.f.properties))}</b> ${esc(m.occ.label.toLowerCase())}, ${f0(m.S)} m²${h.adresses && h.adresses[j] ? ', ' + esc(h.adresses[j].label) : ''}`).join(' · ')}</p>` : ''}
-      <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? ' · potentiel à confirmer (règles de zone manquantes)' : ''}${h.graph ? ' · plan graphique : ' + Object.values(h.graph.sources).map(esc).join(', ') : ''}</p>
+      <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? (h.estim ? ` · <b>≈ ${h.estim.lg} logements estimés</b> (densité médiane de ${h.estim.dens} logts/ha sur ${h.estim.n} opérations collectives autorisées, ${esc(h.estim.base)}) : à confirmer avec le règlement` : ' · potentiel à confirmer (règles de zone manquantes)') : ''}${h.graph ? ' · plan graphique : ' + Object.values(h.graph.sources).map(esc).join(', ') : ''}</p>
       <div class="actions"><button type="button" data-fiche="${i}">Ouvrir la fiche</button></div></td></tr>` : '';
     return `<tr data-i="${i}" class="${open ? 'open' : ''}">${cells}</tr>${detail}`;
   }
 
   function exportCsv(r) {
-    const head = 'rang;reference;idu;adresse;commune;zone;surface_m2;nature;nb_parcelles;niveaux;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
-    const rows = r.list.map((h, i) => [i + 1, refOf(h.f.properties), h.f.properties.idu, `"${String(h.f.properties.adresse || h.adresse || '').replace(/"/g, "'")}"`, r.com.nom, h.zone.properties.libelle, Math.round(h.occ.S), h.occ.label, h.groupe ? h.membres.length : 1, h.pot ? h.pot.niv : '', Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
+    const head = 'rang;reference;idu;adresse;commune;zone;logements_estimes_operations_voisines;surface_m2;nature;nb_parcelles;niveaux;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
+    const rows = r.list.map((h, i) => [i + 1, refOf(h.f.properties), h.f.properties.idu, `"${String(h.f.properties.adresse || h.adresse || '').replace(/"/g, "'")}"`, r.com.nom, h.zone.properties.libelle, h.estim ? h.estim.lg : '', Math.round(h.occ.S), h.occ.label, h.groupe ? h.membres.length : 1, h.pot ? h.pot.niv : '', Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
     ctx.download(`prospection-${r.com.code}.csv`, '﻿' + [head, ...rows].join('\n'), 'text/csv;charset=utf-8');
   }
 
@@ -511,6 +575,7 @@ export function initProspection(ctx) {
     // compteurs remis à zéro pour les terrains réévalués
     Object.assign(r.compte, { regles: 0, sansRegles: 0, score: 0 });
     for (const h of tous) r.classer(h);
+    appliquerEstimations(r);
     // un même îlot ne doit pas revenir en 20 variantes : 2 regroupements au plus par parcelle
     const seules = r.list.filter((h) => !h.groupe), grp = sansDoublons(r.list.filter((h) => h.groupe).sort((a, b) => b.s.tot - a.s.tot), 2);
     r.list.length = 0; r.list.push(...seules, ...grp);

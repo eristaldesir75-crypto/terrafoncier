@@ -19,6 +19,12 @@ on:
         description: "Maisons seulement"
         type: boolean
         default: false
+      commune:
+        description: "Commune (nom et code INSEE)"
+        default: "Saran (45302)"
+      centre:
+        description: "Vue de la carte zoom/lat/lon (périmètre « zone affichée »)"
+        default: "15/47.9480/1.8700"
 permissions: { contents: read }
 jobs:
   unitaires:
@@ -46,6 +52,8 @@ jobs:
           MODE: ${{ inputs.mode }}
           SMIN: ${{ inputs.smin }}
           MAISONS: ${{ inputs.maisons && '1' || '' }}
+          COMMUNE: ${{ inputs.commune }}
+          CENTRE: ${{ inputs.centre }}
         run: cp frontend/tests/e2e_prospection.mjs . && node e2e_prospection.mjs
       - uses: actions/upload-artifact@v4
         if: always()

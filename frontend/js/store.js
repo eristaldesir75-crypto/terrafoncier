@@ -47,11 +47,11 @@ export function addToCrm(item) {
 export function sauvegarde() {
   const d = {};
   Object.values(K).forEach((k) => { d[k] = read(k, null); });
-  return { app: 'TerraFoncier', version: 1, date: new Date().toISOString(), donnees: d };
+  return { app: 'Fonciscope', version: 1, date: new Date().toISOString(), donnees: d };
 }
 /** Restaure une sauvegarde : le suivi et les règles sont fusionnés avec ceux déjà présents. */
 export function restaurer(obj) {
-  if (!obj || obj.app !== 'TerraFoncier' || !obj.donnees) throw new Error("Ce fichier n'est pas une sauvegarde TerraFoncier");
+  if (!obj || !['Fonciscope', 'TerraFoncier'].includes(obj.app) || !obj.donnees) throw new Error("Ce fichier n'est pas une sauvegarde Fonciscope");
   const d = obj.donnees;
   const crm = crmList(), ids = new Set(crm.map((x) => x.idu));
   (d[K.crm] || []).forEach((x) => { if (!ids.has(x.idu)) crm.push(x); });

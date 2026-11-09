@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TerraFoncier</title>
+<title>Fonciscope</title>
 <meta name="description" content="Prospection foncière gratuite : cadastre, PLU, potentiel constructible et suivi des opportunités.">
 <meta name="theme-color" content="#17263b">
 <link rel="manifest" href="manifest.webmanifest">
@@ -12,13 +12,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="css/app.css?v=37">
+<link rel="stylesheet" href="css/app.css?v=38">
 </head>
 <body>
 <header class="top">
   <div class="brand">
-    <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="28" height="28" rx="7"/><path d="M8 22 L14 10 L18 17 L21 13 L25 22 Z" fill="#fff"/></svg>
-    <h1>TerraFoncier</h1>
+    <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect x="2" y="2" width="28" height="28" rx="7"/><path d="M2 12.5h28M12.5 2v28" stroke="#fff" stroke-opacity=".45" stroke-width="1.6"/><circle cx="18.5" cy="18.5" r="7.3" fill="#2fa585"/><circle cx="18.5" cy="18.5" r="6" fill="none" stroke="#fff" stroke-width="2.6"/><path d="M23 23l4.2 4.2" stroke="#fff" stroke-width="2.8" stroke-linecap="round"/></svg>
+    <h1>Fonciscope</h1>
   </div>
   <form class="search" id="searchForm" role="search" autocomplete="off">
     <input type="search" id="q" aria-label="Rechercher une adresse, une commune ou une parcelle" placeholder="Adresse, commune, ou « 45302 AB 123 »">
@@ -97,7 +97,7 @@
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
-<script type="module" src="js/app.js?v=37"></script>
+<script type="module" src="js/app.js?v=38"></script>
 <script>
 if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {})); }
 </script>

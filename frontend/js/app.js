@@ -892,7 +892,7 @@ function renderCrm() {
     $('#letterCopy', slot).onclick = () => copy($('#letterTxt', slot).value);
     slot.scrollIntoView({ behavior: 'smooth' });
   }));
-  $('#bkSave', v).onclick = () => download(`terrafoncier-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(store.sauvegarde()), 'application/json');
+  $('#bkSave', v).onclick = () => download(`fonciscope-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(store.sauvegarde()), 'application/json');
   $('#bkLoad', v).onclick = () => $('#bkFile', v).click();
   $('#bkFile', v).onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return;

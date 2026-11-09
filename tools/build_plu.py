@@ -24,7 +24,7 @@ import requests
 GPU = "https://www.geoportail-urbanisme.gouv.fr/api"
 GEOAPI = "https://geo.api.gouv.fr"
 APICARTO = "https://apicarto.ign.fr/api/gpu"
-UA = {"User-Agent": "TerraFoncier-copie-PLU (github.com/eristaldesir75-crypto/terrafoncier)"}
+UA = {"User-Agent": "Fonciscope-copie-PLU (github.com/eristaldesir75-crypto/terrafoncier)"}
 S = requests.Session()
 S.headers.update(UA)
 

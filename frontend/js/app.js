@@ -50,7 +50,7 @@ const scoreClass = (v) => `s${Math.min(4, Math.floor(v / 20))}`;
 const wmts = (layer, style, fmt) => `https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layer}&STYLE=${encodeURIComponent(style)}&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=${encodeURIComponent(fmt)}`;
 const wms = (layers) => `https://data.geopf.fr/wms-v/ows?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&LAYERS=${layers}&STYLES=&CRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=true`;
 const empty = { type: 'FeatureCollection', features: [] };
-const SCORE_COLORS = ['#c9cfd8', '#f2c46d', '#f29a4a', '#3f8f5f', '#1f6b45'];
+const SCORE_COLORS = ['#8b96a0', '#b98a2c', '#c96f2a', '#2b8a6b', '#0f6e5a'];
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -82,9 +82,10 @@ const map = new maplibregl.Map({
       { id: 'noms', type: 'raster', source: 'noms', layout: { visibility: 'none' } },
       { id: 'hits-fill', type: 'fill', source: 'hits', paint: { 'fill-color': ['step', ['get', 'score'], SCORE_COLORS[0], 20, SCORE_COLORS[1], 40, SCORE_COLORS[2], 60, SCORE_COLORS[3], 80, SCORE_COLORS[4]], 'fill-opacity': 0.6 } },
       { id: 'hits-line', type: 'line', source: 'hits', paint: { 'line-color': '#18222d', 'line-width': 0.8, 'line-opacity': 0.6 } },
-      { id: 'bati-fill', type: 'fill', source: 'bati', paint: { 'fill-color': '#7a4ec9', 'fill-opacity': 0.35 } },
-      { id: 'sel-fill', type: 'fill', source: 'sel', paint: { 'fill-color': '#2347c5', 'fill-opacity': 0.12 } },
-      { id: 'sel-line', type: 'line', source: 'sel', paint: { 'line-color': '#2347c5', 'line-width': 3 } },
+      { id: 'bati-fill', type: 'fill', source: 'bati', paint: { 'fill-color': '#6b47b8', 'fill-opacity': 0.4 } },
+      { id: 'sel-fill', type: 'fill', source: 'sel', paint: { 'fill-color': '#1560d4', 'fill-opacity': 0.14 } },
+      { id: 'sel-halo', type: 'line', source: 'sel', paint: { 'line-color': '#ffffff', 'line-width': 6, 'line-opacity': 0.85 } },
+      { id: 'sel-line', type: 'line', source: 'sel', paint: { 'line-color': '#1560d4', 'line-width': 3 } },
       { id: 'vefa-pt', type: 'circle', source: 'vefa', layout: { visibility: 'none' }, paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'ventes'], 1, 5, 30, 11, 150, 17], 'circle-color': '#8e3fb8', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-opacity': 0.85 } },
       { id: 'permis-pt', type: 'circle', source: 'permis', paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'logements'], 2, 6, 50, 11, 200, 18], 'circle-color': ['match', ['get', 'etat'], 6, '#1f6b45', 5, '#e0661b', 2, '#2347c5', '#8a8f98'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-opacity': 0.9 } },
       { id: 'env-line', type: 'line', source: 'env', paint: { 'line-color': '#e0661b', 'line-width': 2, 'line-dasharray': [2, 1.5] } },
@@ -387,7 +388,19 @@ function noteSel(pot) {
 
 function renderFiche() {
   const v = $('#v-fiche');
-  if (!sel) { v.innerHTML = `<div class="empty-state"><h2>Commencez par la carte</h2><p class="empty">Recherchez une adresse, une commune ou une référence cadastrale, puis touchez une parcelle. Sa fiche d'analyse foncière s'affiche ici : urbanisme, bâti, contraintes, potentiel et note.</p></div>`; return; }
+  if (!sel) {
+    v.innerHTML = `<div class="empty-state">
+      <h2>Trouver du foncier constructible</h2>
+      <ol class="steps">
+        <li><b>Cherchez</b> une adresse, une commune ou une parcelle (ex. « 45302 AY 209 ») dans la barre du haut.</li>
+        <li><b>Touchez une parcelle</b> sur la carte : sa fiche s'ouvre ici avec la zone du PLU, les règles, le bâti et le nombre de logements possibles.</li>
+        <li><b>Ou prospectez une commune entière</b> : le site trie les terrains où le PLU permet du logement collectif, seuls ou en remembrement.</li>
+      </ol>
+      <div class="actions"><button type="button" id="goPro">Prospecter une commune</button></div>
+    </div>`;
+    $('#goPro', v).onclick = () => showTab('pro');
+    return;
+  }
   if (sel.error) { v.innerHTML = `<h2>Données indisponibles</h2><p class="empty">${esc(sel.error)}. Réessayez dans un instant.</p>`; return; }
   if (sel.loading) { v.innerHTML = `<p class="ref">${esc(refOf(sel.feature?.properties))}</p><p class="empty">Interrogation du cadastre, du Géoportail de l'Urbanisme et de la BD TOPO…</p>`; return; }
   const p = sel.feature.properties;

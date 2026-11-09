@@ -25,7 +25,7 @@ while (Date.now() - t0 < 240000) {
 }
 console.log('STATUT :', statut.replace(/\s+/g, ' '));
 // attend les adresses (BAN)
-for (let k = 0; k < 20; k++) { const st2 = await page.locator('#proStatus').innerText().catch(() => ''); if (!/Adresses/.test(st2)) break; await page.waitForTimeout(2000); }
+for (let k = 0; k < 40; k++) { const st2 = await page.locator('#proStatus').innerText().catch(() => ''); if (!/dresses/.test(st2)) break; await page.waitForTimeout(2000); }
 await page.waitForTimeout(2000);
 const res = await page.locator('#proRes').innerText().catch(() => '');
 console.log('RÉSULTATS :\n' + res.slice(0, 2500));

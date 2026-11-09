@@ -404,6 +404,7 @@ export function initProspection(ctx) {
       const parts = h.groupe ? h.membres.map((m) => m.f) : [h.f];
       parts.forEach((f, j) => { pts.push(turf.pointOnFeature(f).geometry.coordinates); refs.push([h, j, parts.length]); });
     }
+    setStatus(`${resume(r)}<br><span class="note">Recherche des adresses (${pts.length})…</span>`);
     const res = await api.adresses(pts, (d, n) => { if (d % 40 === 0) setStatus(`${resume(r)}<br><span class="note">Adresses : ${d} / ${n}</span>`); });
     const parH = new Map();
     res.forEach((a, k) => { const [h, j] = refs[k]; if (!parH.has(h)) parH.set(h, []); parH.get(h)[j] = a; });

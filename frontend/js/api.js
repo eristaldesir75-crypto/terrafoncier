@@ -422,7 +422,8 @@ async function adresseParcelleBrute(f, idu) {
     if (!best || d < best.d) best = { a, d };
   }
   const pr = best.a.properties;
-  return { label: pr.label, rue: [pr.housenumber, pr.street || pr.name].filter(Boolean).join(' '), precision: best.d === 0 ? 'dans' : 'voisine', distance: Math.round(best.d) };
+  // un point d'adresse à moins de 5 m de la limite est celui de la parcelle (placé sur le trottoir, devant l'entrée)
+  return { label: pr.label, rue: [pr.housenumber, pr.street || pr.name].filter(Boolean).join(' '), precision: best.d === 0 ? 'dans' : best.d <= 5 ? 'limite' : 'voisine', distance: Math.round(best.d) };
 }
 /** Adresses de plusieurs parcelles, 6 à la fois. */
 export async function adressesParcelles(features, onProgress) {

@@ -414,7 +414,7 @@ function renderFiche() {
 function adrHtml() {
   const a = sel && sel.adresse;
   if (!a) return '<span class="note">Adresse…</span>';
-  const prec = { parcelle: 'adresse rattachée à la parcelle (Base Adresse Nationale)', dans: 'adresse située sur la parcelle', voisine: `pas d'adresse sur la parcelle : adresse voisine, à ${a.distance} m de sa limite` }[a.precision] || '';
+  const prec = { parcelle: 'adresse rattachée à la parcelle (Base Adresse Nationale)', dans: 'adresse située sur la parcelle', limite: 'adresse en limite de la parcelle', voisine: `pas d'adresse sur la parcelle : adresse voisine, à ${a.distance} m de sa limite` }[a.precision] || '';
   return `${esc(a.label)} <span class="note">· ${esc(prec)}</span>`;
 }
 

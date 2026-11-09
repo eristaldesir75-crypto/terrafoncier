@@ -48,8 +48,18 @@ def parcelles_des_points(dep, points):
     pts = gpd.GeoDataFrame({"k": [k for k, _, _ in points]}, geometry=gpd.points_from_xy([x for _, x, _ in points], [y for _, _, y in points]), crs=4326)
     if parc.crs is None:
         parc = parc.set_crs(4326)
-    j = gpd.sjoin(pts, parc.to_crs(4326)[["id", "geometry"]], how="inner", predicate="within")
-    return dict(zip(j["k"], j["id"]))
+    parc = parc.to_crs(4326)[["id", "geometry"]]
+    j = gpd.sjoin(pts, parc, how="inner", predicate="within")
+    res = dict(zip(j["k"], j["id"]))
+    # points placés sur le trottoir, juste devant la parcelle : parcelle la plus proche à moins de 8 m
+    reste = pts[~pts["k"].isin(res.keys())]
+    if len(reste):
+        r2 = gpd.sjoin_nearest(reste.to_crs(2154), parc.to_crs(2154), how="inner", max_distance=8, distance_col="d")
+        r2 = r2.sort_values("d").drop_duplicates("k")
+        for k, idu in zip(r2["k"], r2["id"]):
+            res.setdefault(k, idu)
+        log(f"  {len(r2)} points d'adresse rattachés à la parcelle la plus proche (moins de 8 m)")
+    return res
 
 
 def main():

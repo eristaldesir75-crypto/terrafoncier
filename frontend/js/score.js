@@ -1,7 +1,7 @@
 // Note de potentiel foncier sur 100, détaillée critère par critère pour comprendre la sélection.
 /* global turf */
 
-const POIDS_NATURE = {
+export const POIDS_NATURE = {
   terrain_nu: 25, friche: 25, parking: 23, garages: 23, garage: 20, maison_grand: 22, maison: 17,
   activite: 16, autre: 11, petit_collectif: 6, collectif: 2, equipement: 0,
 };
@@ -45,7 +45,7 @@ export function noter(o) {
   parts.push({ k: 'taille', label: 'Taille', v: vT, max: 15, why: `${Math.round(S).toLocaleString('fr-FR')} m²${S >= 2 * ref ? ', confortable pour une opération' : ''}` });
 
   // 2. Nature du foncier (25)
-  let vN = POIDS_NATURE[occ.cle] ?? 10;
+  let vN = occ.poids ?? POIDS_NATURE[occ.cle] ?? 10;
   const recent = occ.flags.find((f) => f.k === 'recent');
   if (recent && !['terrain_nu', 'friche', 'parking'].includes(occ.cle)) vN = Math.max(0, vN - 8);
   parts.push({ k: 'nature', label: 'Nature du foncier', v: vN, max: 25, why: `${occ.label}${recent ? ' ; ' + recent.t.toLowerCase() + ' (−8)' : ''}` });

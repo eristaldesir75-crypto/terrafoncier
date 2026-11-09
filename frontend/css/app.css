@@ -201,3 +201,4 @@ body.wide .layout{grid-template-columns:minmax(0,1fr) min(62vw,980px)}
 .compare{border:1px solid var(--line,#ddd);border-radius:8px;padding:10px 12px;margin:10px 0}
 tr.clic{cursor:pointer}
 .vefa-sec{margin:12px 0}
+.remb{border:1px solid var(--line,#ddd);border-radius:8px;padding:10px 12px;margin-bottom:10px}

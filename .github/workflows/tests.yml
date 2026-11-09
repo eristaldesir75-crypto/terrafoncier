@@ -1,0 +1,52 @@
+name: Tests
+on:
+  push:
+    branches: [main]
+    paths: ["frontend/js/**", "frontend/tests/**", "backend/**"]
+  workflow_dispatch:
+    inputs:
+      e2e:
+        description: "Test complet sur le site publié (prospection Saran)"
+        type: boolean
+        default: true
+      mode:
+        description: "Mode : les2, seule, remembrement"
+        default: "les2"
+      smin:
+        description: "Surface minimale (m²)"
+        default: "1200"
+      maisons:
+        description: "Maisons seulement"
+        type: boolean
+        default: false
+permissions: { contents: read }
+jobs:
+  unitaires:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Tests du site
+        working-directory: frontend
+        run: |
+          npm init -y >/dev/null && npm i @turf/turf@7.1.0 --no-audit --no-fund >/dev/null
+          node tests/test_occupation.mjs && node tests/test_regles.mjs && node tests/test_zones.mjs && node tests/test_remembrement.mjs
+  e2e:
+    if: github.event_name == 'workflow_dispatch' && inputs.e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Navigateur
+        run: npm i playwright@1.48.2 --no-audit --no-fund >/dev/null && npx playwright install --with-deps chromium >/dev/null
+      - name: Prospection sur le site publié
+        env:
+          MODE: ${{ inputs.mode }}
+          SMIN: ${{ inputs.smin }}
+          MAISONS: ${{ inputs.maisons && '1' || '' }}
+        run: cp frontend/tests/e2e_prospection.mjs . && node e2e_prospection.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: capture, path: e2e.png }

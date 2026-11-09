@@ -406,7 +406,11 @@ function ficheSynthese(body) {
   const p = sel.feature.properties, z = sel.zone?.properties;
   const pot = potentielSel(), s = noteSel(pot), constr = zoneConstructible(sel.zone);
   const occ = sel.occ;
+  const mb = Array.isArray(p.membres) ? p.membres : null;
   body.innerHTML = `
+    ${mb ? `<div class="remb"><span class="pill wa">remembrement</span> <b>${mb.length} parcelles voisines réunies</b>, propriétaires probablement différents à contacter un par un :
+      <ul class="list">${mb.map((m) => `<li><b>${esc(m.ref)}</b> · ${m2(m.S)} · ${esc(m.nature)}</li>`).join('')}</ul>
+      <p class="note">Le potentiel ci-dessous est calculé sur le terrain réuni (${m2(p.contenance)}), avec les règles du PLU de la zone.</p></div>` : ''}
     <div class="kpis">
       <div><span>Surface</span><strong>${m2(p.contenance)}</strong></div>
       <div><span>Zone</span><strong>${sel.urba['zone-urba'] === 'loading' ? '…' : esc(sel.zLabel)}</strong></div>

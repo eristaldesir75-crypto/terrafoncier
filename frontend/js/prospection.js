@@ -5,7 +5,8 @@ import * as api from './api.js';
 import * as store from './store.js';
 import { computePotentiel, parseQuery } from './potentiel.js';
 import { NATURES, grille, analyser } from './occupation.js';
-import { noter, contraintesDe, compacite } from './score.js';
+import { noter, contraintesDe, compacite, POIDS_NATURE } from './score.js';
+import { voisinages, regroupements, fusion, sansDoublons } from './remembrement.js';
 import { reglesGraphiquesParcelle, fusionRegles } from './regles.js';
 
 const NATURES_DEFAUT = Object.keys(NATURES).filter((k) => NATURES[k].opp);
@@ -15,7 +16,12 @@ export const CRIT_DEFAUT = {
   commune: null, scope: 'commune', smin: 1500, smax: '', lmin: 30, lmax: 50, sdpMin: '', hMin: '',
   zonesU: true, zonesAU: true, zonesFiltre: '', exclActivite: true, natures: NATURES_DEFAUT,
   exclRecent: true, oapSeul: false, exclContraintes: false, scoreMin: 0,
+  // collectif réellement permis par le PLU, et remembrement de parcelles voisines
+  collectif: true, nivMin: 2, mode: 'les2', maxParcelles: 3,
 };
+const MAISONS = ['maison', 'maison_grand'];
+const natLabel = (k) => (k === 'remembrement' ? 'Remembrement' : NATURES[k] ? NATURES[k].label : k);
+const pause = () => new Promise((ok) => setTimeout(ok, 0));
 
 /**
  * @param ctx { map, setHits, selectFeature, rulesBlock, toast, download, esc, f0, m2, refOf, zoneConstructible, zoneHorsLogement, onResults }
@@ -48,7 +54,21 @@ export function initProspection(ctx) {
             <label for="proSmax">Surface max (m²)<input type="number" id="proSmax" min="0" step="50" value="${esc(c.smax)}" placeholder="sans limite"></label>
           </div>
         </fieldset>
+        <fieldset><legend>Montage</legend>
+          <div class="field-row">
+            <label for="proMode">Terrains recherchés<select id="proMode">
+              <option value="les2" ${c.mode === 'les2' ? 'selected' : ''}>Parcelle seule et remembrement</option>
+              <option value="seule" ${c.mode === 'seule' ? 'selected' : ''}>Parcelle seule</option>
+              <option value="remembrement" ${c.mode === 'remembrement' ? 'selected' : ''}>Remembrement uniquement</option></select></label>
+            <label for="proMaxP">Remembrement jusqu'à<select id="proMaxP">${[2, 3, 4].map((n) => `<option value="${n}" ${+c.maxParcelles === n ? 'selected' : ''}>${n} parcelles</option>`).join('')}</select></label>
+          </div>
+          <p class="note">Remembrement : 2 à ${c.maxParcelles} parcelles voisines (vraie limite commune), dans la même zone du PLU, toutes du type de foncier coché ci-dessous, qui ensemble atteignent la surface minimale et forment un terrain compact.</p>
+        </fieldset>
         <fieldset><legend>Programme</legend>
+          <div class="chk-row">${box('proColl', '<b>Collectif possible selon le PLU</b> (hauteur, emprise, pleine terre)', c.collectif)}</div>
+          <div class="field-row">
+            <label for="proNiv">Hauteur permise au moins<select id="proNiv">${[[2, 'R+1 (2 niveaux)'], [3, 'R+2 (3 niveaux)'], [4, 'R+3 (4 niveaux)'], [5, 'R+4 et plus']].map(([n, t]) => `<option value="${n}" ${+c.nivMin === n ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+          </div>
           <div class="field-row">
             <label for="proLmin">Logements min<input type="number" id="proLmin" min="0" value="${esc(c.lmin)}"></label>
             <label for="proLmax">Logements max<input type="number" id="proLmax" min="0" value="${esc(c.lmax)}"></label>
@@ -57,13 +77,14 @@ export function initProspection(ctx) {
             <label for="proSdp">Surface de plancher min (m²)<input type="number" id="proSdp" min="0" step="100" value="${esc(c.sdpMin)}" placeholder="aucune"></label>
             <label for="proHmin">Hauteur autorisée min (m)<input type="number" id="proHmin" min="0" step="1" value="${esc(c.hMin)}" placeholder="aucune"></label>
           </div>
-          <p class="note">Ces critères s'appliquent quand les règles de la zone sont renseignées ; sinon le terrain est gardé avec la mention « à confirmer ».</p>
+          <p class="note">Avec « Collectif possible selon le PLU », seuls les terrains dont les règles sont connues (plan graphique du PLU ou règles saisies pour la zone) et qui permettent au moins 5 logements à la hauteur choisie sont retenus. Les autres sont mis de côté : renseignez les règles de leur zone pour les faire entrer.</p>
         </fieldset>
         <fieldset><legend>Zonage PLU</legend>
           <div class="chk-row">${box('proZU', 'Zones U', c.zonesU)}${box('proZAU', 'Zones AU', c.zonesAU)}${box('proExclAct', "Exclure zones d'activités et d'équipements", c.exclActivite)}</div>
           <label for="proZF">Limiter aux zones commençant par<input type="text" id="proZF" placeholder="Ex. : UR, UC, 1AU" value="${esc(c.zonesFiltre)}"></label>
         </fieldset>
         <fieldset><legend>Type de foncier</legend>
+          <div class="actions"><button type="button" class="ghost" id="proMaisons">Maisons seulement</button><button type="button" class="ghost" id="proMutable">Tout le foncier mutable</button></div>
           <div class="chk-row">${Object.entries(NATURES).map(([k, n]) => box(`proN-${k}`, n.label, c.natures.includes(k))).join('')}</div>
         </fieldset>
         <fieldset><legend>Autres critères</legend>
@@ -80,6 +101,9 @@ export function initProspection(ctx) {
       $('#proSmin', v).value = p.smin; $('#proLmin', v).value = p.lmin; $('#proLmax', v).value = p.lmax >= 100000 ? '' : p.lmax;
       ctx.toast('Critères remplis à partir de la phrase');
     };
+    const coche = (l) => Object.keys(NATURES).forEach((k) => ($(`#proN-${k}`, v).checked = l.includes(k)));
+    $('#proMaisons', v).onclick = () => { coche(MAISONS); ctx.toast('Maisons seulement : seules ou réunies avec une maison voisine'); };
+    $('#proMutable', v).onclick = () => coche(NATURES_DEFAUT);
     $('#proForm', v).onsubmit = async (e) => {
       e.preventDefault();
       lireFormulaire(v);
@@ -99,6 +123,7 @@ export function initProspection(ctx) {
       natures: Object.keys(NATURES).filter((k) => $(`#proN-${k}`, v).checked),
       exclRecent: $('#proRecent', v).checked, oapSeul: $('#proOap', v).checked, exclContraintes: $('#proContr', v).checked,
       scoreMin: n('#proScoreMin') || 0,
+      collectif: $('#proColl', v).checked, nivMin: +$('#proNiv', v).value, mode: $('#proMode', v).value, maxParcelles: +$('#proMaxP', v).value,
     });
     store.saveProspectionCrit({ ...st.crit, commune: st.crit.commune });
   }
@@ -136,6 +161,21 @@ export function initProspection(ctx) {
       if (!pref.some((p) => lib.toUpperCase().startsWith(p))) return false;
     }
     return true;
+  }
+
+  /**
+   * Pourquoi un terrain n'entre pas dans les résultats : 'regles' (le PLU ne permet pas le programme),
+   * 'attente' (règles inconnues alors que le collectif est exigé), ou null.
+   */
+  function refus(h, rules, pot) {
+    const c = st.crit;
+    if (pot) {
+      if (c.lmin && pot.real < Math.ceil(c.lmin * 0.5)) return 'regles';
+      if (c.sdpMin && pot.sdp < c.sdpMin) return 'regles';
+      if (c.collectif && (pot.niv < (c.nivMin || 2) || pot.real < 5)) return 'regles';
+    } else if (c.collectif) return 'attente';
+    if (c.hMin && rules && rules.h !== null && rules.h !== undefined && rules.h < c.hMin) return 'regles';
+    return null;
   }
 
   async function run() {
@@ -178,28 +218,35 @@ export function initProspection(ctx) {
 
       const parcels = await api.parcellesCommune(com.code, { signal, onProgress: (n, tot) => setStatus(`Parcelles cadastrales : ${f0(n)}${tot ? ' / ' + f0(tot) : ''}`, 8 + (tot ? (27 * n) / tot : 10)) });
 
-      // 1. Filtres géographiques et de surface (rapides)
-      const cand = [];
-      const compte = { total: parcels.length, surface: 0, perimetre: 0, zone: 0, nature: 0, regles: 0, contraintes: 0, score: 0 };
-      for (const f of parcels) {
+      // 1. Parcelles situées dans une zone retenue (index des zones pour aller vite)
+      const idxZones = grille(zones, 0.005);
+      const seule = c.mode !== 'remembrement', remb = c.mode !== 'seule';
+      const cand = [], pool = [];
+      const compte = { total: parcels.length, surface: 0, perimetre: 0, zone: 0, nature: 0, regles: 0, sansRegles: 0, contraintes: 0, score: 0, groupes: 0 };
+      for (let n = 0; n < parcels.length; n++) {
+        const f = parcels[n];
+        if (n % 2000 === 0) { setStatus(`Zonage des parcelles : ${f0(n)} / ${f0(parcels.length)}`, 35 + (5 * n) / parcels.length); await pause(); }
         if (!f.geometry) continue;
         const S = +f.properties.contenance || 0;
-        if (S < (c.smin || 0) || (c.smax && S > c.smax)) { compte.surface++; continue; }
+        const okSeule = seule && S >= (c.smin || 0) && !(c.smax && S > c.smax);
+        const okPool = remb && S >= 150 && S < (c.smin || Infinity);
+        if (!okSeule && !okPool) { compte.surface++; continue; }
         const pt = turf.pointOnFeature(f), [x, y] = pt.geometry.coordinates;
         if (bounds && !bounds.contains([x, y])) { compte.perimetre++; continue; }
-        const z = zones.find((zz) => x >= zz.bbox[0] && x <= zz.bbox[2] && y >= zz.bbox[1] && y <= zz.bbox[3] && turf.booleanPointInPolygon(pt, zz));
+        const z = idxZones.pres([x, y, x, y]).find((zz) => turf.booleanPointInPolygon(pt, zz));
         if (!z || !zoneOk(z)) { compte.zone++; continue; }
-        cand.push({ f, zone: z, pt: [x, y] });
+        const k = { f, zone: z, zoneLib: z.properties.libelle, pt: [x, y], S };
+        if (okSeule) cand.push(k); else pool.push(k);
       }
-      if (!cand.length) {
-        st.results = { com, partition, list: [], compte, secs: Math.round((performance.now() - t0) / 1000), avertissements: [] };
+      if (!cand.length && !pool.length) {
+        st.results = { com, partition, list: [], attente: [], compte, secs: Math.round((performance.now() - t0) / 1000), avertissements: [] };
         setStatus(resume(st.results));
         return;
       }
 
-      // 2. Occupation réelle : bâtiments, parkings, équipements (seulement autour des candidats)
+      // 2. Occupation réelle : bâtiments, parkings, équipements (seulement autour des terrains étudiés)
       const cells = new Map();
-      for (const k of cand) {
+      for (const k of [...cand, ...pool]) {
         const b = turf.bbox(k.f);
         for (let x = Math.floor(b[0] / TUILE); x <= Math.floor(b[2] / TUILE); x++) {
           for (let y = Math.floor(b[1] / TUILE); y <= Math.floor(b[3] / TUILE); y++) cells.set(`${x}:${y}`, [x * TUILE, y * TUILE, (x + 1) * TUILE, (y + 1) * TUILE]);
@@ -207,54 +254,134 @@ export function initProspection(ctx) {
       }
       const tiles = [...cells.values()];
       const avertissements = [];
-      const prescP = api.gpuByPartition('prescription-surf', partition, { signal }).catch(() => { avertissements.push("Prescriptions du PLU indisponibles : contraintes (EBC, emplacements réservés, OAP) non vérifiées"); return null; });
+      const prescP = api.gpuByPartition('prescription-surf', partition, { signal }).catch(() => { avertissements.push("Prescriptions du PLU indisponibles : contraintes (EBC, emplacements réservés, OAP) et règles du plan graphique non vérifiées"); return null; });
       const frichesP = api.friches(com.code);
-      const occ = await api.occupationTiles(tiles, { signal, onProgress: (d, n) => setStatus(`Bâtiments, parkings et équipements : secteur ${d} / ${n} (${f0(cand.length)} terrains candidats)`, 35 + (45 * d) / n) });
-      setStatus('Prescriptions du PLU et friches…', 82);
+      const occ = await api.occupationTiles(tiles, { signal, onProgress: (d, n) => setStatus(`Bâtiments, parkings et équipements : secteur ${d} / ${n} (${f0(cand.length)} parcelles seules, ${f0(pool.length)} petites parcelles pour le remembrement)`, 40 + (35 * d) / n) });
+      setStatus('Prescriptions du PLU et friches…', 76);
       const [presc, fr] = await Promise.all([prescP, frichesP]);
       if (fr === null) avertissements.push('Cartofriches indisponible : les friches ne sont pas repérées');
 
       const idx = { bat: grille(occ.batiments), park: grille(occ.parkings), eq: grille(occ.equipements) };
-      const comBbox = turf.bbox(turf.featureCollection(cand.map((k) => k.f)));
+      const comBbox = turf.bbox(turf.featureCollection([...cand, ...pool].map((k) => k.f)));
       const idxPresc = presc ? grille(presc.filter((p) => p.geometry && (() => { const b = turf.bbox(p); return b[0] <= comBbox[2] && b[2] >= comBbox[0] && b[1] <= comBbox[3] && b[3] >= comBbox[1]; })())) : null;
       const frichesParIdu = new Map();
       (fr || []).forEach((x) => x.idus.forEach((i) => frichesParIdu.set(i, x)));
 
-      // 3. Analyse, potentiel, note
-      setStatus(`Analyse de ${f0(cand.length)} terrains…`, 90);
-      const out = [], missing = new Map(), critN = critPourNote();
-      for (const k of cand) {
-        const o = analyser(k.f, idx, frichesParIdu);
-        if (!c.natures.includes(o.cle)) { compte.nature++; continue; }
-        if (c.exclRecent && o.flags.some((x) => x.k === 'recent') && !['terrain_nu', 'parking', 'friche'].includes(o.cle)) { compte.nature++; continue; }
-        const contraintes = contraintesDe(k.f, idxPresc, o.S);
+      // Nature du foncier : retenue si cochée, bâti récent écarté (sauf terrain nu, parking, friche)
+      const natureOk = (o) => c.natures.includes(o.cle) && !(c.exclRecent && o.flags.some((x) => x.k === 'recent') && !['terrain_nu', 'parking', 'friche'].includes(o.cle));
+
+      // Évaluation commune à une parcelle seule et à un remembrement
+      const out = [], attente = [], missing = new Map(), critN = critPourNote();
+      const evaluer = (h) => {
+        const contraintes = contraintesDe(h.f, idxPresc, h.occ.S);
         const oap = contraintes.some((x) => x.k === 'oap');
-        if (c.oapSeul && !oap) { compte.contraintes++; continue; }
-        if (c.exclContraintes && contraintes.some((x) => x.k === 'ebc' || x.k === 'er')) { compte.contraintes++; continue; }
-        const key = store.ruleKey(partition, k.zone.properties.libelle);
-        // Règles de la zone (saisies ou extraites), complétées par le plan graphique du PLU à la parcelle
-        const graph = reglesGraphiquesParcelle(k.f, idxPresc);
-        const fu = fusionRegles(store.getRules(key), graph);
+        if (c.oapSeul && !oap) { compte.contraintes++; return; }
+        if (c.exclContraintes && contraintes.some((x) => x.k === 'ebc' || x.k === 'er')) { compte.contraintes++; return; }
+        h.contraintes = contraintes; h.oap = oap;
+        h.key = store.ruleKey(partition, h.zone.properties.libelle);
+        // Règles de la zone (saisies ou extraites), complétées par le plan graphique du PLU sous le terrain
+        h.graph = reglesGraphiquesParcelle(h.f, idxPresc);
+        if (h.graph && !h.graph.n) h.graph = null;
+        classer(h, { initial: true });
+      };
+      // Calcule potentiel et note ; range le terrain dans la liste, en attente de règles, ou l'écarte
+      const classer = (h, { initial } = {}) => {
+        const fu = fusionRegles(store.getRules(h.key), h.graph);
         const rules = fu.utile ? fu.regles : null;
-        let pot = null, aConfirmer = !rules;
+        let pot = null;
+        h.aConfirmer = !rules;
         if (rules) {
-          pot = computePotentiel(k.f, rules, hyp, { contenance: o.S, batiSdp: o.stats.sdp });
-          if (pot.ok) {
-            if (c.lmin && pot.real < Math.ceil(c.lmin * 0.5)) { compte.regles++; continue; }
-            if (c.sdpMin && pot.sdp < c.sdpMin) { compte.regles++; continue; }
-          } else aConfirmer = true;
-          if (c.hMin && rules.h !== null && rules.h !== undefined && rules.h < c.hMin) { compte.regles++; continue; }
-        } else {
-          const m = missing.get(key) || { key, zone: k.zone, n: 0 }; m.n++; missing.set(key, m);
+          pot = computePotentiel(h.f, rules, hyp, { contenance: h.occ.S, batiSdp: h.occ.stats.sdp });
+          if (!pot.ok) { pot = null; h.aConfirmer = true; }
         }
-        const s = noter({ S: o.S, crit: critN, occ: o, pot: pot && pot.ok ? pot : null, contraintes, compacite: compacite(k.f) });
-        if (s.tot < (c.scoreMin || 0)) { compte.score++; continue; }
-        out.push({ f: k.f, zone: k.zone, key, occ: o, pot: pot && pot.ok ? pot : null, contraintes, oap, s, aConfirmer, graph: graph && graph.n ? graph : null });
+        h.pot = pot;
+        const raison = refus(h, rules, pot);
+        if (raison === 'regles') { compte.regles++; return 'ecarte'; }
+        if (raison === 'attente') {
+          compte.sansRegles++;
+          const m = missing.get(h.key) || { key: h.key, zone: h.zone, n: 0 }; m.n++; missing.set(h.key, m);
+          attente.push(h); return 'attente';
+        }
+        if (!rules) { const m = missing.get(h.key) || { key: h.key, zone: h.zone, n: 0 }; m.n++; missing.set(h.key, m); }
+        h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot, contraintes: h.contraintes, compacite: compacite(h.f) });
+        if (h.s.tot < (c.scoreMin || 0)) { compte.score++; return 'ecarte'; }
+        if (initial || !out.includes(h)) out.push(h);
+        return 'garde';
+      };
+
+      // 3a. Parcelles seules
+      setStatus(`Analyse de ${f0(cand.length)} parcelles…`, 80);
+      for (let n = 0; n < cand.length; n++) {
+        if (n % 500 === 0) await pause();
+        const k = cand[n];
+        const o = analyser(k.f, idx, frichesParIdu);
+        if (!natureOk(o)) { compte.nature++; continue; }
+        evaluer({ f: k.f, zone: k.zone, occ: o });
       }
+
+      // 3b. Remembrement : petites parcelles voisines du foncier coché, dans la même zone
+      let nbGroupes = 0;
+      if (remb && pool.length) {
+        setStatus(`Remembrement : analyse de ${f0(pool.length)} petites parcelles…`, 86);
+        const items = [];
+        for (let n = 0; n < pool.length; n++) {
+          if (n % 500 === 0) await pause();
+          const k = pool[n];
+          const o = analyser(k.f, idx, frichesParIdu);
+          if (!natureOk(o)) continue;
+          items.push({ ...k, occ: o });
+        }
+        setStatus(`Remembrement : recherche des parcelles voisines parmi ${f0(items.length)}…`, 90);
+        await pause();
+        const vois = voisinages(items);
+        const groupes = regroupements(items, vois, { smin: c.smin || 0, smax: c.smax || 0, maxParcelles: c.maxParcelles || 3 })
+          .sort((a, b) => a.length - b.length);
+        setStatus(`Remembrement : étude de ${f0(Math.min(groupes.length, 4000))} regroupements possibles…`, 93);
+        const evalues = [];
+        for (let n = 0; n < groupes.length && n < 4000; n++) {
+          if (n % 200 === 0) await pause();
+          const membres = groupes[n].map((i) => items[i]);
+          const u = fusion(membres.map((m) => m.f));
+          if (!u || compacite(u) < 0.3) continue;
+          const S = membres.reduce((a, m) => a + m.S, 0);
+          const p0 = membres[0].f.properties, memeSection = membres.every((m) => m.f.properties.section === p0.section);
+          u.properties = {
+            ...p0, contenance: S, remembrement: true,
+            idu: membres.map((m) => m.f.properties.idu).join('+'),
+            numero: membres.map((m) => (memeSection ? '' : m.f.properties.section + ' ') + String(m.f.properties.numero).padStart(4, '0')).join('+'),
+            membres: membres.map((m) => ({ idu: m.f.properties.idu, ref: refOf(m.f.properties), S: m.S, nature: m.occ.label })),
+          };
+          const st2 = membres.reduce((a, m) => ({ sdp: a.sdp + m.occ.stats.sdp, emprise: a.emprise + m.occ.stats.emprise, logements: a.logements + m.occ.stats.logements, anneeMax: Math.max(a.anneeMax, m.occ.stats.anneeMax || 0) }), { sdp: 0, emprise: 0, logements: 0, anneeMax: 0 });
+          const flags = [...new Map(membres.flatMap((m) => m.occ.flags).map((x) => [x.k, x])).values()];
+          const poids = Math.round(membres.reduce((a, m) => a + (POIDS_NATURE[m.occ.cle] ?? 10), 0) / membres.length) - 2 * (membres.length - 1);
+          const o = {
+            cle: 'remembrement', S, ces: S ? st2.emprise / S : 0, poids,
+            label: `Remembrement de ${membres.length} parcelles`,
+            stats: { ...st2, n: membres.reduce((a, m) => a + m.occ.stats.n, 0), legers: 0, liste: [] },
+            flags, raisons: membres.map((m) => `${refOf(m.f.properties)} : ${m.occ.label.toLowerCase()} (${f0(m.S)} m²)`),
+          };
+          const h = { f: u, zone: membres[0].zone, occ: o, groupe: true, membres };
+          const avant = out.length;
+          evaluer(h);
+          if (out.length > avant) evalues.push(out.pop());
+        }
+        // pas plus de 2 variantes par parcelle, les mieux notées d'abord
+        evalues.sort((a, b) => b.s.tot - a.s.tot);
+        const gardes = sansDoublons(evalues, 2);
+        nbGroupes = gardes.length;
+        out.push(...gardes);
+        compte.groupes = groupes.length;
+        if (groupes.length > 4000) avertissements.push(`${f0(groupes.length)} regroupements possibles : les 4 000 plus simples (moins de parcelles) ont été étudiés. Réduisez le périmètre (zone affichée) pour tout voir.`);
+      }
+      // regroupements en attente de règles : 2 au plus par parcelle aussi
+      const attSeules = attente.filter((h) => !h.groupe), attGrp = sansDoublons(attente.filter((h) => h.groupe), 2);
+      attente.length = 0; attente.push(...attSeules, ...attGrp);
+      if (attente.length) avertissements.push(`${f0(attente.length)} terrain(s) mis de côté : règles du PLU inconnues pour leur zone. Renseignez-les dans « zones sans règles » ci-dessous, ils entreront dans les résultats.`);
       out.sort((a, b) => b.s.tot - a.s.tot);
-      st.results = { com, partition, list: out, compte, cand: cand.length, secs: Math.round((performance.now() - t0) / 1000), avertissements, date: new Date().toISOString() };
+      st.results = { com, partition, list: out, attente, compte, cand: cand.length, groupes: nbGroupes, secs: Math.round((performance.now() - t0) / 1000), avertissements, date: new Date().toISOString(), classer };
       st.zonesMissing = [...missing.values()].sort((a, b) => b.n - a.n);
       store.addHistorique({ date: st.results.date, commune: com.nom, code: com.code, total: parcels.length, retenus: out.length, top: out.slice(0, 5).map((h) => ({ ref: refOf(h.f.properties), score: h.s.tot, nature: h.occ.label })) });
+      st.compteRef = compte;
       setStatus(resume(st.results));
       ctx.setHits(out);
       ctx.onResults && ctx.onResults(true);
@@ -269,18 +396,20 @@ export function initProspection(ctx) {
 
   function resume(r) {
     const c = r.compte;
-    return `<b>${f0(r.list.length)} terrain(s) retenu(s)</b> sur ${f0(c.total)} parcelles en ${r.secs} s
-      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
+    const g = r.list.filter((h) => h.groupe).length;
+    return `<b>${f0(r.list.length)} terrain(s) retenu(s)</b>${g ? ` dont ${f0(g)} remembrement(s)` : ''} sur ${f0(c.total)} parcelles en ${r.secs} s
+      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
   }
 
   // ---------- Résultats ----------
   const COLS = [
     { k: 'rang', t: '#', v: (h, i) => i + 1, n: true },
-    { k: 'ref', t: 'Parcelle', v: (h) => refOf(h.f.properties) },
+    { k: 'ref', t: 'Parcelle(s)', v: (h) => refOf(h.f.properties) },
     { k: 'zone', t: 'Zone', v: (h) => h.zone.properties.libelle },
     { k: 'surface', t: 'Surface', v: (h) => h.occ.S, fmt: (x) => m2(x), n: true },
     { k: 'nature', t: 'Nature', v: (h) => h.occ.label },
     { k: 'ces', t: 'Bâti', v: (h) => h.occ.ces, fmt: (x) => `${Math.round(x * 100)} %`, n: true },
+    { k: 'niv', t: 'Niv.', v: (h) => (h.pot ? h.pot.niv : -1), fmt: (x) => (x < 0 ? '?' : x <= 1 ? 'RDC' : 'R+' + (x - 1)), n: true },
     { k: 'lgt', t: 'Logts', v: (h) => (h.pot ? h.pot.real : -1), fmt: (x) => (x < 0 ? '?' : x), n: true },
     { k: 'score', t: 'Note', v: (h) => h.s.tot, n: true },
   ];
@@ -308,7 +437,7 @@ export function initProspection(ctx) {
     res.innerHTML = `
       ${r.avertissements.length ? `<div class="warn">${r.avertissements.map(esc).join('<br>')}</div>` : ''}
       <div class="res-head">
-        <div class="chips">${Object.entries(parNature).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<button type="button" class="chip-btn ${st.filtreNature === k ? 'on' : ''}" data-nat="${k}">${esc(NATURES[k].label)} · ${n}</button>`).join('')}${st.filtreNature ? '<button type="button" class="chip-btn" data-nat="">Tout afficher</button>' : ''}</div>
+        <div class="chips">${Object.entries(parNature).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<button type="button" class="chip-btn ${st.filtreNature === k ? 'on' : ''}" data-nat="${k}">${esc(natLabel(k))} · ${n}</button>`).join('')}${st.filtreNature ? '<button type="button" class="chip-btn" data-nat="">Tout afficher</button>' : ''}</div>
         ${r.list.length ? '<button type="button" class="ghost" id="proCsv">Exporter en CSV</button>' : ''}
       </div>
       ${r.list.length ? `<div class="tw"><table class="res-table">
@@ -336,32 +465,36 @@ export function initProspection(ctx) {
     const cells = COLS.map((x) => { const v = x.v(h, i); return `<td class="${x.n ? 'n' : ''}">${x.k === 'score' ? `<span class="score s${Math.floor(v / 20)}">${v}</span>${h.s.partiel ? '<small class="part">partielle</small>' : ''}` : esc(x.fmt ? x.fmt(v) : v)}</td>`; }).join('');
     const detail = open ? `<tr class="detail"><td colspan="${COLS.length}">
       <div class="why">${h.s.parts.map((p) => `<div class="why-row"><span>${esc(p.label)}</span><span class="bar"><i style="width:${p.v === null ? 0 : Math.round((100 * p.v) / p.max)}%"></i></span><b>${p.v === null ? '—' : p.v}/${p.max}</b><small>${esc(p.why)}</small></div>`).join('')}</div>
+      ${h.groupe ? `<p><span class="pill wa">remembrement</span> ${h.membres.length} parcelles voisines, propriétaires probablement différents : ${h.membres.map((m) => `<b>${esc(refOf(m.f.properties))}</b> ${esc(m.occ.label.toLowerCase())}, ${f0(m.S)} m²`).join(' · ')}</p>` : ''}
       <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? ' · potentiel à confirmer (règles de zone manquantes)' : ''}${h.graph ? ' · plan graphique : ' + Object.values(h.graph.sources).map(esc).join(', ') : ''}</p>
       <div class="actions"><button type="button" data-fiche="${i}">Ouvrir la fiche</button></div></td></tr>` : '';
     return `<tr data-i="${i}" class="${open ? 'open' : ''}">${cells}</tr>${detail}`;
   }
 
   function exportCsv(r) {
-    const head = 'rang;reference;idu;commune;zone;surface_m2;nature;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
-    const rows = r.list.map((h, i) => [i + 1, refOf(h.f.properties), h.f.properties.idu, r.com.nom, h.zone.properties.libelle, Math.round(h.occ.S), h.occ.label, Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
+    const head = 'rang;reference;idu;commune;zone;surface_m2;nature;nb_parcelles;niveaux;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
+    const rows = r.list.map((h, i) => [i + 1, refOf(h.f.properties), h.f.properties.idu, r.com.nom, h.zone.properties.libelle, Math.round(h.occ.S), h.occ.label, h.groupe ? h.membres.length : 1, h.pot ? h.pot.niv : '', Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
     ctx.download(`prospection-${r.com.code}.csv`, '﻿' + [head, ...rows].join('\n'), 'text/csv;charset=utf-8');
   }
 
   /** Recalcule potentiel et notes après saisie des règles d'une zone (sans relancer le balayage). */
   function rerank() {
-    const r = st.results; if (!r) return;
-    const hyp = store.settings(), critN = critPourNote(), missing = new Map();
-    r.list.forEach((h) => {
-      const fu = fusionRegles(store.getRules(h.key), h.graph);
-      const rules = fu.utile ? fu.regles : null;
-      if (rules) {
-        const pot = computePotentiel(h.f, rules, hyp, { contenance: h.occ.S, batiSdp: h.occ.stats.sdp });
-        h.pot = pot.ok ? pot : null; h.aConfirmer = !pot.ok;
-      } else { const m = missing.get(h.key) || { key: h.key, zone: h.zone, n: 0 }; m.n++; missing.set(h.key, m); }
-      h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot: h.pot, contraintes: h.contraintes, compacite: compacite(h.f) });
-    });
+    const r = st.results; if (!r || !r.classer) return;
+    const tous = [...r.list, ...r.attente];
+    r.list.length = 0; r.attente.length = 0;
+    // compteurs remis à zéro pour les terrains réévalués
+    Object.assign(r.compte, { regles: 0, sansRegles: 0, score: 0 });
+    for (const h of tous) r.classer(h);
+    // un même îlot ne doit pas revenir en 20 variantes : 2 regroupements au plus par parcelle
+    const seules = r.list.filter((h) => !h.groupe), grp = sansDoublons(r.list.filter((h) => h.groupe).sort((a, b) => b.s.tot - a.s.tot), 2);
+    r.list.length = 0; r.list.push(...seules, ...grp);
     r.list.sort((a, b) => b.s.tot - a.s.tot);
-    st.zonesMissing = [...missing.values()].sort((a, b) => b.n - a.n);
+    st.zonesMissing = [];
+    const m = new Map();
+    for (const h of r.attente) { const x = m.get(h.key) || { key: h.key, zone: h.zone, n: 0 }; x.n++; m.set(h.key, x); }
+    for (const h of r.list) if (h.aConfirmer) { const x = m.get(h.key) || { key: h.key, zone: h.zone, n: 0 }; x.n++; m.set(h.key, x); }
+    st.zonesMissing = [...m.values()].sort((a, b) => b.n - a.n);
+    setStatus(resume(r));
     ctx.setHits(r.list); renderResults();
   }
 

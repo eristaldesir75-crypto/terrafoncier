@@ -384,3 +384,51 @@ export async function adresses(points, onProgress) {
   await Promise.all([w(), w(), w(), w(), w(), w()]);
   return out;
 }
+
+// ---------- Adresse précise d'une parcelle ----------
+// 1. adresse rattachée à la parcelle dans la Base Adresse Nationale (copie hebdomadaire, data/adresses) ;
+// 2. sinon, adresse située dans la parcelle (géocodage inverse, 10 adresses autour) ;
+// 3. sinon, adresse la plus proche de la limite de la parcelle (et non de son centre), signalée « voisine ».
+const banCache = new Map();
+function banCommune(insee) {
+  if (!banCache.has(insee)) banCache.set(insee, fetch(`data/adresses/${insee}.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  return banCache.get(insee);
+}
+const parcCache = new Map();
+export function adresseParcelle(f) {
+  const p = f.properties || {}, idu = String(p.idu || '');
+  const k = idu && !idu.includes('+') ? idu : JSON.stringify(turf.bbox(f));
+  if (!parcCache.has(k)) parcCache.set(k, adresseParcelleBrute(f, idu).catch(() => null));
+  return parcCache.get(k);
+}
+async function adresseParcelleBrute(f, idu) {
+  const insee = (f.properties && f.properties.code_insee) || idu.slice(0, 5);
+  if (idu.length === 14) {
+    const b = await banCommune(insee);
+    const l = b && b.p && b.p[idu];
+    if (l && l.length) return { label: `${l.join(', ')}, ${b.cp} ${b.commune}`, rue: l.join(', '), precision: 'parcelle', distance: 0 };
+  }
+  const c = turf.pointOnFeature(f).geometry.coordinates;
+  const fc = await getJSON(`${GEOCODE.replace('/search', '/reverse')}?lon=${c[0]}&lat=${c[1]}&index=address&limit=10`, { timeout: 10000, retries: 1 });
+  const feats = (fc.features || []).filter((a) => a.geometry);
+  if (!feats.length) return null;
+  let lignes = [];
+  try { lignes = turf.flatten(turf.polygonToLine(f)).features; } catch { lignes = []; }
+  let best = null;
+  for (const a of feats) {
+    let d;
+    if (turf.booleanPointInPolygon(a.geometry, f)) d = 0;
+    else d = lignes.length ? Math.min(...lignes.map((l) => turf.pointToLineDistance(a.geometry, l, { units: 'meters' }))) : +a.properties.distance || 999;
+    if (!best || d < best.d) best = { a, d };
+  }
+  const pr = best.a.properties;
+  return { label: pr.label, rue: [pr.housenumber, pr.street || pr.name].filter(Boolean).join(' '), precision: best.d === 0 ? 'dans' : 'voisine', distance: Math.round(best.d) };
+}
+/** Adresses de plusieurs parcelles, 6 à la fois. */
+export async function adressesParcelles(features, onProgress) {
+  const out = new Array(features.length);
+  let i = 0, done = 0;
+  async function w() { while (i < features.length) { const j = i++; out[j] = await adresseParcelle(features[j]); done++; onProgress && onProgress(done, features.length); } }
+  await Promise.all([w(), w(), w(), w(), w(), w()]);
+  return out;
+}

@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Ajout de la copie des PLU (branche data)
         run: |
-          if git fetch origin data --depth=1; then git worktree add data origin/data && mkdir -p frontend/data && cp -r data/plu frontend/data/; else echo "Pas encore de copie des PLU"; fi
+          if git fetch origin data --depth=1; then git worktree add data origin/data && mkdir -p frontend/data && cp -r data/plu frontend/data/ && (cp -r data/adresses frontend/data/ || true); else echo "Pas encore de copie des PLU"; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: frontend }

@@ -489,21 +489,21 @@ export function initProspection(ctx) {
   /** Adresses (BAN) des terrains retenus : 400 premiers, chaque parcelle d'un remembrement. */
   async function ajouterAdresses(r) {
     const cibles = r.list.slice(0, 400);
-    const pts = [], refs = [];
+    const feats = [], refs = [];
     for (const h of cibles) {
       const parts = h.groupe ? h.membres.map((m) => m.f) : [h.f];
-      parts.forEach((f, j) => { pts.push(turf.pointOnFeature(f).geometry.coordinates); refs.push([h, j, parts.length]); });
+      parts.forEach((f, j) => { feats.push(f); refs.push([h, j, parts.length]); });
     }
-    setStatus(`${resume(r)}<br><span class="note">Recherche des adresses (${pts.length})…</span>`);
-    const res = await api.adresses(pts, (d, n) => { if (d % 40 === 0) setStatus(`${resume(r)}<br><span class="note">Adresses : ${d} / ${n}</span>`); });
+    setStatus(`${resume(r)}<br><span class="note">Recherche des adresses (${feats.length})…</span>`);
+    const res = await api.adressesParcelles(feats, (d, n) => { if (d % 40 === 0) setStatus(`${resume(r)}<br><span class="note">Adresses : ${d} / ${n}</span>`); });
     const parH = new Map();
     res.forEach((a, k) => { const [h, j] = refs[k]; if (!parH.has(h)) parH.set(h, []); parH.get(h)[j] = a; });
     for (const [h, l] of parH) {
-      const txt = [...new Set(l.filter(Boolean).map((a) => a.rue + (a.distance > 30 ? ' (≈)' : '')))];
+      const txt = [...new Set(l.filter(Boolean).map((a) => a.rue + (a.precision === 'voisine' ? ` (voisine, ${a.distance} m)` : '')))];
       h.adresse = txt.join(' / ');
       h.adresses = l;
       if (h.groupe && Array.isArray(h.f.properties.membres)) l.forEach((x, j) => { if (x && h.f.properties.membres[j]) h.f.properties.membres[j].adresse = x.label; });
-      if (l[0]) h.f.properties.adresse = l.filter(Boolean).map((a) => a.label).join(' / ');
+      if (l[0]) h.f.properties.adresse = l.filter(Boolean).map((a) => a.label + (a.precision === 'voisine' ? ` (adresse voisine à ${a.distance} m)` : '')).join(' / ');
     }
     setStatus(resume(r));
     if (st.results === r) renderResults();

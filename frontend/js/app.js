@@ -308,7 +308,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
     rerender();
   });
   risqP.then((r) => { if (token === selToken) { sel.risques = r; rerender(); } });
-  api.adresseAt(pt.coordinates[0], pt.coordinates[1]).then((a) => { if (token === selToken && a) { sel.adresse = a; const el = $('#ficheAdr'); if (el) el.innerHTML = adrHtml(); } });
+  api.adresseParcelle(f).then((a) => { if (token === selToken && a) { sel.adresse = a; const el = $('#ficheAdr'); if (el) el.innerHTML = adrHtml(); } });
   api.communeByCode(insee).then((c) => { if (token === selToken) { sel.commune = c; if (tab === 'fiche' && ficheTab === 'commune') renderFiche(); } }).catch(() => {});
   if (tab === 'pot') renderPot(); else renderFiche();
   // constructions récentes et ventes neuves : chargées d'office si une des cases de la carte est cochée
@@ -414,7 +414,8 @@ function renderFiche() {
 function adrHtml() {
   const a = sel && sel.adresse;
   if (!a) return '<span class="note">Adresse…</span>';
-  return `${esc(a.label)}${a.distance > 30 ? ` <span class="note">(adresse la plus proche, à ${a.distance} m)</span>` : ''}`;
+  const prec = { parcelle: 'adresse rattachée à la parcelle (Base Adresse Nationale)', dans: 'adresse située sur la parcelle', voisine: `pas d'adresse sur la parcelle : adresse voisine, à ${a.distance} m de sa limite` }[a.precision] || '';
+  return `${esc(a.label)} <span class="note">· ${esc(prec)}</span>`;
 }
 
 function ficheSynthese(body) {

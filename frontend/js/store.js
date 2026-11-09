@@ -42,3 +42,23 @@ export function addToCrm(item) {
   list.unshift({ statut: 0, note: '', relance: '', createdAt: new Date().toISOString(), ...item });
   saveCrm(list); return true;
 }
+
+// Sauvegarde complète (suivi, règles saisies, réglages, critères, historique) pour changer d'appareil ou d'adresse
+export function sauvegarde() {
+  const d = {};
+  Object.values(K).forEach((k) => { d[k] = read(k, null); });
+  return { app: 'TerraFoncier', version: 1, date: new Date().toISOString(), donnees: d };
+}
+/** Restaure une sauvegarde : le suivi et les règles sont fusionnés avec ceux déjà présents. */
+export function restaurer(obj) {
+  if (!obj || obj.app !== 'TerraFoncier' || !obj.donnees) throw new Error("Ce fichier n'est pas une sauvegarde TerraFoncier");
+  const d = obj.donnees;
+  const crm = crmList(), ids = new Set(crm.map((x) => x.idu));
+  (d[K.crm] || []).forEach((x) => { if (!ids.has(x.idu)) crm.push(x); });
+  write(K.crm, crm);
+  write(K.rules, { ...(d[K.rules] || {}), ...allRules() });
+  if (d[K.settings] && !read(K.settings, null)) write(K.settings, d[K.settings]);
+  if (d[K.crit] && !read(K.crit, null)) write(K.crit, d[K.crit]);
+  const h = historique(); write(K.hist, [...h, ...(d[K.hist] || [])].slice(0, 30));
+  return { suivi: crm.length, regles: Object.keys(allRules()).length };
+}

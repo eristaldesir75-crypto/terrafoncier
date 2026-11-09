@@ -282,3 +282,4 @@ dialog::backdrop{background:rgba(23,38,59,.45)}
 .steps{margin:14px 0 18px;padding:0;list-style:none;counter-reset:etape;display:flex;flex-direction:column;gap:12px}
 .steps li{counter-increment:etape;display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;font-size:14.5px;max-width:60ch}
 .steps li::before{content:counter(etape);width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;display:grid;place-items:center;font-size:14px}
+.backup{background:var(--surface-2);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;gap:8px}

@@ -876,6 +876,9 @@ function renderCrm() {
       <div class="full actions"><button type="button" class="ghost" data-go="${i}">Voir</button><button type="button" class="ghost" data-letter="${i}">Préparer un courrier</button><button type="button" class="ghost" data-del="${i}">Retirer</button></div>
     </div>`).join('')}</div></div>
     ${list.length ? '<div class="actions"><button type="button" class="ghost" id="crmCsv">Exporter CSV</button><button type="button" class="ghost" id="crmGeo">Exporter GeoJSON</button></div>' : ''}
+    <div class="backup"><div class="label">Sauvegarde de vos données</div>
+      <p class="note">Le suivi, les règles saisies et les réglages sont enregistrés dans ce navigateur. Sauvegardez-les pour les retrouver sur un autre ordinateur ou à une nouvelle adresse du site.</p>
+      <div class="actions"><button type="button" class="ghost" id="bkSave">Sauvegarder mes données</button><button type="button" class="ghost" id="bkLoad">Restaurer une sauvegarde</button><input type="file" id="bkFile" accept="application/json,.json" hidden></div></div>
     <div id="letterSlot"></div>`;
   v.querySelectorAll('[data-f]').forEach((el) => el.addEventListener('change', () => {
     const l = store.crmList(), i = +el.dataset.i; l[i][el.dataset.f] = el.dataset.f === 'statut' ? +el.value : el.value; store.saveCrm(l);
@@ -889,6 +892,13 @@ function renderCrm() {
     $('#letterCopy', slot).onclick = () => copy($('#letterTxt', slot).value);
     slot.scrollIntoView({ behavior: 'smooth' });
   }));
+  $('#bkSave', v).onclick = () => download(`terrafoncier-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(store.sauvegarde()), 'application/json');
+  $('#bkLoad', v).onclick = () => $('#bkFile', v).click();
+  $('#bkFile', v).onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try { const r = store.restaurer(JSON.parse(await f.text())); toast(`Sauvegarde restaurée : ${r.suivi} terrain(s) suivi(s), règles de ${r.regles} zone(s)`); renderCrm(); }
+    catch (err) { toast(err.message || 'Fichier illisible'); }
+  };
   const csv = $('#crmCsv', v); if (csv) csv.onclick = () => {
     const head = 'reference;idu;adresse;commune;zone;contenance_m2;nature;note_potentiel;statut;prochaine_relance;notes';
     const rows = list.map((x) => [x.ref, x.idu, `"${(x.adresse || '').replace(/"/g, "'")}"`, x.commune, x.zone, x.contenance, x.nature || '', x.score ?? '', store.STATUTS[x.statut], x.relance, `"${(x.note || '').replace(/"/g, '""')}"`].join(';'));

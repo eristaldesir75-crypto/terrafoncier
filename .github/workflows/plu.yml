@@ -30,7 +30,11 @@ jobs:
       - name: Copie des PLU
         run: python -u tools/build_plu.py --config data-config.json --prev prev/plu --out out/plu --max-docs "${{ inputs.max_docs || '0' }}" --deps "${{ inputs.deps || '' }}"
       - name: Adresses rattachées aux parcelles (Base Adresse Nationale)
-        run: python -u tools/build_adresses.py --config data-config.json --out out/adresses --deps "${{ inputs.deps || '' }}" || (echo "Adresses BAN non mises à jour cette semaine : copie précédente gardée" && rm -rf out/adresses && cp -r prev/adresses out/adresses || true)
+        run: |
+          if ! python -u tools/build_adresses.py --config data-config.json --out out/adresses --deps "${{ inputs.deps || '' }}"; then
+            echo "Adresses BAN non mises à jour cette semaine, copie précédente gardée"
+            rm -rf out/adresses && cp -r prev/adresses out/adresses || true
+          fi
       - name: Publication sur la branche data (un seul commit, sans historique)
         run: |
           cd out

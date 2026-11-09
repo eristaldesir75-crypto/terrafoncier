@@ -203,3 +203,7 @@ tr.clic{cursor:pointer}
 .vefa-sec{margin:12px 0}
 .remb{border:1px solid var(--line,#ddd);border-radius:8px;padding:10px 12px;margin-bottom:10px}
 .adr{margin:2px 0 0;font-size:14px}
+.cat-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.cat-tab{border:1px solid var(--line,#ccd);background:transparent;border-radius:999px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer;color:inherit}
+.cat-tab[aria-selected=true]{background:var(--accent,#2347c5);border-color:var(--accent,#2347c5);color:#fff}
+.cat-tab .n{opacity:.8;font-variant-numeric:tabular-nums;margin-left:4px}

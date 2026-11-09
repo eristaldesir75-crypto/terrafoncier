@@ -422,7 +422,7 @@ function ficheSynthese(body) {
       <div><span>Surface</span><strong>${m2(p.contenance)}</strong></div>
       <div><span>Zone</span><strong>${sel.urba['zone-urba'] === 'loading' ? '…' : esc(sel.zLabel)}</strong></div>
       <div><span>Nature</span><strong class="small">${esc(occ ? occ.label : '—')}</strong></div>
-      <div><span>Logements</span><strong>${pot && pot.ok ? `${pot.real}` : '?'}</strong></div>
+      <div><span>Logements (SDP/${store.settings().sMoy})</span><strong>${pot && pot.ok ? `${pot.real}` : '?'}</strong></div>
     </div>
     ${s ? `<div class="score-card"><span class="score big ${scoreClass(s.tot)}">${s.tot}</span><div><b>Note de potentiel foncier</b>${s.partiel ? ' <span class="pill wa">partielle</span>' : ''}<p class="note">${s.partiel ? 'Règles de la zone à renseigner pour une note complète. ' : ''}Calculée avec vos derniers critères de prospection.</p></div></div>
       <div class="why">${s.parts.map((x) => `<div class="why-row"><span>${esc(x.label)}</span><span class="bar"><i style="width:${x.v === null ? 0 : Math.round((100 * x.v) / x.max)}%"></i></span><b>${x.v === null ? '—' : x.v}/${x.max}</b><small>${esc(x.why)}</small></div>`).join('')}</div>` : '<p class="note">Bâti indisponible : la note ne peut pas être calculée.</p>'}
@@ -430,7 +430,7 @@ function ficheSynthese(body) {
       <dt>Zone</dt><dd>${z ? `<b>${esc(z.libelle)}</b> ${esc(z.libelong || '')} <span class="pill ${constr ? 'ok' : constr === false ? 'no' : 'wa'}">${esc(z.typezone || '')}</span>` : sel.urba['zone-urba'] === null ? '<span class="pill wa">service indisponible</span> <button type="button" class="ghost" id="retryUrba">Réessayer</button>' : '—'}</dd>
       <dt>Bâti</dt><dd>${occ ? `${occ.stats.n - occ.stats.legers} bâtiment(s), ${Math.round(occ.ces * 100)} % d'emprise${occ.stats.logements ? `, ${occ.stats.logements} logement(s)` : ''}` : 'Donnée indisponible'}</dd>
       <dt>Signaux</dt><dd>${occ && occ.flags.length ? occ.flags.map((x) => esc(x.t)).join(' · ') : 'Aucun'}</dd>
-      <dt>Potentiel</dt><dd>${pot && pot.ok ? `${m2(pot.sdp)} de plancher, ${pot.lg} logements théoriques, ${pot.real} réalisables` : constr === false ? 'Zone A ou N : pas de logement' : sel.urba['prescription-surf'] === 'loading' ? 'Lecture des règles du PLU…' : 'Règles de la zone à renseigner (onglet Urbanisme)'}</dd>
+      <dt>Potentiel</dt><dd>${pot && pot.ok ? `${m2(pot.sdp)} de plancher ÷ ${store.settings().sMoy} m² = ${pot.real} logements` : constr === false ? 'Zone A ou N : pas de logement' : sel.urba['prescription-surf'] === 'loading' ? 'Lecture des règles du PLU…' : 'Règles de la zone à renseigner (onglet Urbanisme)'}</dd>
     </dl>
     <div class="actions"><button type="button" id="goPot">Détail du potentiel</button></div>`;
   $('#goPot', body).onclick = () => showTab('pot');
@@ -755,7 +755,7 @@ function ficheText() {
     `Nature du foncier : ${sel.occ ? sel.occ.label + ' (' + sel.occ.raisons.join(' ; ') + ')' : 'inconnue'}`,
     ...(sel.graph && sel.graph.n ? ['Plan graphique du PLU : ' + Object.values(sel.graph.sources).join(' ; ')] : []),
     ...(rules ? RULE_FIELDS.map((fd) => `- ${fd.label} : ${rules[fd.k] ?? 'non renseigné'}${rules.citations?.[fd.k]?.article ? ' (' + rules.citations[fd.k].article + ', p. ' + rules.citations[fd.k].page + ')' : ''}`) : ['Règles : non saisies']),
-    pot && pot.ok ? `Potentiel : emprise ${m2(pot.E)}, SDP ${m2(pot.sdp)}, ${pot.lg} logements théoriques, ${pot.real} réalisables` : `Potentiel : ${pot ? pot.raison : 'non calculé'}`,
+    pot && pot.ok ? `Potentiel : emprise ${m2(pot.E)}, SDP ${m2(pot.sdp)}, soit ${pot.real} logements (SDP / ${store.settings().sMoy})` : `Potentiel : ${pot ? pot.raison : 'non calculé'}`,
     s ? `Note de potentiel foncier : ${s.tot}/100${s.partiel ? ' (partielle)' : ''} — ${s.parts.map((x) => `${x.label} ${x.v ?? '-'}/${x.max}`).join(', ')}` : '',
     'Estimation indicative — ne remplace ni un certificat d’urbanisme ni une étude de faisabilité.',
   ].filter(Boolean).join('\n');
@@ -778,7 +778,7 @@ function renderPot() {
     <div class="big">
       <div><strong>${m2(pot.E)}</strong><span>emprise maximale</span></div>
       <div><strong>${m2(pot.sdp)}</strong><span>surface de plancher</span></div>
-      <div><strong>${pot.lg} → ${pot.real}</strong><span>logements théorique → réalisable</span></div>
+      <div><strong>${pot.real}</strong><span>logements (SDP ÷ ${hyp.sMoy} m²)</span></div>
     </div>
     ${(() => { const fu = fusionRegles(store.getRules(sel.key), sel.graph); const L = RULE_FIELDS.filter((fd) => fu.origine[fd.k]).map((fd) => { const v = fu.regles[fd.k]; return `${esc(fd.label.replace(/ \(.*\)$/, ''))} ${fd.pct ? Math.round(v * 100) + ' %' : v + ' ' + fd.unit} <span class="pill ${fu.origine[fd.k] === 'plan' ? 'ok' : 'wa'}">${fu.origine[fd.k] === 'plan' ? 'plan graphique' : 'zone'}</span>`; }); return L.length ? `<p class="note">Règles utilisées : ${L.join(' · ')}</p>` : ''; })()}
     <div><div class="label">Plafonds d'emprise — le plus bas s'applique</div>
@@ -788,7 +788,7 @@ function renderPot() {
     <div><div class="label">Scénarios</div><table><tr><th>Scénario</th><th class="n">Niveaux</th><th class="n">SDP</th><th class="n">Logements</th></tr>
       ${pot.sc.map((s) => `<tr><td>${esc(s.n)}</td><td class="n">${s.niv}</td><td class="n">${s.sdp === null ? '—' : m2(s.sdp)}</td><td class="n">${s.lg}</td></tr>`).join('')}</table></div>
     ${sel.occ && sel.occ.stats.sdp ? `<p class="note">Bâti existant ≈ ${m2(sel.occ.stats.sdp)} de plancher, soit ${Math.round((100 * sel.occ.stats.sdp) / Math.max(1, pot.sdp))} % du potentiel : ${sel.occ.stats.sdp > 0.5 * pot.sdp ? 'gain limité.' : 'démolition-reconstruction ou densification à étudier.'}</p>` : ''}
-    <div><div class="label">Contraintes</div>${pot.contraintes.length ? `<ul style="margin:0;padding-left:18px">${pot.contraintes.map((c) => `<li>${esc(c.t)}${c.d ? ` (−${Math.round(c.d * 100)} %)` : ''}</li>`).join('')}</ul>` : '<p class="note">Aucune contrainte détectée automatiquement.</p>'}
+    <div><div class="label">Contraintes</div>${pot.contraintes.length ? `<ul style="margin:0;padding-left:18px">${pot.contraintes.map((c) => `<li>${esc(c.t)}</li>`).join('')}</ul><p class="note">Points de vigilance pour la faisabilité : ils ne réduisent pas le nombre de logements, calculé simplement SDP ÷ ${hyp.sMoy} m².</p>` : '<p class="note">Aucune contrainte détectée automatiquement.</p>'}
       ${pot.missing.length ? `<p class="note">Règles non renseignées : ${pot.missing.map(esc).join(', ')}.</p>` : ''}</div>
     <p class="note">Estimation indicative. Hypothèses modifiables dans Réglages. Ne remplace ni un certificat d'urbanisme ni une étude de faisabilité.</p>`;
 }
@@ -909,7 +909,7 @@ $('#btnSettings').onclick = () => {
 };
 dlg.addEventListener('close', () => {
   if (dlg.returnValue !== 'save') return;
-  store.saveSettings({ backend: $('#set-backend').value.trim(), hEt: +$('#set-het').value || 3, k: +$('#set-k').value || 0.8, sMoy: +$('#set-smoy').value || 65, sLot: +$('#set-lot').value || 400 });
+  store.saveSettings({ backend: $('#set-backend').value.trim(), hEt: +$('#set-het').value || 3, k: +$('#set-k').value || 0.8, sMoy: +$('#set-smoy').value || 60, ratio60: true, sLot: +$('#set-lot').value || 400 });
   toast('Réglages enregistrés'); showTab(tab);
 });
 

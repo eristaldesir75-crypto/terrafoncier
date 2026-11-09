@@ -33,6 +33,9 @@ const res = await page.locator('#proRes').innerText().catch(() => '');
 console.log('RÉSULTATS :\n' + res.slice(0, 2500));
 const zones = await page.locator('#proZones').innerText().catch(() => '');
 if (zones) console.log('ZONES SANS RÈGLES :', zones.slice(0, 300));
+// liste des entrepôts
+const tabE = page.locator('[data-cat=entrepot]');
+if (await tabE.count()) { await tabE.click(); await page.waitForTimeout(800); console.log('ENTREPÔTS :\n' + (await page.locator('#proRes').innerText()).slice(0, 1500)); await page.locator('[data-cat=logement]').click(); await page.waitForTimeout(500); }
 // ouvre le premier remembrement s'il existe
 const ligne = page.locator('#proRes tr[data-i]').filter({ hasText: 'Remembrement' }).first();
 if (await ligne.count()) {

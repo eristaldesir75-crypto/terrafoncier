@@ -46,6 +46,7 @@ export function computePotentiel(feature, rules, hyp, opts = {}) {
   const missing = RULE_FIELDS.filter((f) => r[f.k] === null).map((f) => f.label);
   const niv = r.h !== null ? Math.max(1, Math.floor(r.h / hyp.hEt)) : 1;
   const sdp = E * niv * hyp.k;
+  // Nombre de logements = surface de plancher / ratio (60 m² par défaut, réglable)
   const lg = Math.floor(sdp / hyp.sMoy);
 
   const contraintes = [];
@@ -64,7 +65,7 @@ export function computePotentiel(feature, rules, hyp, opts = {}) {
     { n: 'Intermédiaire (R+2 max)', niv: Math.min(3, niv), sdp: E * Math.min(3, niv) * hyp.k, lg: Math.floor((E * Math.min(3, niv) * hyp.k) / hyp.sMoy) },
     { n: `Individuel (lots de ${hyp.sLot} m²)`, niv: Math.min(2, niv), sdp: null, lg: Math.floor(S / hyp.sLot) },
   ];
-  return { ok: true, S, r, envFeat, envArea, caps, lim, E, niv, sdp, lg, real: Math.floor(lg * (1 - dec)), contraintes, dec, sc, missing };
+  return { ok: true, S, r, envFeat, envArea, caps, lim, E, niv, sdp, lg, real: lg, contraintes, dec, sc, missing };
 }
 
 /** Score sur 100 pour la prospection. */

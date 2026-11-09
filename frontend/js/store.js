@@ -10,8 +10,9 @@ function write(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
 }
 
-export const DEFAULT_SETTINGS = { backend: '', hEt: 3, k: 0.8, sMoy: 65, sLot: 400 };
-export const settings = () => ({ ...DEFAULT_SETTINGS, ...read(K.settings, {}) });
+export const DEFAULT_SETTINGS = { backend: '', hEt: 3, k: 0.8, sMoy: 60, sLot: 400 };
+// Ratio logements : SDP / 60 (l'ancienne valeur par défaut, 65, est remplacée une fois)
+export const settings = () => { const s = read(K.settings, {}); if (s.sMoy === 65 && !s.ratio60) { s.sMoy = 60; s.ratio60 = true; write(K.settings, s); } return { ...DEFAULT_SETTINGS, ...s }; };
 export const saveSettings = (s) => write(K.settings, s);
 
 // Règles par zone : clé = partition|libellé de zone

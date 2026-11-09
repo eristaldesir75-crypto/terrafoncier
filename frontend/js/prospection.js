@@ -19,6 +19,15 @@ export const CRIT_DEFAUT = {
   exclRecent: true, oapSeul: false, exclContraintes: false, scoreMin: 0,
   // collectif réellement permis par le PLU, et remembrement de parcelles voisines
   collectif: true, nivMin: 2, mode: 'les2', maxParcelles: 3,
+  // entrepôts et locaux d'activité, listés à part (en zone d'habitat : reconversion ; en zone d'activités : foncier d'activité)
+  entrepots: true,
+};
+const CATS = { logement: 'Logement possible', entrepot: "Entrepôts et locaux d'activité", tout: 'Tout' };
+// Zone d'activités économiques (pas de logement) : entrepôts, industrie, commerce, artisanat
+const zoneActivite = (z) => {
+  const p = z.properties, t = (p.typezone || '').toUpperCase();
+  if (!/^(U|AU)/.test(t) || /^2AU/i.test(p.libelle || '')) return false;
+  return /activit|industri|commerc|artisan|[ée]conomi|logisti|entrep/i.test(p.libelong || '') || /(^|-)(U?AE|UX|UI|UY|UZ)\d*[a-z]?(-|$)/i.test(p.libelle || '');
 };
 const MAISONS = ['maison', 'maison_grand'];
 const natLabel = (k) => (k === 'remembrement' ? 'Remembrement' : NATURES[k] ? NATURES[k].label : k);
@@ -114,6 +123,7 @@ export function initProspection(ctx) {
         <fieldset><legend>Type de foncier</legend>
           <div class="actions"><button type="button" class="ghost" id="proMaisons">Maisons seulement</button><button type="button" class="ghost" id="proMutable">Tout le foncier mutable</button></div>
           <div class="chk-row">${Object.entries(NATURES).map(([k, n]) => box(`proN-${k}`, n.label, c.natures.includes(k))).join('')}</div>
+          <div class="chk-row">${box('proEntr', "<b>Entrepôts et locaux d'activité</b> : listés à part, en zone d'habitat (reconversion en logements) et en zone d'activités", c.entrepots)}</div>
         </fieldset>
         <fieldset><legend>Autres critères</legend>
           <div class="chk-row">${box('proRecent', 'Exclure le bâti récent (depuis 2010)', c.exclRecent)}${box('proOap', 'Uniquement en secteur d\'OAP', c.oapSeul)}${box('proContr', 'Exclure EBC et emplacements réservés', c.exclContraintes)}</div>
@@ -151,7 +161,7 @@ export function initProspection(ctx) {
       natures: Object.keys(NATURES).filter((k) => $(`#proN-${k}`, v).checked),
       exclRecent: $('#proRecent', v).checked, oapSeul: $('#proOap', v).checked, exclContraintes: $('#proContr', v).checked,
       scoreMin: n('#proScoreMin') || 0,
-      collectif: $('#proColl', v).checked, nivMin: +$('#proNiv', v).value, mode: $('#proMode', v).value, maxParcelles: +$('#proMaxP', v).value,
+      entrepots: $('#proEntr', v).checked, collectif: $('#proColl', v).checked, nivMin: +$('#proNiv', v).value, mode: $('#proMode', v).value, maxParcelles: +$('#proMaxP', v).value,
     });
     store.saveProspectionCrit({ ...st.crit, commune: st.crit.commune });
   }
@@ -220,7 +230,7 @@ export function initProspection(ctx) {
       const b = base(h.zone.properties.libelle);
       h.estim = b ? { lg: Math.floor((h.occ.S * b.med) / 10000), dens: Math.round(b.med), n: b.n, base: b.base } : null;
     };
-    for (const h of r.list) if (!h.pot) estimer(h);
+    for (const h of r.list) if (!h.pot && !h.zoneAct) estimer(h);
     for (const h of r.attente) {
       estimer(h);
       const ok = h.estim && h.estim.lg >= Math.max(5, Math.ceil((c.lmin || 0) * 0.5));
@@ -237,7 +247,7 @@ export function initProspection(ctx) {
   async function run() {
     const c = st.crit, com = c.commune, hyp = store.settings();
     const bounds = c.scope === 'ecran' ? ctx.map.getBounds() : null;
-    st.running = true; st.results = null; st.filtreNature = null; st.ouvert = null; st.ctrl = new AbortController();
+    st.running = true; st.results = null; st.filtreNature = null; st.cat = 'logement'; st.ouvert = null; st.ctrl = new AbortController();
     const signal = st.ctrl.signal;
     render();
     const t0 = performance.now();
@@ -290,8 +300,11 @@ export function initProspection(ctx) {
         const pt = turf.pointOnFeature(f), [x, y] = pt.geometry.coordinates;
         if (bounds && !bounds.contains([x, y])) { compte.perimetre++; continue; }
         const z = idxZones.pres([x, y, x, y]).find((zz) => turf.booleanPointInPolygon(pt, zz));
-        if (!z || !zoneOk(z)) { compte.zone++; continue; }
-        const k = { f, zone: z, zoneLib: z.properties.libelle, pt: [x, y], S };
+        // zone d'activités : seulement pour la liste des entrepôts ; sinon zone qui autorise le logement
+        let dest = z && c.entrepots && zoneActivite(z) && ctx.zoneConstructible(z) === true ? 'activite' : z && zoneOk(z) ? 'logement' : null;
+        if (!dest) { compte.zone++; continue; }
+        if (dest === 'activite' && !okSeule) { compte.surface++; continue; }
+        const k = { f, zone: z, zoneLib: z.properties.libelle, pt: [x, y], S, dest };
         if (okSeule) cand.push(k); else pool.push(k);
       }
       if (!cand.length && !pool.length) {
@@ -324,7 +337,7 @@ export function initProspection(ctx) {
       (fr || []).forEach((x) => x.idus.forEach((i) => frichesParIdu.set(i, x)));
 
       // Nature du foncier : retenue si cochée, bâti récent écarté (sauf terrain nu, parking, friche)
-      const natureOk = (o) => c.natures.includes(o.cle) && !(c.exclRecent && o.flags.some((x) => x.k === 'recent') && !['terrain_nu', 'parking', 'friche'].includes(o.cle));
+      const natureOk = (o) => (c.natures.includes(o.cle) || (c.entrepots && o.cle === 'activite')) && !(c.exclRecent && o.flags.some((x) => x.k === 'recent') && !['terrain_nu', 'parking', 'friche'].includes(o.cle));
 
       // Évaluation commune à une parcelle seule et à un remembrement
       const out = [], attente = [], missing = new Map(), critN = critPourNote();
@@ -334,7 +347,15 @@ export function initProspection(ctx) {
         if (c.oapSeul && !oap) { compte.contraintes++; return; }
         if (c.exclContraintes && contraintes.some((x) => x.k === 'ebc' || x.k === 'er')) { compte.contraintes++; return; }
         h.contraintes = contraintes; h.oap = oap;
+        h.cat = h.cat || (h.occ.cle === 'activite' ? 'entrepot' : 'logement');
         h.key = store.ruleKey(partition, h.zone.properties.libelle);
+        if (h.zoneAct) {
+          // zone d'activités : pas de logement, foncier d'activité noté sur sa taille, sa sous-exploitation et ses contraintes
+          h.pot = null; h.aConfirmer = false;
+          h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot: null, contraintes, compacite: compacite(h.f) });
+          if (h.s.tot < (c.scoreMin || 0)) { compte.score++; return; }
+          out.push(h); return;
+        }
         // Règles de la zone (saisies ou extraites), complétées par le plan graphique du PLU sous le terrain
         h.graph = reglesGraphiquesParcelle(h.f, idxPresc);
         if (h.graph && !h.graph.n) h.graph = null;
@@ -371,6 +392,11 @@ export function initProspection(ctx) {
         if (n % 500 === 0) await pause();
         const k = cand[n];
         const o = analyser(k.f, idx, frichesParIdu);
+        if (k.dest === 'activite') {
+          if (o.cle !== 'activite') { compte.nature++; continue; }
+          evaluer({ f: k.f, zone: k.zone, occ: o, cat: 'entrepot', zoneAct: true });
+          continue;
+        }
         if (!natureOk(o)) { compte.nature++; continue; }
         evaluer({ f: k.f, zone: k.zone, occ: o });
       }
@@ -447,7 +473,7 @@ export function initProspection(ctx) {
       st.compteRef = compte;
       if (st.results.attente.length) avertissements.push(`${f0(st.results.attente.length)} terrain(s) mis de côté : règles du PLU inconnues pour leur zone et pas assez d'opérations voisines pour estimer. Renseignez les règles dans « zones sans règles » ci-dessous, ils entreront dans les résultats.`);
       setStatus(resume(st.results));
-      ctx.setHits(out);
+      ctx.setHits(out.filter((h) => h.cat !== 'entrepot'));
       ctx.onResults && ctx.onResults(true);
       renderResults();
       await ajouterAdresses(st.results);
@@ -485,8 +511,8 @@ export function initProspection(ctx) {
 
   function resume(r) {
     const c = r.compte;
-    const g = r.list.filter((h) => h.groupe).length;
-    return `<b>${f0(r.list.length)} terrain(s) retenu(s)</b>${g ? ` dont ${f0(g)} remembrement(s)` : ''} sur ${f0(c.total)} parcelles en ${r.secs} s
+    const g = r.list.filter((h) => h.groupe).length, e = r.list.filter((h) => h.cat === 'entrepot').length;
+    return `<b>${f0(r.list.length - e)} terrain(s) pour du logement</b>${g ? ` dont ${f0(g)} remembrement(s)` : ''}${e ? ` · <b>${f0(e)} entrepôt(s) et local(aux) d'activité</b>` : ''} sur ${f0(c.total)} parcelles en ${r.secs} s
       <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
   }
 
@@ -500,7 +526,7 @@ export function initProspection(ctx) {
     { k: 'nature', t: 'Nature', v: (h) => h.occ.label },
     { k: 'ces', t: 'Bâti', v: (h) => h.occ.ces, fmt: (x) => `${Math.round(x * 100)} %`, n: true },
     { k: 'niv', t: 'Niv.', v: (h) => (h.pot ? h.pot.niv : -1), fmt: (x) => (x < 0 ? '?' : x <= 1 ? 'RDC' : 'R+' + (x - 1)), n: true },
-    { k: 'lgt', t: 'Logts', v: (h) => (h.pot ? h.pot.real : h.estim ? h.estim.lg - 0.1 : -1), fmt: (x) => (x < 0 ? '?' : Number.isInteger(x) ? x : `≈ ${Math.round(x + 0.1)}`), n: true },
+    { k: 'lgt', t: 'Logts', v: (h) => (h.zoneAct ? -2 : h.pot ? h.pot.real : h.estim ? h.estim.lg - 0.1 : -1), fmt: (x) => (x === -2 ? '—' : x < 0 ? '?' : Number.isInteger(x) ? x : `≈ ${Math.round(x + 0.1)}`), n: true },
     { k: 'score', t: 'Note', v: (h) => h.s.tot, n: true },
   ];
 
@@ -518,14 +544,20 @@ export function initProspection(ctx) {
       });
     }
     const res = $('#proRes'); if (!res) return;
+    // Deux listes : terrains pour du logement, entrepôts et locaux d'activité
+    const cat = st.cat || 'logement';
+    const nCat = { logement: r.list.filter((h) => h.cat !== 'entrepot').length, entrepot: r.list.filter((h) => h.cat === 'entrepot').length, tout: r.list.length };
+    const base = cat === 'tout' ? r.list : cat === 'entrepot' ? r.list.filter((h) => h.cat === 'entrepot') : r.list.filter((h) => h.cat !== 'entrepot');
     // Comptes par nature, cliquables pour filtrer
     const parNature = {};
-    r.list.forEach((h) => (parNature[h.occ.cle] = (parNature[h.occ.cle] || 0) + 1));
-    let liste = st.filtreNature ? r.list.filter((h) => h.occ.cle === st.filtreNature) : r.list.slice();
+    base.forEach((h) => (parNature[h.occ.cle] = (parNature[h.occ.cle] || 0) + 1));
+    let liste = st.filtreNature ? base.filter((h) => h.occ.cle === st.filtreNature) : base.slice();
     const col = COLS.find((x) => x.k === st.tri.k) || COLS[COLS.length - 1];
     if (col.k !== 'rang') liste.sort((a, b) => { const va = col.v(a), vb = col.v(b); return (va > vb ? 1 : va < vb ? -1 : 0) * st.tri.dir; });
     res.innerHTML = `
       ${r.avertissements.length ? `<div class="warn">${r.avertissements.map(esc).join('<br>')}</div>` : ''}
+      <nav class="cat-tabs" role="tablist">${Object.entries(CATS).map(([k, t]) => `<button type="button" role="tab" class="cat-tab" data-cat="${k}" aria-selected="${cat === k}">${t} <span class="n">${f0(nCat[k])}</span></button>`).join('')}</nav>
+      ${cat === 'entrepot' ? `<p class="note">Entrepôts, bâtiments industriels ou commerciaux. En zone d'habitat : reconversion en logements possible, potentiel calculé. En zone d'activités : le logement y est interdit, foncier d'activité (Logts « — »).</p>` : ''}
       <div class="res-head">
         <div class="chips">${Object.entries(parNature).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<button type="button" class="chip-btn ${st.filtreNature === k ? 'on' : ''}" data-nat="${k}">${esc(natLabel(k))} · ${n}</button>`).join('')}${st.filtreNature ? '<button type="button" class="chip-btn" data-nat="">Tout afficher</button>' : ''}</div>
         ${r.list.length ? '<button type="button" class="ghost" id="proCsv">Exporter en CSV</button>' : ''}
@@ -535,7 +567,11 @@ export function initProspection(ctx) {
         <tbody>${liste.slice(0, 300).map((h, i) => ligne(h, i)).join('')}</tbody></table></div>
         ${liste.length > 300 ? `<p class="note">300 premiers terrains affichés sur ${liste.length} ; l'export CSV les contient tous.</p>` : ''}` : '<p class="empty">Aucun terrain ne correspond. Élargissez la surface, les zones ou les types de foncier.</p>'}
       <p class="note">Note sur 100 : taille 15, nature du foncier 25, sous-exploitation 15, potentiel PLU 25, contraintes et forme 20. Quand les règles de la zone manquent, la note est calculée sur les autres critères (mention « partielle »).</p>`;
-    res.querySelectorAll('[data-nat]').forEach((b) => (b.onclick = () => { st.filtreNature = b.dataset.nat || null; renderResults(); ctx.setHits(st.filtreNature ? r.list.filter((h) => h.occ.cle === st.filtreNature) : r.list); }));
+    res.querySelectorAll('[data-nat]').forEach((b) => (b.onclick = () => { st.filtreNature = b.dataset.nat || null; renderResults(); ctx.setHits(st.filtreNature ? base.filter((h) => h.occ.cle === st.filtreNature) : base); }));
+    res.querySelectorAll('[data-cat]').forEach((b) => (b.onclick = () => {
+      st.cat = b.dataset.cat; st.filtreNature = null; renderResults();
+      const r2 = st.results; ctx.setHits(st.cat === 'tout' ? r2.list : st.cat === 'entrepot' ? r2.list.filter((h) => h.cat === 'entrepot') : r2.list.filter((h) => h.cat !== 'entrepot'));
+    }));
     res.querySelectorAll('[data-sort]').forEach((b) => (b.onclick = () => { const k = b.dataset.sort; st.tri = { k, dir: st.tri.k === k ? -st.tri.dir : (k === 'score' || k === 'surface' || k === 'lgt' ? -1 : 1) }; renderResults(); }));
     res.querySelectorAll('tr[data-i]').forEach((tr) => {
       const h = liste[+tr.dataset.i];
@@ -555,6 +591,7 @@ export function initProspection(ctx) {
     const cells = COLS.map((x) => { const v = x.v(h, i); return `<td class="${x.n ? 'n' : ''}">${x.k === 'score' ? `<span class="score s${Math.floor(v / 20)}">${v}</span>${h.s.partiel ? '<small class="part">partielle</small>' : ''}` : esc(x.fmt ? x.fmt(v) : v)}</td>`; }).join('');
     const detail = open ? `<tr class="detail"><td colspan="${COLS.length}">
       <div class="why">${h.s.parts.map((p) => `<div class="why-row"><span>${esc(p.label)}</span><span class="bar"><i style="width:${p.v === null ? 0 : Math.round((100 * p.v) / p.max)}%"></i></span><b>${p.v === null ? '—' : p.v}/${p.max}</b><small>${esc(p.why)}</small></div>`).join('')}</div>
+      ${h.cat === 'entrepot' ? `<p><span class="pill ${h.zoneAct ? 'no' : 'ok'}">${h.zoneAct ? "zone d'activités" : "zone d'habitat"}</span> ${h.zoneAct ? "Entrepôt ou local d'activité en zone d'activités : le logement y est interdit par le PLU." : 'Entrepôt ou local d\'activité en zone qui autorise le logement : reconversion en logements possible.'}</p>` : ''}
       ${h.groupe ? `<p><span class="pill wa">remembrement</span> ${h.membres.length} parcelles voisines, propriétaires probablement différents : ${h.membres.map((m, j) => `<b>${esc(refOf(m.f.properties))}</b> ${esc(m.occ.label.toLowerCase())}, ${f0(m.S)} m²${h.adresses && h.adresses[j] ? ', ' + esc(h.adresses[j].label) : ''}`).join(' · ')}</p>` : ''}
       <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? (h.estim ? ` · <b>≈ ${h.estim.lg} logements estimés</b> (densité médiane de ${h.estim.dens} logts/ha sur ${h.estim.n} opérations collectives autorisées, ${esc(h.estim.base)}) : à confirmer avec le règlement` : ' · potentiel à confirmer (règles de zone manquantes)') : ''}${h.graph ? ' · plan graphique : ' + Object.values(h.graph.sources).map(esc).join(', ') : ''}</p>
       <div class="actions"><button type="button" data-fiche="${i}">Ouvrir la fiche</button></div></td></tr>` : '';
@@ -562,8 +599,8 @@ export function initProspection(ctx) {
   }
 
   function exportCsv(r) {
-    const head = 'rang;reference;idu;adresse;commune;zone;logements_estimes_operations_voisines;surface_m2;nature;nb_parcelles;niveaux;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
-    const rows = r.list.map((h, i) => [i + 1, refOf(h.f.properties), h.f.properties.idu, `"${String(h.f.properties.adresse || h.adresse || '').replace(/"/g, "'")}"`, r.com.nom, h.zone.properties.libelle, h.estim ? h.estim.lg : '', Math.round(h.occ.S), h.occ.label, h.groupe ? h.membres.length : 1, h.pot ? h.pot.niv : '', Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
+    const head = 'rang;categorie;reference;idu;adresse;commune;zone;logements_estimes_operations_voisines;surface_m2;nature;nb_parcelles;niveaux;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
+    const rows = r.list.map((h, i) => [i + 1, h.cat === 'entrepot' ? (h.zoneAct ? "entrepot_zone_activites" : 'entrepot_zone_habitat') : 'logement', refOf(h.f.properties), h.f.properties.idu, `"${String(h.f.properties.adresse || h.adresse || '').replace(/"/g, "'")}"`, r.com.nom, h.zone.properties.libelle, h.estim ? h.estim.lg : '', Math.round(h.occ.S), h.occ.label, h.groupe ? h.membres.length : 1, h.pot ? h.pot.niv : '', Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
     ctx.download(`prospection-${r.com.code}.csv`, '﻿' + [head, ...rows].join('\n'), 'text/csv;charset=utf-8');
   }
 
@@ -574,7 +611,7 @@ export function initProspection(ctx) {
     r.list.length = 0; r.attente.length = 0;
     // compteurs remis à zéro pour les terrains réévalués
     Object.assign(r.compte, { regles: 0, sansRegles: 0, score: 0 });
-    for (const h of tous) r.classer(h);
+    for (const h of tous) { if (h.zoneAct) r.list.push(h); else r.classer(h); }
     appliquerEstimations(r);
     // un même îlot ne doit pas revenir en 20 variantes : 2 regroupements au plus par parcelle
     const seules = r.list.filter((h) => !h.groupe), grp = sansDoublons(r.list.filter((h) => h.groupe).sort((a, b) => b.s.tot - a.s.tot), 2);
@@ -586,7 +623,9 @@ export function initProspection(ctx) {
     for (const h of r.list) if (h.aConfirmer) { const x = m.get(h.key) || { key: h.key, zone: h.zone, n: 0 }; x.n++; m.set(h.key, x); }
     st.zonesMissing = [...m.values()].sort((a, b) => b.n - a.n);
     setStatus(resume(r));
-    ctx.setHits(r.list); renderResults();
+    const cat = st.cat || 'logement';
+    ctx.setHits(cat === 'tout' ? r.list : cat === 'entrepot' ? r.list.filter((h) => h.cat === 'entrepot') : r.list.filter((h) => h.cat !== 'entrepot'));
+    renderResults();
   }
 
   return {

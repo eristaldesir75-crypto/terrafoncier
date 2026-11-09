@@ -20,7 +20,7 @@ export const CRIT_DEFAUT = {
   // collectif réellement permis par le PLU, et remembrement de parcelles voisines
   collectif: true, nivMin: 2, mode: 'les2', maxParcelles: 3,
   // entrepôts et locaux d'activité, listés à part (en zone d'habitat : reconversion ; en zone d'activités : foncier d'activité)
-  entrepots: true,
+  entrepots: false,
 };
 const CATS = { logement: 'Logement possible', entrepot: "Entrepôts et locaux d'activité", tout: 'Tout' };
 // Zone d'activités économiques (pas de logement) : entrepôts, industrie, commerce, artisanat
@@ -123,7 +123,7 @@ export function initProspection(ctx) {
         <fieldset><legend>Type de foncier</legend>
           <div class="actions"><button type="button" class="ghost" id="proMaisons">Maisons seulement</button><button type="button" class="ghost" id="proMutable">Tout le foncier mutable</button></div>
           <div class="chk-row">${Object.entries(NATURES).map(([k, n]) => box(`proN-${k}`, n.label, c.natures.includes(k))).join('')}</div>
-          <div class="chk-row">${box('proEntr', "<b>Entrepôts et locaux d'activité</b> : listés à part, en zone d'habitat (reconversion en logements) et en zone d'activités", c.entrepots)}</div>
+          <div class="chk-row">${box('proEntr', "Ajouter aussi les entrepôts des <b>zones d'activités</b> (logement interdit par le PLU), dans la liste à part", c.entrepots)}</div>
         </fieldset>
         <fieldset><legend>Autres critères</legend>
           <div class="chk-row">${box('proRecent', 'Exclure le bâti récent (depuis 2010)', c.exclRecent)}${box('proOap', 'Uniquement en secteur d\'OAP', c.oapSeul)}${box('proContr', 'Exclure EBC et emplacements réservés', c.exclContraintes)}</div>
@@ -557,7 +557,7 @@ export function initProspection(ctx) {
     res.innerHTML = `
       ${r.avertissements.length ? `<div class="warn">${r.avertissements.map(esc).join('<br>')}</div>` : ''}
       <nav class="cat-tabs" role="tablist">${Object.entries(CATS).map(([k, t]) => `<button type="button" role="tab" class="cat-tab" data-cat="${k}" aria-selected="${cat === k}">${t} <span class="n">${f0(nCat[k])}</span></button>`).join('')}</nav>
-      ${cat === 'entrepot' ? `<p class="note">Entrepôts, bâtiments industriels ou commerciaux. En zone d'habitat : reconversion en logements possible, potentiel calculé. En zone d'activités : le logement y est interdit, foncier d'activité (Logts « — »).</p>` : ''}
+      ${cat === 'entrepot' ? `<p class="note">Entrepôts, bâtiments industriels ou commerciaux situés en zone où le PLU autorise le logement : reconversion en logements possible, potentiel calculé.${r.list.some((h) => h.zoneAct) ? " Ceux des zones d'activités (logement interdit) sont signalés, Logts « — »." : ''}</p>` : ''}
       <div class="res-head">
         <div class="chips">${Object.entries(parNature).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<button type="button" class="chip-btn ${st.filtreNature === k ? 'on' : ''}" data-nat="${k}">${esc(natLabel(k))} · ${n}</button>`).join('')}${st.filtreNature ? '<button type="button" class="chip-btn" data-nat="">Tout afficher</button>' : ''}</div>
         ${r.list.length ? '<button type="button" class="ghost" id="proCsv">Exporter en CSV</button>' : ''}

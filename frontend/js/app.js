@@ -26,7 +26,15 @@ const refOf = (p) => (p ? `${p.code_insee} ${p.section} ${String(p.numero).padSt
 // Zones d'activités, d'équipements ou à urbaniser à long terme (2AU, AUs) : écartées des recherches de logement
 const zoneHorsLogement = (z) => {
   const p = z.properties, lib = p.libelle || '', long = p.libelong || '', t = (p.typezone || '').toUpperCase();
-  return t === 'AUS' || /^2AU/i.test(lib) || /activit|[ée]quipement|industri|commerc|portuaire|a[ée]roport|parcs?\b|jardins|cimeti|sports?\b|loisirs/i.test(long) || /(^|-)(U?AE|UE|UX|UI|UY)\d*(-|$)/i.test(lib);
+  // destinations publiées par la collectivité (standard CNIG) : habitation interdite / autorisée
+  const non = `${p.destnon || ''}`, oui = `${p.destoui || ''} ${p.destcdt || ''} ${p.destdomi || ''}`;
+  if (/habitation|logement/i.test(non)) return true;
+  if (t === 'AUS' || /^2AU/i.test(lib)) return true;
+  // zone d'activités ou d'équipements (même « mixte ») sauf si l'habitat est cité
+  if (/zone d.activit|activit[ée]s? [ée]conomi|industri|portuaire|a[ée]roport|[ée]quipement|cimeti/i.test(long) && !/habita|logement|r[ée]sidenti/i.test(long)) return true;
+  // zone d'habitat ou mixte d'après son intitulé : le logement y est autorisé
+  if (/habita|logement|r[ée]sidenti|mixte|centralit|centre[- ]?(ville|bourg)|faubourg|pavillon|lotissement/i.test(long) || /habitation|logement/i.test(oui)) return false;
+  return /activit|[ée]quipement|industri|commerc|portuaire|a[ée]roport|parcs?\b|jardins|cimeti|sports?\b|loisirs/i.test(long) || /(^|-)(U?AE|UE|UX|UI|UY)\d*(-|$)/i.test(lib);
 };
 const zoneConstructible = (z) => {
   if (!z) return null;

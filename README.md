@@ -1,4 +1,4 @@
-# TerraFoncier
+# Fonciscope
 
 Application gratuite de prospection foncière : cadastre et PLU de toute la France en direct, règles par zone, potentiel constructible, prospection automatique d'une commune et suivi des opportunités. Elle s'utilise dans un navigateur et s'installe sur téléphone comme une application (PWA).
 

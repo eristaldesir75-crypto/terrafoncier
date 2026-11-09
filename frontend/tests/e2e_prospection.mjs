@@ -1,6 +1,6 @@
 // Test de bout en bout sur le site publié : prospection en remembrement sur un quartier de Saran.
 import { chromium } from 'playwright';
-const URL = process.env.SITE || 'https://eristaldesir75-crypto.github.io/terrafoncier/';
+const URL = process.env.SITE || 'https://fonciscope.github.io/';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const erreurs = [];

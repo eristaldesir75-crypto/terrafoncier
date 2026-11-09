@@ -14,7 +14,7 @@ import requests
 
 URL = "https://adresse.data.gouv.fr/data/ban/adresses/latest/csv/adresses-{dep}.csv.gz"
 CADASTRE = "https://cadastre.data.gouv.fr/data/etalab-cadastre/latest/geojson/departements/{dep}/cadastre-{dep}-parcelles.json.gz"
-UA = {"User-Agent": "Fonciscope-adresses (github.com/eristaldesir75-crypto/terrafoncier)"}
+UA = {"User-Agent": "Fonciscope-adresses (github.com/fonciscope/fonciscope.github.io)"}
 
 
 def log(*a):

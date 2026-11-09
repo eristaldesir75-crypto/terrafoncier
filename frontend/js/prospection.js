@@ -385,6 +385,8 @@ export function initProspection(ctx) {
       setStatus(resume(st.results));
       ctx.setHits(out);
       ctx.onResults && ctx.onResults(true);
+      renderResults();
+      await ajouterAdresses(st.results);
     } catch (e) {
       setStatus(`<p class="err">${esc(e.name === 'AbortError' || signal.aborted ? 'Prospection arrêtée' : e.message)}</p>`);
     } finally {
@@ -392,6 +394,28 @@ export function initProspection(ctx) {
       const btn = $('#proForm button[type=submit]'); if (btn) btn.disabled = false; $('#proStop')?.remove();
       if (st.results) renderResults();
     }
+  }
+
+  /** Adresses (BAN) des terrains retenus : 400 premiers, chaque parcelle d'un remembrement. */
+  async function ajouterAdresses(r) {
+    const cibles = r.list.slice(0, 400);
+    const pts = [], refs = [];
+    for (const h of cibles) {
+      const parts = h.groupe ? h.membres.map((m) => m.f) : [h.f];
+      parts.forEach((f, j) => { pts.push(turf.pointOnFeature(f).geometry.coordinates); refs.push([h, j, parts.length]); });
+    }
+    const res = await api.adresses(pts, (d, n) => { if (d % 40 === 0) setStatus(`${resume(r)}<br><span class="note">Adresses : ${d} / ${n}</span>`); });
+    const parH = new Map();
+    res.forEach((a, k) => { const [h, j] = refs[k]; if (!parH.has(h)) parH.set(h, []); parH.get(h)[j] = a; });
+    for (const [h, l] of parH) {
+      const txt = [...new Set(l.filter(Boolean).map((a) => a.rue + (a.distance > 30 ? ' (≈)' : '')))];
+      h.adresse = txt.join(' / ');
+      h.adresses = l;
+      if (h.groupe && Array.isArray(h.f.properties.membres)) l.forEach((x, j) => { if (x && h.f.properties.membres[j]) h.f.properties.membres[j].adresse = x.label; });
+      if (l[0]) h.f.properties.adresse = l.filter(Boolean).map((a) => a.label).join(' / ');
+    }
+    setStatus(resume(r));
+    if (st.results === r) renderResults();
   }
 
   function resume(r) {
@@ -405,6 +429,7 @@ export function initProspection(ctx) {
   const COLS = [
     { k: 'rang', t: '#', v: (h, i) => i + 1, n: true },
     { k: 'ref', t: 'Parcelle(s)', v: (h) => refOf(h.f.properties) },
+    { k: 'adresse', t: 'Adresse', v: (h) => h.adresse || '' },
     { k: 'zone', t: 'Zone', v: (h) => h.zone.properties.libelle },
     { k: 'surface', t: 'Surface', v: (h) => h.occ.S, fmt: (x) => m2(x), n: true },
     { k: 'nature', t: 'Nature', v: (h) => h.occ.label },
@@ -465,15 +490,15 @@ export function initProspection(ctx) {
     const cells = COLS.map((x) => { const v = x.v(h, i); return `<td class="${x.n ? 'n' : ''}">${x.k === 'score' ? `<span class="score s${Math.floor(v / 20)}">${v}</span>${h.s.partiel ? '<small class="part">partielle</small>' : ''}` : esc(x.fmt ? x.fmt(v) : v)}</td>`; }).join('');
     const detail = open ? `<tr class="detail"><td colspan="${COLS.length}">
       <div class="why">${h.s.parts.map((p) => `<div class="why-row"><span>${esc(p.label)}</span><span class="bar"><i style="width:${p.v === null ? 0 : Math.round((100 * p.v) / p.max)}%"></i></span><b>${p.v === null ? '—' : p.v}/${p.max}</b><small>${esc(p.why)}</small></div>`).join('')}</div>
-      ${h.groupe ? `<p><span class="pill wa">remembrement</span> ${h.membres.length} parcelles voisines, propriétaires probablement différents : ${h.membres.map((m) => `<b>${esc(refOf(m.f.properties))}</b> ${esc(m.occ.label.toLowerCase())}, ${f0(m.S)} m²`).join(' · ')}</p>` : ''}
+      ${h.groupe ? `<p><span class="pill wa">remembrement</span> ${h.membres.length} parcelles voisines, propriétaires probablement différents : ${h.membres.map((m, j) => `<b>${esc(refOf(m.f.properties))}</b> ${esc(m.occ.label.toLowerCase())}, ${f0(m.S)} m²${h.adresses && h.adresses[j] ? ', ' + esc(h.adresses[j].label) : ''}`).join(' · ')}</p>` : ''}
       <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? ' · potentiel à confirmer (règles de zone manquantes)' : ''}${h.graph ? ' · plan graphique : ' + Object.values(h.graph.sources).map(esc).join(', ') : ''}</p>
       <div class="actions"><button type="button" data-fiche="${i}">Ouvrir la fiche</button></div></td></tr>` : '';
     return `<tr data-i="${i}" class="${open ? 'open' : ''}">${cells}</tr>${detail}`;
   }
 
   function exportCsv(r) {
-    const head = 'rang;reference;idu;commune;zone;surface_m2;nature;nb_parcelles;niveaux;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
-    const rows = r.list.map((h, i) => [i + 1, refOf(h.f.properties), h.f.properties.idu, r.com.nom, h.zone.properties.libelle, Math.round(h.occ.S), h.occ.label, h.groupe ? h.membres.length : 1, h.pot ? h.pot.niv : '', Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
+    const head = 'rang;reference;idu;adresse;commune;zone;surface_m2;nature;nb_parcelles;niveaux;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
+    const rows = r.list.map((h, i) => [i + 1, refOf(h.f.properties), h.f.properties.idu, `"${String(h.f.properties.adresse || h.adresse || '').replace(/"/g, "'")}"`, r.com.nom, h.zone.properties.libelle, Math.round(h.occ.S), h.occ.label, h.groupe ? h.membres.length : 1, h.pot ? h.pot.niv : '', Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
     ctx.download(`prospection-${r.com.code}.csv`, '﻿' + [head, ...rows].join('\n'), 'text/csv;charset=utf-8');
   }
 

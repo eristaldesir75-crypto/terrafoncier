@@ -24,12 +24,15 @@ while (Date.now() - t0 < 240000) {
   if (/retenu|arrêtée|ne répond|RNU|Aucun PLU|surchargé|Délai/.test(statut)) break;
 }
 console.log('STATUT :', statut.replace(/\s+/g, ' '));
+// attend les adresses (BAN)
+for (let k = 0; k < 20; k++) { const st2 = await page.locator('#proStatus').innerText().catch(() => ''); if (!/Adresses/.test(st2)) break; await page.waitForTimeout(2000); }
+await page.waitForTimeout(2000);
 const res = await page.locator('#proRes').innerText().catch(() => '');
 console.log('RÉSULTATS :\n' + res.slice(0, 2500));
 const zones = await page.locator('#proZones').innerText().catch(() => '');
 if (zones) console.log('ZONES SANS RÈGLES :', zones.slice(0, 300));
 // ouvre le premier remembrement s'il existe
-const ligne = page.locator('#proRes tr[data-i]').filter({ hasText: '+' }).first();
+const ligne = page.locator('#proRes tr[data-i]').filter({ hasText: 'Remembrement' }).first();
 if (await ligne.count()) {
   await ligne.click();
   await page.waitForTimeout(500);

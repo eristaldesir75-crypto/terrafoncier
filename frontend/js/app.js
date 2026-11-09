@@ -300,6 +300,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
     rerender();
   });
   risqP.then((r) => { if (token === selToken) { sel.risques = r; rerender(); } });
+  api.adresseAt(pt.coordinates[0], pt.coordinates[1]).then((a) => { if (token === selToken && a) { sel.adresse = a; const el = $('#ficheAdr'); if (el) el.innerHTML = adrHtml(); } });
   api.communeByCode(insee).then((c) => { if (token === selToken) { sel.commune = c; if (tab === 'fiche' && ficheTab === 'commune') renderFiche(); } }).catch(() => {});
   if (tab === 'pot') renderPot(); else renderFiche();
   // constructions récentes et ventes neuves : chargées d'office si une des cases de la carte est cochée
@@ -384,7 +385,7 @@ function renderFiche() {
   const p = sel.feature.properties;
   v.innerHTML = `
     <div class="fiche-head">
-      <div><span class="ref">${esc(refOf(p))} · IDU ${esc(p.idu)}</span><h2>${esc(p.nom_com || '')}, section ${esc(p.section)} n° ${esc(p.numero)}</h2></div>
+      <div><span class="ref">${esc(refOf(p))} · IDU ${esc(p.idu)}</span><h2>${esc(p.nom_com || '')}, section ${esc(p.section)} n° ${esc(p.numero)}</h2><p class="adr" id="ficheAdr">${adrHtml()}</p></div>
       <div class="actions"><button type="button" class="ghost" id="addCrm">Ajouter au suivi</button><button type="button" class="ghost" id="copyFiche">Copier la fiche</button><a class="btn-link" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${sel.pt.coordinates[1]},${sel.pt.coordinates[0]}" target="_blank" rel="noopener">Street View</a></div>
     </div>
     ${sel.urba['zone-urba'] === 'loading' ? '<p class="note">Zonage du PLU en cours de chargement…</p>' : ''}${sel.viaWms ? '<p class="note"><span class="pill wa">secours</span> API Carto (IGN) saturé : zonage et prescriptions lus sur le service cartographique du Géoportail de l\'Urbanisme, même source officielle.</p>' : ''}${sel.urba['zone-urba'] === null ? `<div class="warn">Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment : zonage et règles indisponibles. Les autres informations restent valables. <button type="button" class="ghost" id="retryGpu">Réessayer</button></div>` : ''}
@@ -394,12 +395,18 @@ function renderFiche() {
   const rg = $('#retryGpu', v); if (rg) rg.onclick = () => selectFeature(sel.feature);
   $('#addCrm', v).onclick = () => {
     const pot = potentielSel(), s = noteSel(pot);
-    const ok = store.addToCrm({ idu: p.idu, ref: refOf(p), commune: p.nom_com, zone: sel.zLabel, contenance: p.contenance, centre: sel.pt.coordinates, geometry: turf.truncate(sel.feature, { precision: 6 }).geometry, nature: sel.occ?.label || '', note: '', score: s ? s.tot : null });
+    const ok = store.addToCrm({ idu: p.idu, ref: refOf(p), commune: p.nom_com, adresse: sel.adresse?.label || p.adresse || '', zone: sel.zLabel, contenance: p.contenance, centre: sel.pt.coordinates, geometry: turf.truncate(sel.feature, { precision: 6 }).geometry, nature: sel.occ?.label || '', note: '', score: s ? s.tot : null });
     toast(ok ? 'Ajouté au suivi' : 'Déjà dans le suivi');
   };
   $('#copyFiche', v).onclick = () => copy(ficheText());
   const body = $('#ficheBody', v);
   ({ synthese: ficheSynthese, urba: ficheUrba, bati: ficheBati, contraintes: ficheContraintes, projets: ficheProjets, commune: ficheCommune }[ficheTab] || ficheSynthese)(body);
+}
+
+function adrHtml() {
+  const a = sel && sel.adresse;
+  if (!a) return '<span class="note">Adresse…</span>';
+  return `${esc(a.label)}${a.distance > 30 ? ` <span class="note">(adresse la plus proche, à ${a.distance} m)</span>` : ''}`;
 }
 
 function ficheSynthese(body) {
@@ -409,7 +416,7 @@ function ficheSynthese(body) {
   const mb = Array.isArray(p.membres) ? p.membres : null;
   body.innerHTML = `
     ${mb ? `<div class="remb"><span class="pill wa">remembrement</span> <b>${mb.length} parcelles voisines réunies</b>, propriétaires probablement différents à contacter un par un :
-      <ul class="list">${mb.map((m) => `<li><b>${esc(m.ref)}</b> · ${m2(m.S)} · ${esc(m.nature)}</li>`).join('')}</ul>
+      <ul class="list">${mb.map((m) => `<li><b>${esc(m.ref)}</b> · ${m2(m.S)} · ${esc(m.nature)}${m.adresse ? ' · ' + esc(m.adresse) : ''}</li>`).join('')}</ul>
       <p class="note">Le potentiel ci-dessous est calculé sur le terrain réuni (${m2(p.contenance)}), avec les règles du PLU de la zone.</p></div>` : ''}
     <div class="kpis">
       <div><span>Surface</span><strong>${m2(p.contenance)}</strong></div>
@@ -743,7 +750,7 @@ function ficheText() {
   const p = sel.feature.properties, rules = store.getRules(sel.key);
   const pot = potentielSel(), s = noteSel(pot);
   return [
-    `Parcelle ${refOf(p)} — ${p.nom_com}`, `Contenance : ${m2(p.contenance)}`,
+    `Parcelle ${refOf(p)} — ${p.nom_com}`, ...(sel.adresse ? [`Adresse : ${sel.adresse.label}`] : []), `Contenance : ${m2(p.contenance)}`,
     `Zone : ${sel.zLabel} ${sel.zone?.properties.libelong || ''}`,
     `Nature du foncier : ${sel.occ ? sel.occ.label + ' (' + sel.occ.raisons.join(' ; ') + ')' : 'inconnue'}`,
     ...(sel.graph && sel.graph.n ? ['Plan graphique du PLU : ' + Object.values(sel.graph.sources).join(' ; ')] : []),
@@ -796,7 +803,7 @@ const pro = initProspection({
 function letter(item) {
   return `Madame, Monsieur,
 
-Nous nous permettons de vous contacter au sujet de votre terrain situé sur la commune de ${item.commune}, cadastré section ${item.ref.split(' ')[1]} n° ${item.ref.split(' ')[2]}, d'une contenance de ${f0(item.contenance)} m².
+Nous nous permettons de vous contacter au sujet de votre terrain situé ${item.adresse ? item.adresse.split(' / ')[0] + ', ' : 'sur la commune de ' + item.commune + ', '}cadastré section ${item.ref.split(' ')[1]} n° ${item.ref.split(' ')[2]}, d'une contenance de ${f0(item.contenance)} m².
 
 [Votre société] étudie des projets de logements sur ce secteur. Votre terrain pourrait s'y prêter et nous serions heureux d'échanger avec vous, sans engagement, sur vos intentions le concernant.
 
@@ -828,7 +835,7 @@ function renderCrm() {
       ${hist.slice(0, 8).map((h) => `<tr><td>${new Date(h.date).toLocaleDateString('fr-FR')}</td><td>${esc(h.commune)}</td><td class="n">${f0(h.total)}</td><td class="n">${f0(h.retenus)}</td><td>${h.top && h.top[0] ? `${esc(h.top[0].ref)} <span class="score ${scoreClass(h.top[0].score)}">${h.top[0].score}</span>` : '—'}</td></tr>`).join('')}</table></div>` : '<p class="note">Aucune prospection lancée pour l\'instant.</p>'}</div>
     <div><div class="label">Opportunités</div>${list.length ? '' : '<p class="empty">Aucune opportunité. Ajoutez-en depuis une fiche parcelle.</p>'}
     <div class="crm">${list.map((x, i) => `<div class="row">
-      <span><b>${esc(x.ref)}</b> · ${esc(x.commune)} · ${esc(x.zone)} · ${m2(x.contenance)}${x.nature ? ` · ${esc(x.nature)}` : ''}${x.score !== null && x.score !== undefined ? ` <span class="score ${scoreClass(x.score)}">${x.score}</span>` : ''}${x.relance && x.relance <= today ? ' <span class="pill wa">relance due</span>' : ''}</span>
+      <span><b>${esc(x.ref)}</b>${x.adresse ? ` · ${esc(x.adresse.split(' / ')[0])}` : ''} · ${esc(x.commune)} · ${esc(x.zone)} · ${m2(x.contenance)}${x.nature ? ` · ${esc(x.nature)}` : ''}${x.score !== null && x.score !== undefined ? ` <span class="score ${scoreClass(x.score)}">${x.score}</span>` : ''}${x.relance && x.relance <= today ? ' <span class="pill wa">relance due</span>' : ''}</span>
       <select id="c-st-${i}" data-i="${i}" data-f="statut" aria-label="Statut">${store.STATUTS.map((s, j) => `<option value="${j}" ${j === x.statut ? 'selected' : ''}>${s}</option>`).join('')}</select>
       <label class="full note" for="c-rel-${i}">Prochaine relance <input type="date" id="c-rel-${i}" data-i="${i}" data-f="relance" value="${esc(x.relance)}"></label>
       <textarea class="full" id="c-note-${i}" data-i="${i}" data-f="note" rows="2" placeholder="Notes : propriétaire, échanges, prix évoqué…">${esc(x.note)}</textarea>
@@ -849,8 +856,8 @@ function renderCrm() {
     slot.scrollIntoView({ behavior: 'smooth' });
   }));
   const csv = $('#crmCsv', v); if (csv) csv.onclick = () => {
-    const head = 'reference;idu;commune;zone;contenance_m2;nature;note_potentiel;statut;prochaine_relance;notes';
-    const rows = list.map((x) => [x.ref, x.idu, x.commune, x.zone, x.contenance, x.nature || '', x.score ?? '', store.STATUTS[x.statut], x.relance, `"${(x.note || '').replace(/"/g, '""')}"`].join(';'));
+    const head = 'reference;idu;adresse;commune;zone;contenance_m2;nature;note_potentiel;statut;prochaine_relance;notes';
+    const rows = list.map((x) => [x.ref, x.idu, `"${(x.adresse || '').replace(/"/g, "'")}"`, x.commune, x.zone, x.contenance, x.nature || '', x.score ?? '', store.STATUTS[x.statut], x.relance, `"${(x.note || '').replace(/"/g, '""')}"`].join(';'));
     download('suivi-foncier.csv', '﻿' + [head, ...rows].join('\n'), 'text/csv;charset=utf-8');
   };
   const geo = $('#crmGeo', v); if (geo) geo.onclick = () => download('suivi-foncier.geojson', JSON.stringify({ type: 'FeatureCollection', features: list.map((x) => ({ type: 'Feature', geometry: x.geometry, properties: { ...x, geometry: undefined, statut: store.STATUTS[x.statut] } })) }), 'application/geo+json');

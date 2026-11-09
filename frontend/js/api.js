@@ -358,3 +358,29 @@ export function ventesNeuves(insee, { depuis = 2020 } = {}) {
   ventesCache.set(k, p);
   return p;
 }
+
+// ---------- Adresse d'une parcelle (Base Adresse Nationale, géocodage inverse IGN) ----------
+const adrCache = new Map();
+/** Adresse la plus proche d'un point : { label, rue, distance } ou null. */
+export function adresseAt(lng, lat) {
+  const k = `${lng.toFixed(5)},${lat.toFixed(5)}`;
+  if (!adrCache.has(k)) {
+    adrCache.set(k, getJSON(`${GEOCODE.replace('/search', '/reverse')}?lon=${lng}&lat=${lat}&index=address&limit=1`, { timeout: 10000, retries: 1 })
+      .then((fc) => {
+        const f = (fc.features || [])[0];
+        if (!f) return null;
+        const p = f.properties;
+        return { label: p.label, rue: [p.housenumber, p.street || p.name].filter(Boolean).join(' '), distance: Math.round(p.distance || 0) };
+      })
+      .catch(() => null));
+  }
+  return adrCache.get(k);
+}
+/** Adresses d'une liste de points, 6 requêtes à la fois. */
+export async function adresses(points, onProgress) {
+  const out = new Array(points.length);
+  let i = 0, done = 0;
+  async function w() { while (i < points.length) { const j = i++; out[j] = await adresseAt(points[j][0], points[j][1]); done++; onProgress && onProgress(done, points.length); } }
+  await Promise.all([w(), w(), w(), w(), w(), w()]);
+  return out;
+}

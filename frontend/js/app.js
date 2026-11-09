@@ -60,6 +60,12 @@ const map = new maplibregl.Map({
     sources: {
       plan: { type: 'raster', tiles: [wmts('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'normal', 'image/png')], tileSize: 256, maxzoom: 19, attribution: '© IGN Géoplateforme' },
       ortho: { type: 'raster', tiles: [wmts('ORTHOIMAGERY.ORTHOPHOTOS', 'normal', 'image/jpeg')], tileSize: 256, maxzoom: 19, attribution: '© IGN Géoplateforme' },
+      // photos aériennes récentes de l'IGN, publiées secteur par secteur (vides ailleurs) : de la plus ancienne à la plus récente
+      r2024: { type: 'raster', tiles: [wmts('ORTHOIMAGERY.ORTHOPHOTOS2024', 'normal', 'image/jpeg')], tileSize: 256, minzoom: 6, maxzoom: 19, attribution: '© IGN Géoplateforme' },
+      rpac25: { type: 'raster', tiles: [wmts('ORTHOIMAGERY.ORTHOPHOTOS.ORTHO-ASP_PAC2025', 'normal', 'image/jpeg')], tileSize: 256, maxzoom: 18, attribution: '© IGN / ASP' },
+      rexp25: { type: 'raster', tiles: [wmts('ORTHOIMAGERY.ORTHOPHOTOS.ORTHO-EXPRESS.2025', 'normal', 'image/jpeg')], tileSize: 256, maxzoom: 19, attribution: '© IGN Géoplateforme' },
+      rpac26: { type: 'raster', tiles: [wmts('ORTHOIMAGERY.ORTHOPHOTOS.ORTHO-ASP_PAC2026', 'normal', 'image/jpeg')], tileSize: 256, maxzoom: 18, attribution: '© IGN / ASP' },
+      rexp26: { type: 'raster', tiles: [wmts('ORTHOIMAGERY.ORTHOPHOTOS.RVB-EXPRESS.2026', 'normal', 'image/jpeg')], tileSize: 256, maxzoom: 19, attribution: '© IGN Géoplateforme' },
       orthoHist: { type: 'raster', tiles: [wmts('ORTHOIMAGERY.ORTHOPHOTOS2016-2020', 'normal', 'image/jpeg')], tileSize: 256, maxzoom: 18, attribution: '© IGN Géoplateforme' },
       noms: { type: 'raster', tiles: [wmts('GEOGRAPHICALNAMES.NAMES', 'normal', 'image/png')], tileSize: 256, maxzoom: 18, attribution: '© IGN Géoplateforme' },
       cadastre: { type: 'raster', tiles: [wmts('CADASTRALPARCELS.PARCELLAIRE_EXPRESS', 'PCI vecteur', 'image/png')], tileSize: 256, maxzoom: 19, attribution: 'Cadastre © DGFiP / IGN' },
@@ -76,6 +82,7 @@ const map = new maplibregl.Map({
       { id: 'plan', type: 'raster', source: 'plan' },
       { id: 'ortho', type: 'raster', source: 'ortho', layout: { visibility: 'none' } },
       { id: 'orthoHist', type: 'raster', source: 'orthoHist', layout: { visibility: 'none' } },
+      ...['r2024', 'rpac25', 'rexp25', 'rpac26', 'rexp26'].map((id) => ({ id, type: 'raster', source: id, layout: { visibility: 'none' } })),
       { id: 'zonage', type: 'raster', source: 'zonage', minzoom: 11, paint: { 'raster-opacity': 0.45 } },
       { id: 'presc', type: 'raster', source: 'presc', minzoom: 13, layout: { visibility: 'none' }, paint: { 'raster-opacity': 0.8 } },
       { id: 'cadastre', type: 'raster', source: 'cadastre', minzoom: 15 },
@@ -123,8 +130,13 @@ const vis = (id, on) => map.getLayer(id) && map.setLayoutProperty(id, 'visibilit
 // Fond : plan IGN ou satellite (photo aérienne IGN, récente ou ancienne), avec noms des rues et cadastre par-dessus
 function appliquerFond() {
   const sat = $('#fond-ortho').checked;
-  const recent = $('#orthoAn').value === 'ORTHOIMAGERY.ORTHOPHOTOS';
-  vis('plan', !sat); vis('ortho', sat && recent); vis('orthoHist', sat && !recent); vis('noms', sat && $('#lay-noms').checked);
+  const an = $('#orthoAn').value;
+  // « la plus récente » : photo officielle dessous, puis les couches 2024 à 2026 par-dessus là où elles existent
+  const RECENTES = { recent: ['r2024', 'rpac25', 'rexp25', 'rpac26', 'rexp26'], 2026: ['rpac26', 'rexp26'], 2025: ['rpac25', 'rexp25'] };
+  const couches = RECENTES[an] || [];
+  const base = an === 'ORTHOIMAGERY.ORTHOPHOTOS' || couches.length;
+  vis('plan', !sat); vis('ortho', sat && base); vis('orthoHist', sat && !base);
+  ['r2024', 'rpac25', 'rexp25', 'rpac26', 'rexp26'].forEach((id) => vis(id, sat && couches.includes(id))); vis('noms', sat && $('#lay-noms').checked);
   $('#satOpts').hidden = !sat;
   // sur la photo, le zonage est allégé pour garder la lecture du terrain
   if (sat && +$('#zonageOpa').value === 45) { $('#zonageOpa').value = 25; map.setPaintProperty('zonage', 'raster-opacity', 0.25); }
@@ -135,14 +147,14 @@ document.querySelectorAll('input[name=fond]').forEach((r) => r.addEventListener(
 $('#lay-noms').addEventListener('change', appliquerFond);
 $('#orthoAn').addEventListener('change', (e) => {
   const v = e.target.value, vieux = v.includes('1950');
-  if (v !== 'ORTHOIMAGERY.ORTHOPHOTOS') map.getSource('orthoHist').setTiles([wmts(v, vieux ? 'BDORTHOHISTORIQUE' : 'normal', vieux ? 'image/png' : 'image/jpeg')]);
+  if (v.startsWith('ORTHOIMAGERY.ORTHOPHOTOS') && v !== 'ORTHOIMAGERY.ORTHOPHOTOS') map.getSource('orthoHist').setTiles([wmts(v, vieux ? 'BDORTHOHISTORIQUE' : 'normal', vieux ? 'image/png' : 'image/jpeg')]);
   appliquerFond();
 });
 $('#zonageOpa').addEventListener('input', (e) => map.setPaintProperty('zonage', 'raster-opacity', +e.target.value / 100));
 map.on('load', () => {
   let f = null; try { f = JSON.parse(localStorage.getItem('tf-fond') || 'null'); } catch { f = null; }
   if (!f) return;
-  if (f.an) { $('#orthoAn').value = f.an; if (f.an !== 'ORTHOIMAGERY.ORTHOPHOTOS') $('#orthoAn').dispatchEvent(new Event('change')); }
+  if (f.an) { $('#orthoAn').value = f.an; $('#orthoAn').dispatchEvent(new Event('change')); }
   $('#lay-noms').checked = f.noms !== false;
   if (f.sat) { $('#fond-ortho').checked = true; appliquerFond(); }
 });

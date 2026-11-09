@@ -392,9 +392,9 @@ function renderFiche() {
     v.innerHTML = `<div class="empty-state">
       <h2>Trouver du foncier constructible</h2>
       <ol class="steps">
-        <li><b>Cherchez</b> une adresse, une commune ou une parcelle (ex. « 45302 AY 209 ») dans la barre du haut.</li>
-        <li><b>Touchez une parcelle</b> sur la carte : sa fiche s'ouvre ici avec la zone du PLU, les règles, le bâti et le nombre de logements possibles.</li>
-        <li><b>Ou prospectez une commune entière</b> : le site trie les terrains où le PLU permet du logement collectif, seuls ou en remembrement.</li>
+        <li><span><b>Cherchez</b> une adresse, une commune ou une parcelle (ex. « 45302 AY 209 ») dans la barre du haut.</span></li>
+        <li><span><b>Touchez une parcelle</b> sur la carte : sa fiche s'ouvre ici avec la zone du PLU, les règles, le bâti et le nombre de logements possibles.</span></li>
+        <li><span><b>Ou prospectez une commune entière</b> : le site trie les terrains où le PLU permet du logement collectif, seuls ou en remembrement.</span></li>
       </ol>
       <div class="actions"><button type="button" id="goPro">Prospecter une commune</button></div>
     </div>`;
@@ -438,7 +438,7 @@ function ficheSynthese(body) {
   const mb = Array.isArray(p.membres) ? p.membres : null;
   body.innerHTML = `
     ${mb ? `<div class="remb"><span class="pill wa">remembrement</span> <b>${mb.length} parcelles voisines réunies</b>, propriétaires probablement différents à contacter un par un :
-      <ul class="list">${mb.map((m) => `<li><b>${esc(m.ref)}</b> · ${m2(m.S)} · ${esc(m.nature)}${m.adresse ? ' · ' + esc(m.adresse) : ''}</li>`).join('')}</ul>
+      <ul class="list">${mb.map((m) => `<li><span><b>${esc(m.ref)}</b> · ${m2(m.S)} · ${esc(m.nature)}${m.adresse ? ' · ' + esc(m.adresse) : ''}</span></li>`).join('')}</ul>
       <p class="note">Le potentiel ci-dessous est calculé sur le terrain réuni (${m2(p.contenance)}), avec les règles du PLU de la zone.</p></div>` : ''}
     <div class="kpis">
       <div><span>Surface</span><strong>${m2(p.contenance)}</strong></div>
@@ -603,7 +603,7 @@ function ficheContraintes(body) {
   const pot = potentielSel();
   body.innerHTML = `
     <div><div class="label">Prescriptions qui pèsent sur un projet</div>
-      ${pending ? '<p class="note">Chargement…</p>' : sel.contraintes === null ? '<p class="note">Prescriptions indisponibles pour le moment.</p>' : sel.contraintes.length ? `<ul class="list">${sel.contraintes.map((c) => `<li><b>${esc(c.t)}</b> sur ${Math.round(c.part * 100)} % de la parcelle${c.libelle !== c.t ? ` <span class="note">(${esc(c.libelle)})</span>` : ''}</li>`).join('')}</ul>` : '<p class="note">Aucun EBC, emplacement réservé, élément protégé ni secteur d\'OAP sur une part significative de la parcelle.</p>'}</div>
+      ${pending ? '<p class="note">Chargement…</p>' : sel.contraintes === null ? '<p class="note">Prescriptions indisponibles pour le moment.</p>' : sel.contraintes.length ? `<ul class="list">${sel.contraintes.map((c) => `<li><span><b>${esc(c.t)}</b> sur ${Math.round(c.part * 100)} % de la parcelle${c.libelle !== c.t ? ` <span class="note">(${esc(c.libelle)})</span>` : ''}</span></li>`).join('')}</ul>` : '<p class="note">Aucun EBC, emplacement réservé, élément protégé ni secteur d\'OAP sur une part significative de la parcelle.</p>'}</div>
     <dl class="kv">
       <dt>Servitudes</dt><dd>${pending ? 'Chargement…' : sup.length ? [...new Set(sup)].map(esc).join(' · ') : 'Aucune au GPU'}</dd>
       <dt>Informations</dt><dd>${pending ? 'Chargement…' : infos.length ? [...new Set(infos)].map(esc).join(' · ') : 'Aucune'}</dd>
@@ -852,7 +852,7 @@ function renderCrm() {
       <div><span>Communes prospectées</span><strong>${communes}</strong></div>
     </div>
     <div class="pipeline">${store.STATUTS.map((s, i) => { const n = list.filter((x) => x.statut === i).length; return `<div class="${n ? '' : 'zero'}"><strong>${n}</strong><span>${esc(s)}</span></div>`; }).join('')}</div>
-    ${dues.length ? `<div><div class="label">Relances à faire</div><ul class="list">${dues.map((x) => `<li><b>${esc(x.ref)}</b> · ${esc(x.commune)} · prévue le ${new Date(x.relance).toLocaleDateString('fr-FR')}</li>`).join('')}</ul></div>` : ''}
+    ${dues.length ? `<div><div class="label">Relances à faire</div><ul class="list">${dues.map((x) => `<li><span><b>${esc(x.ref)}</b> · ${esc(x.commune)} · prévue le ${new Date(x.relance).toLocaleDateString('fr-FR')}</span></li>`).join('')}</ul></div>` : ''}
     <div><div class="label">Dernières prospections</div>${hist.length ? `<div class="tw"><table><tr><th>Date</th><th>Commune</th><th class="n">Parcelles</th><th class="n">Retenues</th><th>Meilleur terrain</th></tr>
       ${hist.slice(0, 8).map((h) => `<tr><td>${new Date(h.date).toLocaleDateString('fr-FR')}</td><td>${esc(h.commune)}</td><td class="n">${f0(h.total)}</td><td class="n">${f0(h.retenus)}</td><td>${h.top && h.top[0] ? `${esc(h.top[0].ref)} <span class="score ${scoreClass(h.top[0].score)}">${h.top[0].score}</span>` : '—'}</td></tr>`).join('')}</table></div>` : '<p class="note">Aucune prospection lancée pour l\'instant.</p>'}</div>
     <div><div class="label">Opportunités</div>${list.length ? '' : '<p class="empty">Aucune opportunité. Ajoutez-en depuis une fiche parcelle.</p>'}

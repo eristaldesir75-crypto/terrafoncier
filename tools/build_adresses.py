@@ -13,6 +13,7 @@ from pathlib import Path
 import requests
 
 URL = "https://adresse.data.gouv.fr/data/ban/adresses/latest/csv/adresses-{dep}.csv.gz"
+CADASTRE = "https://cadastre.data.gouv.fr/data/etalab-cadastre/latest/geojson/departements/{dep}/cadastre-{dep}-parcelles.json.gz"
 UA = {"User-Agent": "TerraFoncier-adresses (github.com/eristaldesir75-crypto/terrafoncier)"}
 
 
@@ -32,6 +33,25 @@ def telecharge(dep):
     raise RuntimeError(f"BAN {dep} indisponible")
 
 
+def parcelles_des_points(dep, points):
+    """Parcelle cadastrale (plan Etalab) qui contient chaque point d'adresse : {indice du point: idu}."""
+    import geopandas as gpd
+    tmp = Path(f"/tmp/cadastre-{dep}.json.gz")
+    with requests.get(CADASTRE.format(dep=dep), headers=UA, timeout=900, stream=True) as r:
+        r.raise_for_status()
+        with open(tmp, "wb") as fh:
+            for ch in r.iter_content(1 << 20):
+                fh.write(ch)
+    parc = gpd.read_file(f"/vsigzip/{tmp}", columns=["id"])
+    tmp.unlink()
+    log(f"  plan cadastral : {len(parc)} parcelles")
+    pts = gpd.GeoDataFrame({"k": [k for k, _, _ in points]}, geometry=gpd.points_from_xy([x for _, x, _ in points], [y for _, _, y in points]), crs=4326)
+    if parc.crs is None:
+        parc = parc.set_crs(4326)
+    j = gpd.sjoin(pts, parc.to_crs(4326)[["id", "geometry"]], how="inner", predicate="within")
+    return dict(zip(j["k"], j["id"]))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="data-config.json")
@@ -49,10 +69,27 @@ def main():
         log(f"Département {dep} : colonnes {rd.fieldnames[:25]}")
         par_commune = defaultdict(lambda: defaultdict(list))
         cp = {}
-        n = lie = 0
+        n = lie = geo = 0
+        lignes, sans = [], []
         for row in rd:
+            lignes.append(row)
+            if not (row.get("cad_parcelles") or "").strip():
+                try:
+                    sans.append((len(lignes) - 1, float(row["lon"]), float(row["lat"])))
+                except (KeyError, ValueError):
+                    pass
+        # adresses sans parcelle rattachée : parcelle du plan cadastral qui contient le point d'adresse
+        try:
+            trouve = parcelles_des_points(dep, sans) if sans else {}
+        except Exception as e:
+            log(f"  plan cadastral indisponible ({e}) : seules les parcelles rattachées par la BAN sont utilisées")
+            trouve = {}
+        for i, row in enumerate(lignes):
             n += 1
             parcelles = (row.get("cad_parcelles") or "").strip()
+            if not parcelles and i in trouve:
+                parcelles = trouve[i]
+                geo += 1
             if not parcelles:
                 continue
             num = (row.get("numero") or "").strip()
@@ -71,8 +108,8 @@ def main():
         for insee, m in par_commune.items():
             code_postal, nom = cp.get(insee, ("", ""))
             (out / f"{insee}.json").write_text(json.dumps({"cp": code_postal, "commune": nom, "p": m}, ensure_ascii=False, separators=(",", ":")))
-        stats[dep] = {"adresses": n, "liens_parcelle": lie, "communes": len(par_commune)}
-        log(f"  {n} adresses, {lie} liens adresse-parcelle, {len(par_commune)} communes")
+        stats[dep] = {"adresses": n, "liens_parcelle": lie, "par_position": geo, "communes": len(par_commune)}
+        log(f"  {n} adresses, {lie} liens adresse-parcelle (dont {geo} par la position du point d'adresse), {len(par_commune)} communes")
     (out / "index.json").write_text(json.dumps({"date": time.strftime("%Y-%m-%d"), "departements": stats}, ensure_ascii=False))
 
 

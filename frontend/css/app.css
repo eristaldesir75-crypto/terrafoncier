@@ -135,7 +135,7 @@ body.wide .layout{grid-template-columns:minmax(0,1fr) min(62vw,1000px)}
 .kpis strong.small{font-size:14px;line-height:1.35}
 @media (max-width:520px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .score{display:inline-block;min-width:34px;text-align:center;font:700 13px/22px var(--f);border-radius:999px;padding:0 7px;color:#fff;font-variant-numeric:tabular-nums}
-.score.big{font-size:26px;line-height:58px;min-width:58px;height:58px;padding:0;border-radius:50%;flex:none}
+.score.big{display:inline-grid;place-items:center;grid-template-columns:none;gap:0;font-size:24px;line-height:1;width:58px;min-width:58px;height:58px;padding:0;border-radius:50%;flex:none}
 .s0,.pin.s0{background:#8b96a0}.s1,.pin.s1{background:#b98a2c}.s2,.pin.s2{background:#c96f2a}.s3,.pin.s3{background:#2b8a6b}.s4,.pin.s4{background:#0f6e5a}
 .part{display:block;font-size:10.5px;color:var(--muted)}
 .score-card{display:flex;gap:14px;align-items:center;background:var(--surface-2);border-radius:var(--radius);padding:12px 14px}

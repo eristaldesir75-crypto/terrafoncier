@@ -567,7 +567,7 @@ async function afficherPieces(slot, partition, regl, lng, lat) {
     <div class="actions">
       ${urlRegl ? lien(`${urlRegl}#search=${encodeURIComponent(zl)}`, `Règlement écrit (zone ${zl})`, 'btn-link prim') : ''}
       ${plan.slice(0, 2).map((x) => lien(x.url, plan.length > 1 ? `Plan de zonage : ${x.titre}` : 'Plan de zonage')).join('')}
-      ${lien(d.zip, 'Télécharger tout le PLU (zip)')}
+      ${lien(d.zip, 'Tout le PLU (zip, très volumineux)')}
     </div>
     ${oap.length ? `<div class="actions">${oap.slice(0, 6).map((x) => lien(x.url, `OAP : ${x.titre}`)).join('')}</div>` : ''}
     <p class="note">${esc(d.type || 'PLU')} en vigueur ${esc(d.nom || '')}${d.maj ? `, mis à jour le ${esc(String(d.maj).slice(0, 10))}` : ''}. ${F.length} pièces publiées. ${lien(d.fiche, 'Fiche du document', '')} · ${gpuLien.replace('class="btn-link"', '')}</p>
@@ -1029,6 +1029,7 @@ function majFais(root) {
 
 function vue3d(on) {
   const F = sel.fais; F.vue3d = on;
+  if (on) voirCarte();
   vis('bat-3d', on); vis('bati3d', on); vis('bat-fill', !on);
   const c = turf.centroid(sel.feature).geometry.coordinates;
   map.easeTo(on ? { center: c, zoom: Math.max(map.getZoom(), 18), pitch: 60, bearing: (F.fac.cap + 200) % 360, duration: 900 } : { pitch: 0, bearing: 0, duration: 700 });

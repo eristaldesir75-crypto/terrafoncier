@@ -110,7 +110,7 @@ def reglement(doc_id, part):
     files = get(f"{GPU}/document/{doc_id}/files").json()
     c = [f["name"] for f in files if re.search(r"r[eè]glement", f["name"] + " " + str(f.get("path") or ""), re.I)
          and not re.search(r"graphique|prescription|zonage|plan|annexe", f["name"], re.I) and f["name"].lower().endswith(".pdf")]
-    c = [n for n in c if not re.search(r"lexique|nuancier|palette", n, re.I)]
+    c = [n for n in c if not re.search(r"lexique|nuancier|palette|ppri|pprn|ppr_|sanitaire|servitude|info_surf|publicit|rlp", n, re.I)]
     if not c:
         return None, None
     # PLUi : règlement en plusieurs fichiers (dispositions communes, tomes par zone) : jusqu'à 6, communs d'abord

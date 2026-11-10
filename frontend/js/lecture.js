@@ -49,7 +49,7 @@ export async function urlReglement(zone, partition) {
       if (/commun|g[ée]n[ée]ral|disposition|tome_?1|livre_?1|partie_?1/i.test(n)) v += 2;
       return v;
     };
-    pieces = F.filter((x) => /r[eè]glement/i.test(x.nom + ' ' + x.rubrique) && !/graphique|prescription|zonage|plan|annexe|lexique|nuancier|palette/i.test(x.nom) && /\.pdf$/i.test(x.nom))
+    pieces = F.filter((x) => /r[eè]glement/i.test(x.nom + ' ' + x.rubrique) && !/graphique|prescription|zonage|plan|annexe|lexique|nuancier|palette|ppri|pprn|ppr_|sanitaire|servitude|info_surf|publicit|rlp/i.test(x.nom) && /\.pdf$/i.test(x.nom))
       .sort((a, b) => note(b) - note(a) || a.nom.length - b.nom.length);
   } catch { pieces = []; }
   // le lien du GPU redirige vers data.geopf.fr sans autoriser la lecture par le navigateur (CORS) : lien direct vers le fichier

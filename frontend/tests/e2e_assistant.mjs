@@ -34,7 +34,7 @@ await page.route('https://generativelanguage.googleapis.com/**', async (route) =
   const fr = der.parts.find((p) => p.functionResponse);
   if (fr) {
     const r = fr.functionResponse.response.resultat;
-    console.log(`RÉPONSE ${fr.functionResponse.name} :`, JSON.stringify(r).slice(0, 1500));
+    console.log(`RÉPONSE ${fr.functionResponse.name} :`, JSON.stringify(r).slice(0, 1500), r.meilleurs ? "LOGEMENTS " + r.meilleurs.map((m) => m.logements).join(",") : "");
     return route.fulfill({ json: { candidates: [{ content: { role: 'model', parts: [{ text: `**Fait.** ${fr.functionResponse.name} : ${r.erreur ? 'erreur ' + r.erreur : 'ok'}\n- point 1\n- point 2` }] } }] } });
   }
   const t = der.parts[0].text || '';

@@ -9,6 +9,10 @@ on:
         description: "Test complet sur le site publié (prospection Saran)"
         type: boolean
         default: true
+      mobile:
+        description: "Test sur téléphone (iPhone émulé)"
+        type: boolean
+        default: false
       mode:
         description: "Mode : les2, seule, remembrement"
         default: "les2"
@@ -50,7 +54,11 @@ jobs:
         with: { node-version: 20 }
       - name: Navigateur
         run: npm i playwright@1.48.2 --no-audit --no-fund >/dev/null && npx playwright install --with-deps chromium >/dev/null
+      - name: Sur téléphone
+        if: inputs.mobile
+        run: cp frontend/tests/e2e_mobile.mjs . && node e2e_mobile.mjs
       - name: Prospection sur le site publié
+        if: ${{ !inputs.mobile }}
         env:
           MODE: ${{ inputs.mode }}
           SMIN: ${{ inputs.smin }}

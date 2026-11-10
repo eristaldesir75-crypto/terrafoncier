@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="css/app.css?v=42">
+<link rel="stylesheet" href="css/app.css?v=44">
 </head>
 <body>
 <header class="top">
@@ -58,6 +58,8 @@
       <label id="lay-hits-wrap" hidden><input type="checkbox" id="lay-hits" checked> Résultats</label>
     </div>
     <div class="legend" id="legend" hidden></div>
+    <button type="button" class="ghost mlayers-btn" id="mLayersBtn" aria-controls="layers" aria-expanded="false">Calques</button>
+    <div class="peek" id="peek" hidden></div>
   </section>
 
   <section class="panel">
@@ -74,6 +76,13 @@
     <div class="view" id="v-crm" hidden></div>
   </section>
 </main>
+<nav class="mnav" id="mnav" aria-label="Navigation">
+  <button type="button" data-m="carte" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 2.2 6 2v11.6l-6-2V6.2Z"/></svg>Carte</button>
+  <button type="button" data-m="fiche"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4V4Zm2 2v12h12V6H6Zm2 2h8v2H8V8Zm0 4h8v2H8v-2Z"/></svg>Parcelle</button>
+  <button type="button" data-m="pot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V10l9-6 9 6v11h-6v-6H9v6H3Z"/></svg>Faisabilité</button>
+  <button type="button" data-m="pro"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3a7 7 0 1 1 0 14 7 7 0 0 1 0-14Zm0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm5.6 10.2 5.6 5.6-1.4 1.4-5.6-5.6 1.4-1.4Z"/></svg>Prospection</button>
+  <button type="button" data-m="crm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h4v-7H4v7Zm6 0h4V5h-4v14Zm6 0h4v-10h-4v10Z"/></svg>Suivi</button>
+</nav>
 
 <dialog id="settings">
   <form method="dialog" class="settings">
@@ -97,7 +106,7 @@
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
-<script type="module" src="js/app.js?v=42"></script>
+<script type="module" src="js/app.js?v=44"></script>
 <script>
 if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {})); }
 </script>

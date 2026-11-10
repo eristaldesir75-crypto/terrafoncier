@@ -310,3 +310,70 @@ dialog::backdrop{background:rgba(23,38,59,.45)}
 .fais-table tr.fort td{background:var(--accent-soft)}
 .fais-table tr.fort b{color:var(--accent)}
 .fais-table .pill{margin-left:4px}
+
+/* ---------- Téléphone : carte plein écran, onglets en bas, fiche résumée ---------- */
+.mnav,.mlayers-btn{display:none}
+@media (max-width:760px){
+  body{height:100dvh;overflow:hidden}
+  .top{padding:8px 12px;gap:8px}
+  .brand h1{font-size:16px}
+  .top #btnSettings{padding:6px 10px;font-size:13px}
+  .layout{display:block;flex:1;position:relative;min-height:0}
+  .mapcol{position:absolute;inset:0}
+  .panel{position:absolute;inset:0;border:0;z-index:5}
+  .panel .tabs{display:none}
+  .view{overflow-y:auto;overscroll-behavior:contain;padding:14px 14px 20px}
+  body[data-m="carte"] .panel{display:none}
+  body:not([data-m="carte"]) .mapcol{visibility:hidden}
+  /* barre d'onglets */
+  .mnav{display:grid;grid-template-columns:repeat(5,1fr);flex:none;background:var(--surface);border-top:1px solid var(--line);padding:4px 2px calc(4px + env(safe-area-inset-bottom,0px));z-index:10}
+  .mnav button{background:none;border:0;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;font-size:11px;font-weight:600;border-radius:var(--radius-s)}
+  .mnav button:hover{background:none;color:var(--ink)}
+  .mnav svg{width:22px;height:22px;fill:currentColor}
+  .mnav button[aria-current=page]{color:var(--accent)}
+  /* calques repliés derrière un bouton */
+  .mlayers-btn{display:block;position:absolute;left:10px;top:10px;z-index:3;box-shadow:var(--shadow);padding:7px 12px;font-size:13px;background:var(--surface)}
+  .layers{display:none;top:52px;bottom:auto;left:10px;right:10px;max-width:none;flex-direction:column;align-items:flex-start;gap:10px;padding:12px 14px;font-size:14px}
+  .layers.open{display:flex}
+  .layers label{gap:8px}
+  .sat-opts{flex-wrap:wrap}
+  .legend{top:10px;bottom:auto;left:auto;right:52px;font-size:11px;max-width:calc(100% - 170px)}
+  /* fiche résumée posée sur la carte */
+  .peek{position:absolute;left:8px;right:8px;bottom:8px;z-index:4;background:var(--surface);border-radius:14px;box-shadow:0 8px 28px rgba(23,38,59,.25);padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  .peek-top{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}
+  .peek-top .score{font-size:16px;line-height:36px;width:40px;height:40px;padding:0;border-radius:50%;display:inline-grid;place-items:center}
+  .peek-ref{font-weight:700;font-size:15px}
+  .peek-x{border:0;font-size:22px;line-height:1;padding:2px 8px;background:none;color:var(--muted)}
+  .peek-kpis{display:flex;gap:6px;flex-wrap:wrap;font-size:13px}
+  .peek-kpis span{background:var(--surface-2);border-radius:999px;padding:4px 10px}
+  .peek .actions button{flex:1;padding:10px 8px}
+  body[data-m="carte"] .legend:not([hidden]) ~ .peek:not([hidden]){bottom:8px}
+  /* fiche et formulaires plus aérés au doigt */
+  .fiche-head h2{font-size:19px}
+  .fiche-head .actions{width:100%}
+  .fiche-head .actions > *{flex:1;justify-content:center;text-align:center}
+  .subtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .subtab{white-space:nowrap;padding:8px 12px}
+  input[type=search],input[type=text],input[type=url],input[type=number],input[type=date],select,textarea{font-size:16px}
+  .field-row{grid-template-columns:1fr}
+  .kpis strong{font-size:17px}
+  .why-row{grid-template-columns:110px minmax(40px,1fr) 42px}
+  .sticky-actions{bottom:-20px}
+  .sticky-actions button[type=submit]{flex:1}
+  /* résultats de prospection en cartes */
+  .res-table{min-width:0}
+  .res-table thead{display:none}
+  .res-table,.res-table tbody{display:block}
+  .res-table tbody tr[data-i]{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;padding:10px 12px 10px 12px;border-bottom:1px solid var(--line);position:relative;padding-right:64px}
+  .res-table tbody tr[data-i] td{border:0;padding:0;display:none}
+  .res-table td.c-ref{display:block!important;font-weight:700;font-size:14.5px;flex-basis:100%}
+  .res-table td.c-score{display:block!important;position:absolute;right:12px;top:12px}
+  .res-table td.c-adresse,.res-table td.c-nature{display:block!important;flex-basis:100%;font-size:13px;color:var(--muted);text-align:left}
+  .res-table td.c-surface,.res-table td.c-lgt,.res-table td.c-zone,.res-table td.c-niv,.res-table td.c-facade{display:inline-block!important;font-size:12.5px;text-align:left}
+  .res-table td.c-surface::before,.res-table td.c-lgt::before,.res-table td.c-zone::before,.res-table td.c-niv::before,.res-table td.c-facade::before{content:attr(data-l) " ";color:var(--muted)}
+  .res-table tr.detail{display:block}
+  .res-table tr.detail td{display:block}
+  .fais-table td:first-child{width:auto}
+  .fais-table input[type=number]{width:74px}
+  .tw{border-radius:var(--radius-s)}
+}

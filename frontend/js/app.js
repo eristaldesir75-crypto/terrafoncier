@@ -99,9 +99,9 @@ const map = new maplibregl.Map({
       { id: 'vefa-pt', type: 'circle', source: 'vefa', layout: { visibility: 'none' }, paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'ventes'], 1, 5, 30, 11, 150, 17], 'circle-color': '#8e3fb8', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-opacity': 0.85 } },
       { id: 'permis-pt', type: 'circle', source: 'permis', paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'logements'], 2, 6, 50, 11, 200, 18], 'circle-color': ['match', ['get', 'etat'], 6, '#1f6b45', 5, '#e0661b', 2, '#2347c5', '#8a8f98'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-opacity': 0.9 } },
       { id: 'bati3d', type: 'fill-extrusion', source: 'bati3d', layout: { visibility: 'none' }, paint: { 'fill-extrusion-color': '#c9cfd6', 'fill-extrusion-height': ['coalesce', ['get', 'hauteur'], 6], 'fill-extrusion-opacity': 0.85 } },
-      { id: 'bat-fill', type: 'fill', source: 'bat', paint: { 'fill-color': '#0f6e5a', 'fill-opacity': 0.35 } },
-      { id: 'bat-line', type: 'line', source: 'bat', paint: { 'line-color': '#0f6e5a', 'line-width': 2.5 } },
-      { id: 'bat-3d', type: 'fill-extrusion', source: 'bat', layout: { visibility: 'none' }, paint: { 'fill-extrusion-color': '#2fa585', 'fill-extrusion-height': ['get', 'hauteur'], 'fill-extrusion-opacity': 0.92 } },
+      { id: 'bat-fill', type: 'fill', source: 'bat', paint: { 'fill-color': '#f2b705', 'fill-opacity': 0.7 } },
+      { id: 'bat-line', type: 'line', source: 'bat', paint: { 'line-color': '#17263b', 'line-width': 2.5 } },
+      { id: 'bat-3d', type: 'fill-extrusion', source: 'bat', layout: { visibility: 'none' }, paint: { 'fill-extrusion-color': '#f2b705', 'fill-extrusion-height': ['get', 'hauteur'], 'fill-extrusion-opacity': 0.95 } },
       { id: 'env-line', type: 'line', source: 'env', paint: { 'line-color': '#e0661b', 'line-width': 2, 'line-dasharray': [2, 1.5] } },
     ],
   },
@@ -200,8 +200,9 @@ function setHits(list) {
 
 // ---------- Navigation ----------
 let tab = 'fiche';
-function showTab(v) {
+function showTab(v, { garderMode = false } = {}) {
   tab = v;
+  if (estMobile() && !garderMode) modeMobile(v);
   document.querySelectorAll('.tab').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.v === v)));
   ['fiche', 'pot', 'pro', 'crm'].forEach((x) => ($(`#v-${x}`).hidden = x !== v));
   if (v === 'fiche') renderFiche();
@@ -250,7 +251,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   map.getSource('vefa').setData(empty);
   map.getSource('bat').setData(empty); map.getSource('bati3d').setData(empty);
   if (forceTab) showTab(forceTab);
-  else if (tab !== 'pot' && tab !== 'pro' && tab !== 'crm') showTab('fiche');
+  else if (tab !== 'pot' && tab !== 'pro' && tab !== 'crm') showTab('fiche', { garderMode: estMobile() && document.body.dataset.m === 'carte' });
   const pt = turf.pointOnFeature(f).geometry;
   const simple = turf.truncate(turf.simplify(f, { tolerance: 0.000005, highQuality: true }), { precision: 6 }).geometry;
   const insee = f.properties.code_insee;
@@ -286,7 +287,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
     bati: occ ? { n: occ.stats.n - occ.stats.legers, emprise: occ.stats.emprise, sdp: occ.stats.sdp, hmax: occ.stats.hMax } : null,
     occ, risques: undefined, pt, friches: undefined, occAtOk: false, occComplet: false, contraintes: null, commune: null, graph: null, viaWms: false,
   };
-  const rerender = () => { if (token !== selToken) return; if (tab === 'fiche') renderFiche(); else if (tab === 'pot') renderPot(); };
+  const rerender = () => { if (token !== selToken) return; if (tab === 'fiche') renderFiche(); else if (tab === 'pot') renderPot(); majPeek(); };
   const appliquerGraph = () => {
     const ps = Array.isArray(sel.urba['prescription-surf']) ? sel.urba['prescription-surf'] : null;
     sel.graph = ps ? reglesGraphiques(ps) : null;
@@ -332,6 +333,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   api.adresseParcelle(f).then((a) => { if (token === selToken && a) { sel.adresse = a; const el = $('#ficheAdr'); if (el) el.innerHTML = adrHtml(); } });
   api.communeByCode(insee).then((c) => { if (token === selToken) { sel.commune = c; if (tab === 'fiche' && ficheTab === 'commune') renderFiche(); } }).catch(() => {});
   if (tab === 'pot') renderPot(); else renderFiche();
+  majPeek();
   // constructions récentes et ventes neuves : chargées d'office si une des cases de la carte est cochée
   if ($('#lay-permis').checked || $('#lay-vefa').checked) setTimeout(() => { if (token === selToken) chargerProjets(token); }, 2500);
 }
@@ -733,8 +735,8 @@ function ficheProjets(body) {
   };
   dessinerVefa();
   const GV = (sel.programmes || []).slice().sort((a, b) => (a.dist ?? 1e9) - (b.dist ?? 1e9));
-  body.querySelectorAll('tr[data-vf]').forEach((tr) => (tr.onclick = (ev) => { if (ev.target.closest('a')) return; const g = GV[+tr.dataset.vf]; if (g && g.centre) map.flyTo({ center: g.centre, zoom: 17 }); }));
-  body.querySelectorAll('tr[data-pj]').forEach((tr) => (tr.onclick = (ev) => { if (ev.target.closest('a')) return; const p = L[+tr.dataset.pj]; if (p.centre) map.flyTo({ center: p.centre, zoom: 17 }); }));
+  body.querySelectorAll('tr[data-vf]').forEach((tr) => (tr.onclick = (ev) => { if (ev.target.closest('a')) return; const g = GV[+tr.dataset.vf]; if (g && g.centre) { map.flyTo({ center: g.centre, zoom: 17 }); voirCarte(); } }));
+  body.querySelectorAll('tr[data-pj]').forEach((tr) => (tr.onclick = (ev) => { if (ev.target.closest('a')) return; const p = L[+tr.dataset.pj]; if (p.centre) { map.flyTo({ center: p.centre, zoom: 17 }); voirCarte(); } }));
   const csv = $('#projCsv', body);
   if (csv) csv.onclick = () => {
     const c = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
@@ -863,6 +865,43 @@ function renderPotSimple(v) {
     <p class="note">Estimation indicative. Hypothèses modifiables dans Réglages. Ne remplace ni un certificat d'urbanisme ni une étude de faisabilité.</p>`;
 }
 
+// ---------- Téléphone : carte plein écran, barre d'onglets en bas, fiche résumée sur la carte ----------
+function estMobile() { return window.matchMedia('(max-width: 760px)').matches; }
+function modeMobile(m) {
+  document.body.dataset.m = m;
+  document.querySelectorAll('#mnav [data-m]').forEach((b) => (b.getAttribute('data-m') === m ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current')));
+  if (m === 'carte') { setTimeout(() => map.resize(), 50); majPeek(); }
+}
+function voirCarte() { if (estMobile()) modeMobile('carte'); }
+window.tfVoirCarte = voirCarte;
+document.querySelectorAll('#mnav [data-m]').forEach((b) => (b.onclick = () => {
+  const m = b.dataset.m;
+  if (m === 'carte') modeMobile('carte'); else showTab(m);
+}));
+$('#mLayersBtn').onclick = () => {
+  const l = $('#layers'), open = !l.classList.contains('open');
+  l.classList.toggle('open', open); $('#mLayersBtn').setAttribute('aria-expanded', String(open));
+};
+function majPeek() {
+  const pk = $('#peek');
+  if (!estMobile() || !sel || !sel.feature || document.body.dataset.m !== 'carte') { pk.hidden = true; return; }
+  const p = sel.feature.properties;
+  if (sel.loading) { pk.hidden = false; pk.innerHTML = `<div class="peek-ref">${esc(refOf(p))}</div><p class="note">Analyse de la parcelle…</p>`; return; }
+  const pot = potentielSel(), s = noteSel(pot);
+  pk.hidden = false;
+  pk.innerHTML = `
+    <div class="peek-top">${s ? `<span class="score ${scoreClass(s.tot)}">${s.tot}</span>` : ''}<div><div class="peek-ref">${esc(refOf(p))} · ${esc(sel.zLabel)}</div><div class="note">${esc(sel.adresse ? sel.adresse.label : p.nom_com || '')}</div></div><button type="button" class="ghost peek-x" aria-label="Fermer">×</button></div>
+    <div class="peek-kpis"><span><b>${m2(p.contenance)}</b> terrain</span><span><b>${pot && pot.ok ? pot.real : '?'}</b> logements</span><span><b>${esc(sel.occ ? sel.occ.label : '—')}</b></span></div>
+    <div class="actions"><button type="button" data-go="fiche">Fiche</button><button type="button" class="ghost" data-go="pot">Faisabilité</button><button type="button" class="ghost" data-go="crm-add">Suivre</button></div>`;
+  pk.querySelector('.peek-x').onclick = () => (pk.hidden = true);
+  pk.querySelectorAll('[data-go]').forEach((b) => (b.onclick = () => {
+    if (b.dataset.go === 'crm-add') { const ok = store.addToCrm({ idu: p.idu, ref: refOf(p), commune: p.nom_com, adresse: sel.adresse?.label || '', zone: sel.zLabel, contenance: p.contenance, centre: sel.pt.coordinates, geometry: turf.truncate(sel.feature, { precision: 6 }).geometry, nature: sel.occ?.label || '', note: '', score: s ? s.tot : null }); toast(ok ? 'Ajouté au suivi' : 'Déjà dans le suivi'); return; }
+    showTab(b.dataset.go);
+  }));
+}
+if (estMobile()) modeMobile('carte');
+window.matchMedia('(max-width: 760px)').addEventListener('change', (e) => { if (e.matches) modeMobile(tab === 'fiche' ? 'carte' : tab); else { delete document.body.dataset.m; $('#peek').hidden = true; setTimeout(() => map.resize(), 50); } });
+
 // ---------- Faisabilité : esquisse, 3D et bilan ----------
 const LIGNES = [
   ['Terrain'],
@@ -989,7 +1028,7 @@ function renderPot() {
     <div class="fiche-head"><div><span class="ref">${esc(refOf(p))} · zone ${esc(sel.zLabel)}</span><h2>Faisabilité</h2></div>
       <div class="actions"><button type="button" id="fais3d">${F.vue3d ? 'Vue 2D' : 'Voir en 3D'}</button><button type="button" class="ghost" id="faisReset">Réinitialiser</button></div></div>
     <div class="kpis" id="faisKpis"></div>
-    <p class="note">Le bâtiment est dessiné en vert sur la carte, à partir de la façade ${F.surRue ? 'sur rue' : '(la plus longue, rue non détectée)'} de ${fmt1(F.fac.a)} m. Faites-le glisser sur la carte pour le déplacer, ou modifiez les valeurs ci-dessous : tout se recalcule. Les valeurs marquées <span class="pill ok">PLU</span> viennent du PLU de la commune.</p>
+    <p class="note">Le bâtiment est dessiné en jaune sur la carte, à partir de la façade ${F.surRue ? 'sur rue' : '(la plus longue, rue non détectée)'} de ${fmt1(F.fac.a)} m. Faites-le glisser sur la carte pour le déplacer, ou modifiez les valeurs ci-dessous : tout se recalcule. Les valeurs marquées <span class="pill ok">PLU</span> viennent du PLU de la commune.</p>
     <div class="tw"><table class="fais-table"><tbody>${LIGNES.map(ligne).join('')}</tbody></table></div>
     <details class="rules-edit"><summary>Calcul réglementaire simplifié et règles de la zone</summary><div id="potSimple"></div></details>
     <p class="note">Esquisse indicative : à confirmer avec le règlement complet (implantation, prospects, stationnement) et un architecte.</p>`;

@@ -676,18 +676,19 @@ export function initProspection(ctx) {
       };
     });
     res.querySelectorAll('[data-fiche]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const h = liste[+b.dataset.fiche]; ctx.map.fitBounds(turf.bbox(h.f), { padding: 80, maxZoom: 18 }); ctx.selectFeature(h.f, undefined, 'fiche'); }));
+    res.querySelectorAll('[data-carte]').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const h = liste[+b.dataset.carte]; ctx.map.fitBounds(turf.bbox(h.f), { padding: 60, maxZoom: 18 }); if (window.tfVoirCarte) window.tfVoirCarte(); }));
     const csv = $('#proCsv'); if (csv) csv.onclick = () => exportCsv(r);
   }
 
   function ligne(h, i) {
     const open = st.ouvert === h;
-    const cells = COLS.map((x) => { const v = x.v(h, i); return `<td class="${x.n ? 'n' : ''}">${x.k === 'score' ? `<span class="score s${Math.floor(v / 20)}">${v}</span>${h.s.partiel ? '<small class="part">partielle</small>' : ''}` : esc(x.fmt ? x.fmt(v) : v)}</td>`; }).join('');
+    const cells = COLS.map((x) => { const v = x.v(h, i); return `<td class="${x.n ? 'n' : ''} c-${x.k}" data-l="${x.t}">${x.k === 'score' ? `<span class="score s${Math.floor(v / 20)}">${v}</span>${h.s.partiel ? '<small class="part">partielle</small>' : ''}` : esc(x.fmt ? x.fmt(v) : v)}</td>`; }).join('');
     const detail = open ? `<tr class="detail"><td colspan="${COLS.length}">
       <div class="why">${h.s.parts.map((p) => `<div class="why-row"><span>${esc(p.label)}</span><span class="bar"><i style="width:${p.v === null ? 0 : Math.round((100 * p.v) / p.max)}%"></i></span><b>${p.v === null ? '—' : p.v}/${p.max}</b><small>${esc(p.why)}</small></div>`).join('')}</div>
       ${h.cat === 'entrepot' ? `<p><span class="pill ${h.zoneAct ? 'no' : 'ok'}">${h.zoneAct ? "zone d'activités" : "zone d'habitat"}</span> ${h.zoneAct ? "Entrepôt ou local d'activité en zone d'activités : le logement y est interdit par le PLU." : 'Entrepôt ou local d\'activité en zone qui autorise le logement : reconversion en logements possible.'}</p>` : ''}
       ${h.groupe ? `<p><span class="pill wa">remembrement</span> ${h.membres.length} parcelles voisines, propriétaires probablement différents : ${h.membres.map((m, j) => `<b>${esc(refOf(m.f.properties))}</b> ${esc(m.occ.label.toLowerCase())}, ${f0(m.S)} m²${h.adresses && h.adresses[j] ? ', ' + esc(h.adresses[j].label) : ''}`).join(' · ')}</p>` : ''}
       <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.facade !== undefined ? ` · façade sur rue ${f0(h.facade)} m` : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? (h.estim ? ` · <b>≈ ${h.estim.lg} logements estimés</b> (densité médiane de ${h.estim.dens} logts/ha sur ${h.estim.n} opérations collectives autorisées, ${esc(h.estim.base)}) : à confirmer avec le règlement` : ' · potentiel à confirmer (règles de zone manquantes)') : ''}${h.graph ? ' · plan graphique : ' + Object.values(h.graph.sources).map(esc).join(', ') : ''}</p>
-      <div class="actions"><button type="button" data-fiche="${i}">Ouvrir la fiche</button></div></td></tr>` : '';
+      <div class="actions"><button type="button" data-fiche="${i}">Ouvrir la fiche</button><button type="button" class="ghost" data-carte="${i}">Voir sur la carte</button></div></td></tr>` : '';
     return `<tr data-i="${i}" class="${open ? 'open' : ''}">${cells}</tr>${detail}`;
   }
 

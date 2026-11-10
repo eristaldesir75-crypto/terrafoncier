@@ -228,7 +228,8 @@ export function initProspection(ctx) {
   function refus(h, rules, pot) {
     const c = st.crit;
     if (pot) {
-      if (c.lmin && pot.real < Math.ceil(c.lmin * 0.5)) return 'regles';
+      // logements minimum demandés : seuls les terrains qui atteignent ce nombre (ou plus) sont gardés
+      if (c.lmin && pot.real < c.lmin) return 'regles';
       if (c.sdpMin && pot.sdp < c.sdpMin) return 'regles';
       if (c.collectif && (pot.niv < (c.nivMin || 2) || pot.real < 5)) return 'regles';
     } else if (c.collectif) return 'attente';
@@ -251,9 +252,21 @@ export function initProspection(ctx) {
       h.estim = b ? { lg: Math.floor((h.occ.S * b.med) / 10000), dens: Math.round(b.med), n: b.n, base: b.base } : null;
     };
     for (const h of r.list) if (!h.pot && !h.zoneAct) estimer(h);
+    // logements minimum : terrains sans règles gardés seulement si l'estimation atteint le nombre demandé
+    if (c.lmin) {
+      const reste = [];
+      for (const h of r.list) {
+        if (h.pot || h.zoneAct) { reste.push(h); continue; }
+        if (h.estim && h.estim.lg >= c.lmin) reste.push(h);
+        else if (h.estim) r.compte.regles++;
+        else { r.compte.sansRegles++; r.attente.push(h); }
+      }
+      r.list.length = 0; r.list.push(...reste);
+    }
     for (const h of r.attente) {
+      if (r.list.includes(h)) continue;
       estimer(h);
-      const ok = h.estim && h.estim.lg >= Math.max(5, Math.ceil((c.lmin || 0) * 0.5));
+      const ok = h.estim && h.estim.lg >= Math.max(5, c.lmin || 0);
       if (ok) {
         h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot: null, contraintes: h.contraintes, compacite: compacite(h.f), facade: h.facade });
         if (h.s.tot >= (c.scoreMin || 0)) { r.list.push(h); continue; }
@@ -356,7 +369,7 @@ export function initProspection(ctx) {
   async function run() {
     const c = st.crit, com = c.commune, hyp = store.settings();
     const bounds = c.scope === 'ecran' ? ctx.map.getBounds() : null;
-    st.running = true; st.results = null; st.filtreNature = null; st.cat = 'logement'; st.ouvert = null; st.ctrl = new AbortController();
+    st.running = true; st.results = null; st.erreur = null; st.filtreNature = null; st.cat = 'logement'; st.ouvert = null; st.ctrl = new AbortController();
     const signal = st.ctrl.signal;
     render();
     const t0 = performance.now();
@@ -570,7 +583,8 @@ export function initProspection(ctx) {
       renderResults();
       await ajouterAdresses(st.results);
     } catch (e) {
-      setStatus(`<p class="err">${esc(e.name === 'AbortError' || signal.aborted ? 'Prospection arrêtée' : e.message)}</p>`);
+      st.erreur = e.name === 'AbortError' || signal.aborted ? 'Prospection arrêtée' : e.message;
+      setStatus(`<p class="err">${esc(st.erreur)}</p>`);
     } finally {
       st.running = false; st.ctrl = null;
       const btn = $('#proForm button[type=submit]'); if (btn) btn.disabled = false; $('#proStop')?.remove();
@@ -605,7 +619,7 @@ export function initProspection(ctx) {
     const c = r.compte;
     const g = r.list.filter((h) => h.groupe).length, e = r.list.filter((h) => h.cat === 'entrepot').length;
     return `<b>${f0(r.list.length - e)} terrain(s) pour du logement</b>${g ? ` dont ${f0(g)} remembrement(s)` : ''}${e ? ` · <b>${f0(e)} entrepôt(s) et local(aux) d'activité</b>` : ''} sur ${f0(c.total)} parcelles en ${r.secs} s
-      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.facade ? `, ${f0(c.facade)} regroupements sans pignon sur rue` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
+      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible ou moins de logements que demandé)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.facade ? `, ${f0(c.facade)} regroupements sans pignon sur rue` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
   }
 
   // ---------- Résultats ----------
@@ -722,8 +736,88 @@ export function initProspection(ctx) {
     renderResults();
   }
 
+  // ---------- Commandes de l'assistant ----------
+  const terrainsLogement = () => (st.results ? st.results.list.filter((h) => h.cat !== 'entrepot') : []);
+  /** Résumé d'un terrain retenu (données publiques seulement : cadastre, PLU, calculs). */
+  function terrainResume(h, rang) {
+    return {
+      rang, reference: refOf(h.f.properties), adresse: h.adresse || null, zone: h.zone.properties.libelle,
+      surface_m2: Math.round(h.occ.S), nature: h.occ.label, remembrement_parcelles: h.groupe ? h.membres.length : 1,
+      facade_rue_m: h.facade ?? null, niveaux: h.pot ? h.pot.niv : null,
+      logements: h.pot ? h.pot.real : h.estim ? h.estim.lg : null,
+      logements_source: h.pot ? 'règles du PLU' : h.estim ? `estimation d'après ${h.estim.n} opérations voisines (${h.estim.base})` : 'inconnu',
+      note: h.s.tot, note_partielle: !!h.s.partiel, oap: !!h.oap, contraintes: (h.contraintes || []).map((x) => x.t),
+    };
+  }
+  function syntheseResultats(n = 10) {
+    const r = st.results; if (!r) return null;
+    const log = terrainsLogement(), c = r.compte;
+    return {
+      commune: r.com.nom, code_insee: r.com.code, document_urbanisme: r.partition, parcelles_etudiees: c.total,
+      terrains_logement: log.length, dont_remembrements: log.filter((h) => h.groupe).length,
+      entrepots_locaux_activite: r.list.length - log.length, en_attente_de_regles: r.attente.length, duree_s: r.secs,
+      ecartees: { surface: c.surface, zonage: c.zone, nature: c.nature, contraintes: c.contraintes, regles_plu: c.regles, sans_facade: c.facade || 0, note: c.score },
+      avertissements: r.avertissements, meilleurs: log.slice(0, n).map((h, i) => terrainResume(h, i + 1)),
+    };
+  }
+  async function communeDe(texte) {
+    const code = String(texte || '').match(/\b(\d[\dAB]\d{3})\b/);
+    const com = code ? await api.communeByCode(code[1]) : (await api.searchCommunes(String(texte || '')))[0] || null;
+    if (!com) throw new Error(`Commune introuvable : ${texte}`);
+    return com;
+  }
+  async function zonesListe(texte) {
+    const com = await communeDe(texte);
+    const d = await zonesDeLaCommune(com);
+    return { commune: com.nom, code_insee: com.code, document_urbanisme: d.partition, zones: d.zones.map((z) => ({ code: z.libelle, libelle: z.libelong, type: z.typezone, logement_autorise: z.logement, constructible: z.construct })) };
+  }
+  /** Lance une prospection : critères du formulaire actuel, remplacés par ceux donnés. */
+  async function lancer(o = {}) {
+    if (st.running) throw new Error('Une prospection est déjà en cours');
+    const com = o.commune ? await communeDe(o.commune) : st.crit.commune;
+    if (!com) throw new Error('Indiquez la commune à prospecter');
+    const c = { ...st.crit, commune: com };
+    const nums = { surface_min: 'smin', surface_max: 'smax', logements_min: 'lmin', logements_max: 'lmax', sdp_min: 'sdpMin', hauteur_min_m: 'hMin', niveaux_min: 'nivMin', max_parcelles: 'maxParcelles', facade_min_m: 'facadeMin', note_min: 'scoreMin' };
+    for (const [a, b] of Object.entries(nums)) if (o[a] !== undefined && o[a] !== null && o[a] !== '') c[b] = +o[a];
+    const bools = { collectif: 'collectif', entrepots: 'entrepots', oap_seulement: 'oapSeul', exclure_ebc_er: 'exclContraintes', pignon_sur_rue: 'rueSeul', exclure_bati_recent: 'exclRecent' };
+    for (const [a, b] of Object.entries(bools)) if (typeof o[a] === 'boolean') c[b] = o[a];
+    if (['seule', 'remembrement', 'les2'].includes(o.mode)) c.mode = o.mode;
+    if (o.perimetre === 'ecran' || o.perimetre === 'commune') c.scope = o.perimetre;
+    if (o.maisons_seulement === true) c.natures = MAISONS.slice();
+    else if (o.maisons_seulement === false) c.natures = NATURES_DEFAUT.slice();
+    c.maxParcelles = Math.min(4, Math.max(2, c.maxParcelles || 3));
+    const d = await zonesDeLaCommune(com);
+    let libs;
+    if (Array.isArray(o.zones) && o.zones.length) {
+      const pref = o.zones.map((x) => String(x).trim().toUpperCase()).filter(Boolean);
+      libs = d.zones.filter((z) => z.construct && pref.some((p) => z.libelle.toUpperCase() === p || z.libelle.toUpperCase().startsWith(p))).map((z) => z.libelle);
+      if (!libs.length) throw new Error(`Aucune zone constructible « ${pref.join(', ')} » dans le PLU de ${com.nom}. Zones disponibles : ${d.zones.filter((z) => z.construct).map((z) => z.libelle).join(', ')}`);
+    } else libs = d.zones.filter((z) => z.logement && z.construct).map((z) => z.libelle);
+    c.zonesChoix = { code: com.code, libs };
+    st.crit = c;
+    store.saveProspectionCrit({ ...c, commune: com });
+    await run();
+    if (!st.results) throw new Error(st.erreur || 'Prospection interrompue');
+    const cr = st.crit;
+    return {
+      criteres_appliques: {
+        commune: com.nom, perimetre: cr.scope === 'ecran' ? 'zone affichée sur la carte' : 'toute la commune', zones: libs,
+        surface_min_m2: cr.smin, surface_max_m2: cr.smax || null, logements_min: cr.lmin, logements_max: cr.lmax || null,
+        collectif_selon_plu: cr.collectif, niveaux_min: cr.nivMin, montage: { seule: 'parcelle seule', remembrement: 'remembrement uniquement', les2: 'parcelle seule et remembrement' }[cr.mode],
+        remembrement_max_parcelles: cr.maxParcelles, pignon_sur_rue_min_m: cr.rueSeul ? cr.facadeMin : null,
+        foncier: cr.natures.map(natLabel), entrepots_zones_activites: cr.entrepots, oap_seulement: cr.oapSeul, exclure_ebc_er: cr.exclContraintes, note_min: cr.scoreMin,
+      },
+      ...syntheseResultats(10),
+    };
+  }
+
   return {
     render,
+    lancer, zonesListe, syntheseResultats, terrainResume,
+    terrain(rang) { return terrainsLogement()[rang - 1] || null; },
+    terrains: terrainsLogement,
+    statut() { const s = document.querySelector('#proStatus'); return s ? s.innerText.split('\n')[0] : ''; },
+    get running() { return st.running; },
     setCommune(c) { st.crit.commune = c; },
     get results() { return st.results; },
   };

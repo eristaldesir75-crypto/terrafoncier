@@ -13,6 +13,10 @@ on:
         description: "Test sur téléphone (iPhone émulé)"
         type: boolean
         default: false
+      assistant:
+        description: "Test de la bulle d'assistant (Gemini simulé)"
+        type: boolean
+        default: false
       mode:
         description: "Mode : les2, seule, remembrement"
         default: "les2"
@@ -58,10 +62,15 @@ jobs:
         continue-on-error: true
         run: cp frontend/tests/check_gpu.mjs . && node check_gpu.mjs
       - name: Sur téléphone
-        if: inputs.mobile
+        if: inputs.mobile && !inputs.assistant
         run: cp frontend/tests/e2e_mobile.mjs . && node e2e_mobile.mjs
+      - name: Assistant
+        if: inputs.assistant
+        env:
+          MOBILE: ${{ inputs.mobile && '1' || '' }}
+        run: cp frontend/tests/e2e_assistant.mjs . && node e2e_assistant.mjs
       - name: Prospection sur le site publié
-        if: ${{ !inputs.mobile }}
+        if: ${{ !inputs.mobile && !inputs.assistant }}
         env:
           MODE: ${{ inputs.mode }}
           SMIN: ${{ inputs.smin }}

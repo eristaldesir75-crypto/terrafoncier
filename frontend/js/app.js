@@ -9,6 +9,7 @@ import { reglesGraphiques, fusionRegles } from './regles.js';
 import { reglesParZone, plage } from './zones.js';
 import * as permis from './permis.js';
 import * as fais from './faisabilite.js';
+import { initAssistant } from './assistant.js';
 
 // ---------- Utilitaires ----------
 const $ = (s, el = document) => el.querySelector(s);
@@ -1234,6 +1235,136 @@ dlg.addEventListener('close', () => {
 
 // Légende des notes
 $('#legend').innerHTML = `<b>Note</b>${['0-19', '20-39', '40-59', '60-79', '80-100'].map((t, i) => `<span><i style="background:${SCORE_COLORS[i]}"></i>${t}</span>`).join('')}`;
+
+// ---------- Assistant IA : actions du site qu'il peut lancer ----------
+const attendre = async (cond, ms = 25000) => { const t0 = Date.now(); while (!cond()) { if (Date.now() - t0 > ms) return false; await new Promise((ok) => setTimeout(ok, 300)); } return true; };
+const arrondi = (x, n = 0) => (Number.isFinite(x) ? Math.round(x * 10 ** n) / 10 ** n : null);
+const selPrete = () => sel && sel.feature && !sel.loading && sel.urba && sel.urba['zone-urba'] !== 'loading' && sel.urba['prescription-surf'] !== 'loading';
+
+/** Trouve et sélectionne la parcelle demandée (référence, rang dans la prospection, adresse), sinon garde la parcelle sélectionnée. */
+async function iaParcelle(a, vue) {
+  if (a.rang) {
+    const h = pro.terrain(+a.rang);
+    if (!h) throw new Error(pro.results ? `Pas de terrain n° ${a.rang} dans la dernière prospection` : 'Aucune prospection lancée');
+    map.fitBounds(turf.bbox(h.f), { padding: 80, maxZoom: 18 });
+    selectFeature(h.f, undefined, vue);
+  } else if (a.reference) {
+    const m = String(a.reference).toUpperCase().match(/(?:(\d[\dAB]\d{3})\s*)?([A-Z0-9]{1,2})\s*0*(\d{1,4})\b/);
+    if (!m) throw new Error(`Référence cadastrale illisible : ${a.reference}`);
+    let insee = m[1];
+    if (!insee && a.commune) { const c = String(a.commune).match(/\b\d[\dAB]\d{3}\b/); insee = c ? c[0] : (await api.searchCommunes(a.commune))[0]?.code; }
+    if (!insee && sel && sel.feature) insee = sel.feature.properties.code_insee;
+    if (!insee && pro.results) insee = pro.results.com.code;
+    if (!insee) throw new Error('Indiquez la commune de la parcelle');
+    const f = await api.parcelleByRef(insee, m[2].padStart(2, '0'), m[3]);
+    if (!f) throw new Error(`Parcelle ${insee} ${m[2]} ${m[3]} introuvable au cadastre`);
+    map.fitBounds(turf.bbox(f), { padding: 80, maxZoom: 18 });
+    selectFeature(f, undefined, vue);
+  } else if (a.adresse) {
+    const r = (await api.searchAddress(a.adresse))[0];
+    if (!r) throw new Error(`Adresse introuvable : ${a.adresse}`);
+    const [lng, lat] = r.geometry.coordinates;
+    map.flyTo({ center: [lng, lat], zoom: 18 });
+    await selectAt(lng, lat);
+    if (vue) showTab(vue);
+  } else if (!sel || !sel.feature) throw new Error("Aucune parcelle sélectionnée : donnez une référence, un rang de la prospection ou une adresse");
+  else if (vue) showTab(vue);
+  await new Promise((ok) => setTimeout(ok, 50));
+  await attendre(selPrete);
+  if (!sel || !sel.feature) throw new Error((sel && sel.error) || 'Parcelle introuvable à cet endroit');
+}
+
+/** Résumé de la parcelle sélectionnée : uniquement des données publiques et des calculs du site. */
+function iaResume() {
+  const p = sel.feature.properties, fu = fusionRegles(store.getRules(sel.key), sel.graph), pot = potentielSel(), s = noteSel(pot);
+  const regles = {};
+  RULE_FIELDS.forEach((x) => { const v = fu.regles[x.k]; if (v !== null && v !== undefined) regles[x.label] = { valeur: x.pct ? arrondi(v * 100, 1) : v, source: fu.origine[x.k] === 'plan' ? 'plan graphique du PLU' : 'règles saisies pour la zone' }; });
+  return {
+    reference: refOf(p), commune: p.nom_com, adresse: sel.adresse?.label || p.adresse || null, surface_m2: +p.contenance,
+    zone: sel.zLabel, zone_libelle: sel.zone?.properties.libelong || null, logement_autorise: zoneConstructible(sel.zone) === true && !zoneHorsLogement(sel.zone),
+    regles_connues: regles, regles_manquantes: RULE_FIELDS.filter((x) => fu.regles[x.k] === null || fu.regles[x.k] === undefined).map((x) => x.label),
+    potentiel: pot && pot.ok ? { niveaux: pot.niv, emprise_max_m2: arrondi(pot.E), surface_plancher_m2: arrondi(pot.sdp), logements: pot.real } : { indisponible: pot ? pot.raison : 'règles manquantes' },
+    note_sur_100: s ? s.tot : null, occupation: sel.occ?.label || null,
+    bati_existant: sel.bati ? { batiments: sel.bati.n, emprise_m2: arrondi(sel.bati.emprise), hauteur_max_m: sel.bati.hmax } : null,
+    contraintes: (sel.contraintes || []).map((x) => x.t), document_urbanisme: sel.partition,
+  };
+}
+
+const IA_FAIS = { niveaux: 'niv', emprise_pct: 'ces', profondeur_m: 'd', surface_logement_m2: 'taille', retrait_m: 'b', recul_m: 'recul', places_par_logement: 'placesLgt', logements_sociaux_pct: 'social' };
+const iaActions = {
+  zones_commune: (a) => pro.zonesListe(a.commune),
+  lancer_prospection: async (a) => { showTab('pro'); return pro.lancer(a); },
+  resultats_prospection: async (a) => {
+    const r = pro.syntheseResultats(0); if (!r) throw new Error('Aucune prospection lancée');
+    const d = Math.max(1, +a.depuis || 1), n = Math.min(30, +a.nombre || 10);
+    return { ...r, terrains: pro.terrains().slice(d - 1, d - 1 + n).map((h, i) => pro.terrainResume(h, d + i)) };
+  },
+  infos_parcelle: async (a) => { await iaParcelle(a, 'fiche'); return iaResume(); },
+  faisabilite: async (a) => {
+    await iaParcelle(a, null);
+    if (zoneConstructible(sel.zone) === false) throw new Error(`Zone ${sel.zLabel} agricole ou naturelle : pas de logement possible`);
+    showTab('pot');
+    const idu = sel.feature.properties.idu;
+    if (!(await attendre(() => sel && sel.fais && sel.fais.v && sel.fais.idu === idu))) throw new Error('Faisabilité non calculée (cadastre voisin ou bâtiments indisponibles), réessayez');
+    const F = sel.fais;
+    for (const [k, c] of Object.entries(IA_FAIS)) if (a[k] !== undefined && a[k] !== null && Number.isFinite(+a[k])) { F.v[c] = +a[k]; if (c === 'niv') F.v.niveaux = null; }
+    renderPot();
+    if (a.vue_3d && !F.vue3d) vue3d(true);
+    const B = F.B || fais.bilan(F.v, F.es ? F.es.emprise : null);
+    const plu = { ces: 'emprise au sol', niv: 'hauteur (niveaux)', b: 'retrait', recul: 'recul', placesLgt: 'stationnement', ptSsol: 'pleine terre' };
+    const orig = { ces: 'ces', niv: 'h', b: 'ret', recul: 'recul', placesLgt: 'stat', ptSsol: 'pt' };
+    return {
+      ...iaResume(),
+      facade_m: arrondi(F.v.a, 1), facade_sur_rue_detectee: F.surRue,
+      hypotheses: { emprise_max_pct: F.v.ces, niveaux: F.v.niv, profondeur_m: F.v.d, retrait_m: F.v.b, recul_m: F.v.recul, m2_sdp_par_logement: F.v.taille, ratio_sdp_sur_brute_pct: F.v.ratioBrut, places_par_logement: F.v.placesLgt, pleine_terre_pct: F.v.ptSsol },
+      valeurs_issues_du_plu: Object.keys(plu).filter((k) => F.origine[orig[k]] === 'plan').map((k) => plu[k]),
+      valeurs_issues_des_regles_saisies: Object.keys(plu).filter((k) => F.origine[orig[k]] === 'zone').map((k) => plu[k]),
+      bilan: { emprise_m2: arrondi(B.emp), emprise_max_autorisee_m2: arrondi(B.empMax), surface_brute_m2: arrondi(B.brute), surface_plancher_m2: arrondi(B.sdp), surface_habitable_m2: arrondi(B.shab), logements: B.lgt, logements_sociaux: B.sociaux, places_necessaires: B.places, places_en_surface: B.placesSurf, niveaux_sous_sol: B.nivSsol },
+    };
+  },
+  ajouter_suivi: async (a) => {
+    const r = pro.results; let cibles = [];
+    if (a.meilleurs) cibles = pro.terrains().slice(0, Math.min(50, +a.meilleurs));
+    if (Array.isArray(a.rangs)) cibles.push(...a.rangs.map((n) => pro.terrain(+n)).filter(Boolean));
+    let ajoutes = 0, deja = 0;
+    for (const h of new Set(cibles)) {
+      const p = h.f.properties;
+      if (store.addToCrm({ idu: p.idu, ref: refOf(p), commune: r ? r.com.nom : p.nom_com || '', adresse: p.adresse || h.adresse || '', zone: h.zone.properties.libelle, contenance: Math.round(h.occ.S), centre: turf.pointOnFeature(h.f).geometry.coordinates, geometry: turf.truncate(h.f, { precision: 6 }).geometry, nature: h.occ.label, note: '', score: h.s.tot })) ajoutes++; else deja++;
+    }
+    if (a.parcelle_selectionnee || (!cibles.length && !a.meilleurs && !a.rangs)) {
+      if (!sel || !sel.feature) throw new Error('Aucune parcelle sélectionnée');
+      const p = sel.feature.properties, pot = potentielSel(), s = noteSel(pot);
+      if (store.addToCrm({ idu: p.idu, ref: refOf(p), commune: p.nom_com, adresse: sel.adresse?.label || p.adresse || '', zone: sel.zLabel, contenance: p.contenance, centre: sel.pt.coordinates, geometry: turf.truncate(sel.feature, { precision: 6 }).geometry, nature: sel.occ?.label || '', note: '', score: s ? s.tot : null })) ajoutes++; else deja++;
+    }
+    if (tab === 'crm') renderCrm();
+    return { ajoutes, deja_suivis: deja, total_suivi: store.crmList().length };
+  },
+  afficher: async (a) => {
+    const v = { parcelle: 'fiche', faisabilite: 'pot', prospection: 'pro', suivi: 'crm', '3d': 'pot' }[a.vue];
+    if (a.vue === 'carte') { voirCarte(); return { ok: true }; }
+    if (!v) throw new Error('Vue inconnue');
+    showTab(v);
+    if (a.vue === '3d') {
+      if (!sel || !sel.feature) throw new Error('Aucune parcelle sélectionnée');
+      const idu = sel.feature.properties.idu;
+      await attendre(() => sel && sel.fais && sel.fais.v && sel.fais.idu === idu);
+      if (sel.fais && sel.fais.v && !sel.fais.vue3d) { vue3d(true); renderPot(); }
+    }
+    return { ok: true };
+  },
+};
+const assistant = initAssistant({
+  toast, actions: iaActions, statut: () => pro.statut(),
+  contexte: () => {
+    const l = [`vue ${({ fiche: 'fiche parcelle', pot: 'faisabilité', pro: 'prospection', crm: 'suivi' })[tab]}`];
+    l.push(sel && sel.feature ? `parcelle sélectionnée ${refOf(sel.feature.properties)} (${sel.feature.properties.nom_com || ''}, zone ${sel.zLabel || '?'})` : 'aucune parcelle sélectionnée');
+    const r = pro.results;
+    l.push(r ? `dernière prospection : ${r.com.nom}, ${pro.terrains().length} terrains pour du logement` : 'aucune prospection lancée');
+    if (pro.running) l.push('une prospection est en cours');
+    return l.join(' ; ');
+  },
+});
+window.tfAssistant = assistant;
 
 showTab('fiche', { garderMode: true });
 if (estMobile()) modeMobile('carte');

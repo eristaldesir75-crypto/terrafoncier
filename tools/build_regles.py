@@ -110,13 +110,29 @@ def reglement(doc_id, part):
     files = get(f"{GPU}/document/{doc_id}/files").json()
     c = [f["name"] for f in files if re.search(r"r[eè]glement", f["name"] + " " + str(f.get("path") or ""), re.I)
          and not re.search(r"graphique|prescription|zonage|plan|annexe", f["name"], re.I) and f["name"].lower().endswith(".pdf")]
+    c = [n for n in c if not re.search(r"lexique|nuancier|palette", n, re.I)]
     if not c:
         return None, None
-    nom = sorted(c, key=len)[0]
-    return nom, f"https://data.geopf.fr/annexes/gpu/documents/{part}/{doc_id}/{nom}"
+    # PLUi : règlement en plusieurs fichiers (dispositions communes, tomes par zone) : jusqu'à 6, communs d'abord
+    c.sort(key=lambda n: (not re.search(r"commun|g[ée]n[ée]ral|disposition|tome_?1|livre_?1", n, re.I), len(n)))
+    noms = c[:6]
+    return noms, [f"https://data.geopf.fr/annexes/gpu/documents/{part}/{doc_id}/{n}" for n in noms]
 
 
-def pages_texte(url):
+def pages_texte(urls):
+    """Pages de tous les fichiers du règlement ; le numéro de page cite le fichier quand il y en a plusieurs."""
+    out = []
+    for u in urls:
+        try:
+            p = pages_un(u)
+        except Exception as e:
+            log("  fichier illisible", u, e); continue
+        nom = u.rsplit("/", 1)[-1]
+        out += [(t, f"page {i + 1}" + (f" de {nom}" if len(urls) > 1 else "")) for i, t in enumerate(p)]
+    return out
+
+
+def pages_un(url):
     r = get(url, timeout=300)
     r.raise_for_status()
     pdf = PdfReader(io.BytesIO(r.content))
@@ -131,18 +147,18 @@ def pages_texte(url):
 
 def selection(pages, zones):
     """Texte envoyé : tout le règlement s'il tient, sinon les pages qui citent ces zones et le stationnement."""
-    tout = "".join(f"[page {i + 1}]\n{t}\n" for i, t in enumerate(pages))
+    tout = "".join(f"[{lab}]\n{t}\n" for t, lab in pages)
     if len(tout) <= MAX_CAR:
         return tout
     codes = set()
     for z in zones:
         codes.add(z); b = z.split("-")[0]; codes.add(b); codes.add(re.sub(r"[a-z]+\d*$", "", b))
     res = [re.compile(rf"(?<![A-Za-z0-9]){re.escape(c)}(?![A-Za-z0-9])") for c in codes if c]
-    score = [(sum(len(r.findall(t)) for r in res) + (3 if re.search("stationnement", t, re.I) else 0), i) for i, t in enumerate(pages)]
+    score = [(sum(len(r.findall(t)) for r in res) + (3 if re.search("stationnement", t, re.I) else 0), i) for i, (t, _) in enumerate(pages)]
     garde = sorted(i for s, i in sorted(score, reverse=True) if s > 0)
     out, n = [], 0
     for i in sorted(garde, key=lambda i: -score[i][0]):
-        t = f"[page {i + 1}]\n{pages[i]}\n"
+        t = f"[{pages[i][1]}]\n{pages[i][0]}\n"
         if n + len(t) > MAX_CAR:
             continue
         out.append((i, t)); n += len(t)
@@ -203,15 +219,16 @@ def main():
             continue
         faits += 1
         try:
-            nom, url = reglement(d["id"], part)
+            nom, urls = reglement(d["id"], part)
+            url = urls[0] if urls else None
             if not url:
                 dest.write_text(json.dumps({"id": d.get("id"), "erreur": "pas de règlement écrit publié", "zones": {}}, ensure_ascii=False)); continue
-            pages = pages_texte(url)
-            if sum(len(p) for p in pages) < 2000:
+            pages = pages_texte(urls)
+            if sum(len(p) for p, _ in pages) < 2000:
                 dest.write_text(json.dumps({"id": d.get("id"), "document": url, "erreur": "règlement scanné (pas de texte)", "zones": {}}, ensure_ascii=False)); continue
             if essai:
                 t = selection(pages, zones[:ZONES_PAR_APPEL])
-                log(f"ESSAI {part} : {nom}, {len(pages)} pages, {sum(len(p) for p in pages)} caractères, {len(t)} envoyés, zones {zones[:8]}")
+                log(f"ESSAI {part} : {nom}, {len(pages)} pages, {sum(len(p) for p, _ in pages)} caractères, {len(t)} envoyés, zones {zones[:8]}")
                 continue
             res = {}
             for i in range(0, len(zones), ZONES_PAR_APPEL):

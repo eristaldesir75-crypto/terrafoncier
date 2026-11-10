@@ -164,14 +164,27 @@ async function erreurHttp(r) {
   return new ErreurIA(`Gemini : ${msg || 'erreur ' + r.status}`);
 }
 
+/** Réflexion du modèle réduite au minimum : l'assistant ne fait que traduire et résumer, la réponse arrive bien plus vite. */
+const reflexion = (modele) => (/gemini-2\./.test(modele) ? { thinkingBudget: /pro/.test(modele) ? 128 : 0 } : { thinkingLevel: 'low' });
+let sansReflexion = false; // modèle qui refuse le réglage : envoyé sans
+
 async function generer(cle, contents, contexte) {
   let modele = await choisirModele(cle);
   const corps = () => JSON.stringify({
     systemInstruction: { parts: [{ text: `${SYSTEME}\n\nÉtat actuel du site : ${contexte}` }] },
-    contents, tools: [{ functionDeclarations: OUTILS }], generationConfig: { temperature: 0.2 },
+    contents, tools: [{ functionDeclarations: OUTILS }],
+    generationConfig: { temperature: 0.2, ...(sansReflexion ? {} : { thinkingConfig: reflexion(modele) }) },
   });
-  for (let essai = 0; essai < 2; essai++) {
-    const r = await fetch(`${API}/models/${modele}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle }, body: corps() });
+  for (let essai = 0; essai < 3; essai++) {
+    const ctrl = new AbortController(), minuteur = setTimeout(() => ctrl.abort(), 90000);
+    let r;
+    try { r = await fetch(`${API}/models/${modele}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle }, body: corps(), signal: ctrl.signal }); }
+    catch (e) { if (ctrl.signal.aborted) throw new ErreurIA("Gemini n'a pas répondu en 90 secondes : réessayez"); throw e; }
+    finally { clearTimeout(minuteur); }
+    if (!r.ok && r.status === 400 && !sansReflexion) {
+      const txt = await r.clone().text();
+      if (/think/i.test(txt)) { sansReflexion = true; continue; }
+    }
     if (r.ok) {
       const j = await r.json();
       const c = j.candidates && j.candidates[0];
@@ -179,7 +192,7 @@ async function generer(cle, contents, contexte) {
       return c.content;
     }
     const e = await erreurHttp(r);
-    if (e.modele && essai === 0) { modele = await choisirModele(cle, true); continue; }
+    if (e.modele && essai < 2) { modele = await choisirModele(cle, true); continue; }
     throw e;
   }
   throw new ErreurIA('Gemini ne répond pas');
@@ -267,6 +280,17 @@ export function initAssistant(ctx) {
     };
   }
   /** Les résultats volumineux sont raccourcis dans la mémoire de la conversation. */
+  function compacter() {
+    for (const c of histo) for (const p of c.parts) {
+      const fr = p.functionResponse;
+      if (!fr || fr.response.compact) continue;
+      const res = fr.response.resultat, txt = JSON.stringify(res);
+      if (txt.length > 2500) {
+        const court = res && res.meilleurs ? { ...res, criteres_appliques: undefined, meilleurs: res.meilleurs.slice(0, 5) } : res;
+        fr.response = { compact: true, resultat: JSON.stringify(court).slice(0, 2500) };
+      } else fr.response.compact = true;
+    }
+  }
   function alleger() {
     while (histo.length > 30) histo.shift();
     while (histo.length && histo[0].role !== 'user') histo.shift();
@@ -280,6 +304,7 @@ export function initAssistant(ctx) {
     const cle = lire(CLE);
     if (!cle) { ecranCle(); return; }
     occupe = true; box.querySelector('#iaGo').disabled = true;
+    compacter();
     q.value = ''; q.style.height = 'auto';
     bulle('ia-moi', `<p>${esc(t)}</p>`);
     const avant = histo.length;

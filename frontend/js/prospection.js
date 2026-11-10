@@ -585,7 +585,8 @@ export function initProspection(ctx) {
       ctx.setHits(out.filter((h) => h.cat !== 'entrepot'));
       ctx.onResults && ctx.onResults(true);
       renderResults();
-      await ajouterAdresses(st.results);
+      // adresses en arrière-plan : la liste est utilisable tout de suite, les adresses s'ajoutent au fil de l'eau
+      ajouterAdresses(st.results).catch(() => {});
     } catch (e) {
       st.erreur = e.name === 'AbortError' || signal.aborted ? 'Prospection arrêtée' : e.message;
       setStatus(`<p class="err">${esc(st.erreur)}</p>`);
@@ -604,8 +605,9 @@ export function initProspection(ctx) {
       const parts = h.groupe ? h.membres.map((m) => m.f) : [h.f];
       parts.forEach((f, j) => { feats.push(f); refs.push([h, j, parts.length]); });
     }
-    setStatus(`${resume(r)}<br><span class="note">Recherche des adresses (${feats.length})…</span>`);
-    const res = await api.adressesParcelles(feats, (d, n) => { if (d % 40 === 0) setStatus(`${resume(r)}<br><span class="note">Adresses : ${d} / ${n}</span>`); });
+    const actuel = () => st.results === r && !st.running;
+    if (actuel()) setStatus(`${resume(r)}<br><span class="note">Recherche des adresses (${feats.length})…</span>`);
+    const res = await api.adressesParcelles(feats, (d, n) => { if (d % 40 === 0 && actuel()) setStatus(`${resume(r)}<br><span class="note">Adresses : ${d} / ${n}</span>`); });
     const parH = new Map();
     res.forEach((a, k) => { const [h, j] = refs[k]; if (!parH.has(h)) parH.set(h, []); parH.get(h)[j] = a; });
     for (const [h, l] of parH) {
@@ -615,7 +617,7 @@ export function initProspection(ctx) {
       if (h.groupe && Array.isArray(h.f.properties.membres)) l.forEach((x, j) => { if (x && h.f.properties.membres[j]) h.f.properties.membres[j].adresse = x.label; });
       if (l[0]) h.f.properties.adresse = l.filter(Boolean).map((a) => a.label + (a.precision === 'voisine' ? ` (adresse voisine à ${a.distance} m)` : '')).join(' / ');
     }
-    setStatus(resume(r));
+    if (actuel()) setStatus(resume(r));
     if (st.results === r) renderResults();
   }
 
@@ -802,6 +804,9 @@ export function initProspection(ctx) {
     store.saveProspectionCrit({ ...c, commune: com });
     await run();
     if (!st.results) throw new Error(st.erreur || 'Prospection interrompue');
+    // adresses des 10 premiers terrains (6 s au plus), le reste continue en arrière-plan
+    const t0 = Date.now();
+    while (Date.now() - t0 < 6000 && !terrainsLogement().slice(0, 10).every((h) => h.adresse !== undefined)) await new Promise((ok) => setTimeout(ok, 300));
     const cr = st.crit;
     return {
       criteres_appliques: {

@@ -21,7 +21,7 @@ GEM = "https://generativelanguage.googleapis.com/v1beta"
 S = requests.Session()
 S.headers["User-Agent"] = "Fonciscope-lecture-reglements (github.com/fonciscope/fonciscope.github.io)"
 MAX_CAR = 600_000          # texte envoyé en une fois (≈ 170 000 jetons)
-ZONES_PAR_APPEL = 30
+ZONES_PAR_APPEL = 15
 CHAMPS = ["ces", "h", "recul", "ret", "pt", "stat"]
 
 
@@ -102,7 +102,7 @@ def demander(cle, mods, texte, zones, commune):
 
 def demander_un(cle, mod, texte, zones, commune):
     body = {"contents": [{"role": "user", "parts": [{"text": consigne(zones, commune) + "\n\n" + texte}]}],
-            "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": SCHEMA}}
+            "generationConfig": {"temperature": 0, "maxOutputTokens": 65536, "responseMimeType": "application/json", "responseSchema": SCHEMA}}
     for essai in range(5):
         r = S.post(f"{GEM}/models/{mod}:generateContent", json=body, headers={"x-goog-api-key": cle}, timeout=300)
         if r.status_code == 429:

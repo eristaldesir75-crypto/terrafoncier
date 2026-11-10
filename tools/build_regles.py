@@ -175,10 +175,11 @@ def main():
     # lectures déjà faites : reprises telles quelles
     for f in prev.glob("*.json"):
         (out / f.name).write_text(f.read_text())
-    if not cle:
+    essai = os.environ.get("ESSAI") == "1"  # téléchargement et lecture des PDF seulement, sans Gemini
+    if not cle and not essai:
         log("Pas de secret GEMINI_API_KEY : lectures précédentes gardées, rien de nouveau lu.")
         return
-    mod = modele(cle)
+    mod = modele(cle) if not essai else "essai"
     log("Modèle :", mod)
     docs = json.loads((plu / "index.json").read_text())["documents"]
     faits = 0
@@ -208,6 +209,10 @@ def main():
             pages = pages_texte(url)
             if sum(len(p) for p in pages) < 2000:
                 dest.write_text(json.dumps({"id": d.get("id"), "document": url, "erreur": "règlement scanné (pas de texte)", "zones": {}}, ensure_ascii=False)); continue
+            if essai:
+                t = selection(pages, zones[:ZONES_PAR_APPEL])
+                log(f"ESSAI {part} : {nom}, {len(pages)} pages, {sum(len(p) for p in pages)} caractères, {len(t)} envoyés, zones {zones[:8]}")
+                continue
             res = {}
             for i in range(0, len(zones), ZONES_PAR_APPEL):
                 lot = zones[i:i + ZONES_PAR_APPEL]

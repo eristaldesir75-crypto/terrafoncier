@@ -7,6 +7,10 @@ on:
       max_docs:
         description: "Nombre maximal de documents lus ce passage"
         default: "120"
+      essai:
+        description: "Essai sans Gemini (téléchargement et lecture des PDF seulement)"
+        type: boolean
+        default: false
 permissions:
   contents: write
   pages: write
@@ -30,6 +34,7 @@ jobs:
       - name: Lecture des règlements par Gemini
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ESSAI: ${{ inputs.essai && '1' || '' }}
         run: python -u tools/build_regles.py --plu plu/plu --prev prev --out out --max-docs "${{ inputs.max_docs || '120' }}"
       - id: pub
         name: Publication sur la branche regles (un seul commit)

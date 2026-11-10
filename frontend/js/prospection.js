@@ -16,7 +16,7 @@ const TUILE = 0.01; // degrés (≈ 1,1 km × 0,75 km)
 export const CRIT_DEFAUT = {
   commune: null, scope: 'commune', smin: 1500, smax: '', lmin: 30, lmax: 50, sdpMin: '', hMin: '',
   zonesU: true, zonesAU: true, zonesFiltre: '', exclActivite: true, natures: NATURES_DEFAUT,
-  exclRecent: true, oapSeul: false, exclContraintes: false, scoreMin: 0,
+  exclRecent: true, oapSeul: false, exclOap: true, exclContraintes: false, scoreMin: 0,
   // collectif réellement permis par le PLU, et remembrement de parcelles voisines
   collectif: true, nivMin: 2, mode: 'les2', maxParcelles: 3,
   // entrepôts et locaux d'activité, listés à part (en zone d'habitat : reconversion ; en zone d'activités : foncier d'activité)
@@ -132,7 +132,7 @@ export function initProspection(ctx) {
           <div class="chk-row">${box('proEntr', "Ajouter aussi les entrepôts des <b>zones d'activités</b> (logement interdit par le PLU), dans la liste à part", c.entrepots)}</div>
         </fieldset>
         <fieldset><legend>Autres critères</legend>
-          <div class="chk-row">${box('proRecent', 'Exclure le bâti récent (depuis 2010)', c.exclRecent)}${box('proOap', 'Uniquement en secteur d\'OAP', c.oapSeul)}${box('proContr', 'Exclure EBC et emplacements réservés', c.exclContraintes)}</div>
+          <div class="chk-row">${box('proRecent', 'Exclure le bâti récent (depuis 2010)', c.exclRecent)}${box('proExclOap', 'Exclure les parcelles en secteur d\'OAP', c.exclOap && !c.oapSeul)}${box('proOap', 'Uniquement en secteur d\'OAP', c.oapSeul)}${box('proContr', 'Exclure EBC et emplacements réservés', c.exclContraintes)}</div>
           <label for="proScoreMin">Note minimale<input type="number" id="proScoreMin" min="0" max="100" value="${esc(c.scoreMin)}"></label>
         </fieldset>
         <div class="actions sticky-actions"><button type="submit" ${st.running ? 'disabled' : ''}>Lancer la prospection</button>${st.running ? '<button type="button" class="ghost" id="proStop">Arrêter</button>' : ''}</div>
@@ -154,6 +154,9 @@ export function initProspection(ctx) {
       await resolveCommune($('#proCommune', v).value);
       if (st.crit.commune) run();
     };
+    // « exclure les OAP » et « uniquement en OAP » s'excluent
+    $('#proExclOap', v).onchange = (e) => { if (e.target.checked) $('#proOap', v).checked = false; };
+    $('#proOap', v).onchange = (e) => { if (e.target.checked) $('#proExclOap', v).checked = false; };
     const stop = $('#proStop', v); if (stop) stop.onclick = () => st.ctrl && st.ctrl.abort();
     $('#proCommune', v).addEventListener('change', async (e) => {
       const avant = st.crit.commune && st.crit.commune.code;
@@ -172,7 +175,7 @@ export function initProspection(ctx) {
       sdpMin: n('#proSdp'), hMin: n('#proHmin'), zonesU: $('#proZU', v).checked, zonesAU: $('#proZAU', v).checked,
       exclActivite: $('#proExclAct', v).checked, zonesFiltre: $('#proZF', v).value.trim(),
       natures: Object.keys(NATURES).filter((k) => $(`#proN-${k}`, v).checked),
-      exclRecent: $('#proRecent', v).checked, oapSeul: $('#proOap', v).checked, exclContraintes: $('#proContr', v).checked,
+      exclRecent: $('#proRecent', v).checked, oapSeul: $('#proOap', v).checked, exclOap: $('#proExclOap', v).checked, exclContraintes: $('#proContr', v).checked,
       scoreMin: n('#proScoreMin') || 0,
       zonesChoix: (() => {
         const l = [...v.querySelectorAll('#proZonesChoix input[data-zone]')];
@@ -448,6 +451,7 @@ export function initProspection(ctx) {
         const contraintes = contraintesDe(h.f, idxPresc, h.occ.S);
         const oap = contraintes.some((x) => x.k === 'oap');
         if (c.oapSeul && !oap) { compte.contraintes++; return; }
+        if (c.exclOap && !c.oapSeul && oap) { compte.oap = (compte.oap || 0) + 1; return; }
         if (c.exclContraintes && contraintes.some((x) => x.k === 'ebc' || x.k === 'er')) { compte.contraintes++; return; }
         h.contraintes = contraintes; h.oap = oap;
         h.cat = h.cat || (h.occ.cle === 'activite' ? 'entrepot' : 'logement');
@@ -619,7 +623,7 @@ export function initProspection(ctx) {
     const c = r.compte;
     const g = r.list.filter((h) => h.groupe).length, e = r.list.filter((h) => h.cat === 'entrepot').length;
     return `<b>${f0(r.list.length - e)} terrain(s) pour du logement</b>${g ? ` dont ${f0(g)} remembrement(s)` : ''}${e ? ` · <b>${f0(e)} entrepôt(s) et local(aux) d'activité</b>` : ''} sur ${f0(c.total)} parcelles en ${r.secs} s
-      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible ou moins de logements que demandé)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.facade ? `, ${f0(c.facade)} regroupements sans pignon sur rue` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
+      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible ou moins de logements que demandé)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.facade ? `, ${f0(c.facade)} regroupements sans pignon sur rue` : ''}${c.oap ? `, ${f0(c.oap)} en secteur d'OAP` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
   }
 
   // ---------- Résultats ----------
@@ -756,7 +760,7 @@ export function initProspection(ctx) {
       commune: r.com.nom, code_insee: r.com.code, document_urbanisme: r.partition, parcelles_etudiees: c.total,
       terrains_logement: log.length, dont_remembrements: log.filter((h) => h.groupe).length,
       entrepots_locaux_activite: r.list.length - log.length, en_attente_de_regles: r.attente.length, duree_s: r.secs,
-      ecartees: { surface: c.surface, zonage: c.zone, nature: c.nature, contraintes: c.contraintes, regles_plu: c.regles, sans_facade: c.facade || 0, note: c.score },
+      ecartees: { surface: c.surface, zonage: c.zone, nature: c.nature, contraintes: c.contraintes, en_oap: c.oap || 0, regles_plu: c.regles, sans_facade: c.facade || 0, note: c.score },
       avertissements: r.avertissements, meilleurs: log.slice(0, n).map((h, i) => terrainResume(h, i + 1)),
     };
   }
@@ -779,7 +783,7 @@ export function initProspection(ctx) {
     const c = { ...st.crit, commune: com };
     const nums = { surface_min: 'smin', surface_max: 'smax', logements_min: 'lmin', logements_max: 'lmax', sdp_min: 'sdpMin', hauteur_min_m: 'hMin', niveaux_min: 'nivMin', max_parcelles: 'maxParcelles', facade_min_m: 'facadeMin', note_min: 'scoreMin' };
     for (const [a, b] of Object.entries(nums)) if (o[a] !== undefined && o[a] !== null && o[a] !== '') c[b] = +o[a];
-    const bools = { collectif: 'collectif', entrepots: 'entrepots', oap_seulement: 'oapSeul', exclure_ebc_er: 'exclContraintes', pignon_sur_rue: 'rueSeul', exclure_bati_recent: 'exclRecent' };
+    const bools = { collectif: 'collectif', entrepots: 'entrepots', oap_seulement: 'oapSeul', exclure_oap: 'exclOap', exclure_ebc_er: 'exclContraintes', pignon_sur_rue: 'rueSeul', exclure_bati_recent: 'exclRecent' };
     for (const [a, b] of Object.entries(bools)) if (typeof o[a] === 'boolean') c[b] = o[a];
     if (['seule', 'remembrement', 'les2'].includes(o.mode)) c.mode = o.mode;
     if (o.perimetre === 'ecran' || o.perimetre === 'commune') c.scope = o.perimetre;
@@ -805,7 +809,7 @@ export function initProspection(ctx) {
         surface_min_m2: cr.smin, surface_max_m2: cr.smax || null, logements_min: cr.lmin, logements_max: cr.lmax || null,
         collectif_selon_plu: cr.collectif, niveaux_min: cr.nivMin, montage: { seule: 'parcelle seule', remembrement: 'remembrement uniquement', les2: 'parcelle seule et remembrement' }[cr.mode],
         remembrement_max_parcelles: cr.maxParcelles, pignon_sur_rue_min_m: cr.rueSeul ? cr.facadeMin : null,
-        foncier: cr.natures.map(natLabel), entrepots_zones_activites: cr.entrepots, oap_seulement: cr.oapSeul, exclure_ebc_er: cr.exclContraintes, note_min: cr.scoreMin,
+        foncier: cr.natures.map(natLabel), entrepots_zones_activites: cr.entrepots, oap_seulement: cr.oapSeul, exclure_oap: cr.exclOap && !cr.oapSeul, exclure_ebc_er: cr.exclContraintes, note_min: cr.scoreMin,
       },
       ...syntheseResultats(10),
     };

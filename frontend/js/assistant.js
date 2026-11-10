@@ -57,6 +57,7 @@ const OUTILS = [
         maisons_seulement: { type: 'BOOLEAN' },
         entrepots: { type: 'BOOLEAN', description: "Ajouter les entrepôts des zones d'activités (liste à part)" },
         oap_seulement: { type: 'BOOLEAN' },
+        exclure_oap: { type: 'BOOLEAN', description: "Écarter les parcelles en secteur d'OAP" },
         exclure_ebc_er: { type: 'BOOLEAN', description: 'Exclure espaces boisés classés et emplacements réservés' },
         exclure_bati_recent: { type: 'BOOLEAN' },
         note_min: { type: 'NUMBER' },
@@ -202,7 +203,7 @@ export function initAssistant(ctx) {
     <header class="ia-head"><div><b>Assistant</b><span class="ia-sous">Prospection, fiches et faisabilité à la demande</span></div>
       <div class="ia-head-act"><button type="button" class="ghost ia-mini" id="iaCleBtn">Clé</button><button type="button" class="ghost ia-mini" id="iaNew" title="Nouvelle conversation">Effacer</button><button type="button" class="ia-x" id="iaClose" aria-label="Fermer">×</button></div></header>
     <div class="ia-fil" id="iaFil" aria-live="polite"></div>
-    <form class="ia-form" id="iaForm"><textarea id="iaQ" rows="1" placeholder="Votre demande, ex. : prospecte Saran en R+2" aria-label="Votre demande"></textarea><button type="submit" id="iaGo" aria-label="Envoyer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5 21 12 3 3.5 3 10l12 2-12 2z"/></svg></button></form>`;
+    <form class="ia-form" id="iaForm"><textarea id="iaQ" rows="1" placeholder="Votre demande…" aria-label="Votre demande"></textarea><button type="submit" id="iaGo" aria-label="Envoyer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5 21 12 3 3.5 3 10l12 2-12 2z"/></svg></button></form>`;
   (document.querySelector('.mapcol') || document.body).append(fab, box);
   // sur téléphone, la bulle remonte au-dessus de la fiche résumée posée sur la carte
   const peek = document.getElementById('peek');

@@ -4,7 +4,7 @@
 // Les règles lues sont enregistrées pour la zone (une seule lecture par zone) et marquées « lu par l'IA, à vérifier ».
 import * as api from './api.js';
 import * as store from './store.js';
-import { cleIA, choisirModele, erreurHttp, ErreurIA } from './assistant.js';
+import { cleIA, choisirModele, erreurHttp, ErreurIA, modelesFlash } from './assistant.js';
 
 const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
@@ -132,20 +132,46 @@ Pour chaque règle : la valeur chiffrée, l'article, la page (numéro entre croc
 Si une règle n'est pas trouvée, renvoie null pour ce champ. N'invente jamais de valeur. Si la hauteur est donnée en niveaux (R+2...), convertis à 3 m par niveau et dis-le dans condition.
 zone_trouvee = false si les extraits ne contiennent pas le chapitre ou les règles de la zone ${zone}.`;
 
-async function demander(cle, parts) {
-  const modele = await choisirModele(cle);
-  const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 120000);
-  try {
-    const r = await fetch(`${GEMINI}/models/${modele}:generateContent`, {
-      method: 'POST', signal: ctrl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle },
-      body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: SCHEMA } }),
-    });
-    if (!r.ok) throw await erreurHttp(r);
-    const j = await r.json();
-    const txt = (j.candidates?.[0]?.content?.parts || []).filter((p) => p.text && !p.thought).map((p) => p.text).join('');
-    try { return JSON.parse(txt); } catch { throw new ErreurIA('Réponse illisible de Gemini'); }
-  } catch (e) { if (ctrl.signal.aborted) throw new ErreurIA("Gemini n'a pas répondu en 2 minutes"); throw e; }
-  finally { clearTimeout(t); }
+/**
+ * Appel à Gemini, robuste aux pannes : nouvel essai si le serveur est saturé, puis sans schéma imposé
+ * (certaines erreurs 500 viennent du schéma), puis avec un autre modèle Flash.
+ */
+async function demander(cle, parts, onEtape) {
+  const principal = await choisirModele(cle);
+  let autres = null;
+  const essais = [{ m: principal, schema: true }, { m: principal, schema: true, pause: 3000 }, { m: principal, schema: false, pause: 2000 }, { m: 'autre', schema: false }, { m: 'autre2', schema: false }];
+  let derniere = null;
+  for (const e of essais) {
+    let mod = e.m;
+    if (mod.startsWith('autre')) {
+      if (!autres) { try { autres = (await modelesFlash(cle)).filter((x) => x !== principal); } catch { autres = []; } }
+      mod = autres[mod === 'autre' ? 0 : 1];
+      if (!mod) continue;
+    }
+    if (e.pause) await new Promise((ok) => setTimeout(ok, e.pause));
+    if (derniere && onEtape) onEtape(`Gemini saturé, nouvel essai${mod !== principal ? ' avec ' + mod : ''}…`);
+    const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 150000);
+    try {
+      const gc = { temperature: 0, responseMimeType: 'application/json', ...(e.schema ? { responseSchema: SCHEMA } : {}) };
+      const p2 = e.schema ? parts : [...parts, { text: `Réponds uniquement en JSON avec ce format : {"zone_trouvee": bool, "ces": {"valeur": nombre|null, "article": "", "page": n, "extrait": "", "condition": ""}, "h": {...}, "recul": {...}, "ret": {...}, "pt": {...}, "stat": {...}, "remarque": ""}. ces et pt en %, h, recul et ret en mètres, stat en places par logement.` }];
+      const r = await fetch(`${GEMINI}/models/${mod}:generateContent`, {
+        method: 'POST', signal: ctrl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: p2 }], generationConfig: gc }),
+      });
+      if (!r.ok) {
+        const err = await erreurHttp(r);
+        if (err.serveur || err.modele) { derniere = err; continue; }
+        throw err;
+      }
+      const j = await r.json();
+      const txt = (j.candidates?.[0]?.content?.parts || []).filter((p) => p.text && !p.thought).map((p) => p.text).join('').replace(/^```(?:json)?\s*|\s*```$/g, '');
+      try { return JSON.parse(txt); } catch { derniere = new ErreurIA('Réponse illisible de Gemini'); continue; }
+    } catch (x) {
+      if (ctrl.signal.aborted) { derniere = new ErreurIA("Gemini n'a pas répondu en 2 min 30"); continue; }
+      throw x;
+    } finally { clearTimeout(t); }
+  }
+  throw derniere || new ErreurIA('Gemini ne répond pas pour le moment');
 }
 
 // Règles déjà lues par l'IA côté serveur (traitement « Lecture des règlements », data/regles) : chargées une fois
@@ -199,7 +225,7 @@ export function lireZone({ key, zone, partition, commune, onEtape, force = false
       parts = [{ inline_data: { mime_type: 'application/pdf', data: btoa(bin) } }, { text: consigne(libelle, commune).replace('des extraits', 'le règlement').replace(', avec les numéros de page entre crochets', '') }];
     } else throw new Error('Règlement scanné trop volumineux pour être lu automatiquement');
     onEtape && onEtape(`Lecture des règles de la zone ${libelle} par Gemini…`);
-    const res = await demander(cle, parts);
+    const res = await demander(cle, parts, onEtape);
     const conv = { ces: (v) => Math.min(1, v / 100), pt: (v) => Math.min(1, v / 100) };
     const regles = { source: 'ia', citations: {}, document: doc.url, zoneTrouvee: !!res.zone_trouvee, remarque: res.remarque || '' };
     let n = 0;

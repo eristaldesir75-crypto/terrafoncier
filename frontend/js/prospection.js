@@ -553,8 +553,20 @@ export function initProspection(ctx) {
         setStatus(`Remembrement : recherche des parcelles voisines parmi ${f0(items.length)}…`, 90);
         await pause();
         const vois = voisinages(items);
-        const groupes = regroupements(items, vois, { smin: c.smin || 0, smax: c.smax || 0, maxParcelles: c.maxParcelles || 3 })
-          .sort((a, b) => a.length - b.length);
+        // Logements minimum demandés : des regroupements plus grands sont aussi cherchés, assez vastes pour les atteindre
+        // à la densité des opérations collectives de la commune (sinon les regroupements tout juste à la surface minimale
+        // restent sous le nombre de logements et disparaissent)
+        const dens = await Promise.race([densP, new Promise((ok) => setTimeout(() => ok(null), 4000))]);
+        const dMed = dens && dens.commune.n >= 3 ? dens.commune.med : null;
+        const sCible = c.lmin && dMed ? Math.min(Math.round((c.lmin * 10000) / dMed), 4 * (c.smin || 1000)) : 0;
+        const vus = new Set(), groupes = [];
+        for (const smin of [c.smin || 0, ...(sCible > (c.smin || 0) ? [sCible] : [])]) {
+          for (const g of regroupements(items, vois, { smin, smax: c.smax || 0, maxParcelles: c.maxParcelles || 3 })) {
+            const k = g.slice().sort((x, y) => x - y).join(',');
+            if (!vus.has(k)) { vus.add(k); groupes.push(g); }
+          }
+        }
+        groupes.sort((a, b) => a.length - b.length);
         setStatus(`Remembrement : étude de ${f0(Math.min(groupes.length, 4000))} regroupements possibles…`, 93);
         const evalues = [];
         for (let n = 0; n < groupes.length && n < 4000; n++) {

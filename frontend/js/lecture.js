@@ -199,16 +199,17 @@ async function demander(cle, parts, onEtape) {
   let autres = null;
   // modèle saturé (503) : on change de modèle tout de suite plutôt que d'attendre
   const essais = [{ m: principal, schema: true }, { m: 'autre', schema: true }, { m: 'autre2', schema: true }, { m: principal, schema: false, pause: 3000 }, { m: 'autre3', schema: false, pause: 2000 }, { m: principal, schema: true, pause: 8000 }];
-  const quotaPlein = new Set();
+  const quotaPlein = new Set(), essayes = [];
   let derniere = null;
   for (const e of essais) {
     let mod = e.m;
     if (mod.startsWith('autre')) {
       if (!autres) { try { autres = (await modelesFlash(cle)).filter((x) => x !== principal); } catch { autres = []; } }
-      mod = autres.filter((x) => !quotaPlein.has(x) && !(Date.now() - (sature.get(x) || 0) < 600000))[0] || autres.filter((x) => !quotaPlein.has(x))[0];
+      mod = autres.filter((x) => !quotaPlein.has(x) && !essayes.includes(x) && !(Date.now() - (sature.get(x) || 0) < 600000))[0] || autres.filter((x) => !quotaPlein.has(x) && !essayes.includes(x))[0];
       if (!mod) continue;
-    } else if (quotaPlein.has(mod)) continue;
+    } else if (quotaPlein.has(mod) || (e === essais[0] && Date.now() - (sature.get(mod) || 0) < 600000)) continue; // saturé il y a peu : on commence par un autre
     if (e.pause) await new Promise((ok) => setTimeout(ok, e.pause));
+    if (!essayes.includes(mod)) essayes.push(mod);
     if (derniere && onEtape) onEtape(`Gemini saturé, nouvel essai${mod !== principal ? ' avec ' + mod : ''}…`);
     const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 150000);
     try {
@@ -233,6 +234,7 @@ async function demander(cle, parts, onEtape) {
       throw x;
     } finally { clearTimeout(t); }
   }
+  if (derniere && derniere.serveur) throw new ErreurIA(`Gemini est saturé en ce moment sur tous les modèles essayés (${essayes.join(', ')}). C'est temporaire côté Google : réessayez dans quelques minutes`);
   throw derniere || new ErreurIA('Gemini ne répond pas pour le moment');
 }
 

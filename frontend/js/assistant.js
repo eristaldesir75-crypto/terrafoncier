@@ -141,13 +141,24 @@ export const cleIA = () => lire(CLE);
 
 /** Choix du modèle : le plus récent des modèles « Flash » stables accessibles avec la clé. */
 /** Modèles Gemini Flash accessibles avec la clé, du plus récent au plus ancien (pour changer de modèle en cas de panne). */
+let listeModeles = null;
+/**
+ * Modèles Gemini utilisables avec la clé, pour changer de modèle quand l'un est saturé ou à court de quota :
+ * Flash stables (du plus récent au plus ancien), puis Flash-Lite, puis versions d'essai, puis Pro.
+ * Les alias (« latest ») et variantes datées sont écartés : ils pointent vers le même modèle, saturé lui aussi.
+ */
 export async function modelesFlash(cle) {
+  if (listeModeles) return listeModeles;
   const r = await fetch(`${API}/models?pageSize=200`, { headers: { 'x-goog-api-key': cle } });
   if (!r.ok) throw await erreurHttp(r);
   const j = await r.json();
   const ver = (n) => { const v = n.match(/gemini-(\d+(?:\.\d+)?)/); return v ? +v[1] : 0; };
-  return (j.models || []).filter((x) => (x.supportedGenerationMethods || []).includes('generateContent') && /flash/i.test(x.name) && !/image|tts|live|audio|thinking|exp/i.test(x.name))
-    .map((x) => x.name.replace(/^models\//, '')).sort((a, b) => (/lite/.test(a) - /lite/.test(b)) || (/preview/.test(a) - /preview/.test(b)) || ver(b) - ver(a));
+  const rang = (n) => (/pro/.test(n) ? 3 : /preview/.test(n) ? 2 : /lite/.test(n) ? 1 : 0);
+  listeModeles = (j.models || []).filter((x) => (x.supportedGenerationMethods || []).includes('generateContent'))
+    .map((x) => x.name.replace(/^models\//, ''))
+    .filter((n) => /^gemini-\d/.test(n) && /flash|pro/.test(n) && !/image|tts|live|audio|thinking|exp|latest|embedding|vision|-\d{3}$|-\d{2}-\d{4}|computer|search/.test(n))
+    .sort((a, b) => rang(a) - rang(b) || ver(b) - ver(a));
+  return listeModeles;
 }
 export async function choisirModele(cle, force) {
   const m = !force && lire(MODELE);

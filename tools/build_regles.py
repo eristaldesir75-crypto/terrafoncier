@@ -15,6 +15,8 @@ import argparse, io, json, os, re, sys, time
 from pathlib import Path
 import requests
 from pypdf import PdfReader
+sys.path.insert(0, str(Path(__file__).parent))
+import build_plu as B
 
 GPU = "https://www.geoportail-urbanisme.gouv.fr/api"
 GEM = "https://generativelanguage.googleapis.com/v1beta"
@@ -225,6 +227,7 @@ def main():
     ap.add_argument("--prev", required=True)       # lectures précédentes
     ap.add_argument("--out", required=True)
     ap.add_argument("--max-docs", type=int, default=120)
+    ap.add_argument("--france", default="")  # liste des documents de toute la France (docs_france.py)
     a = ap.parse_args()
     cle = os.environ.get("GEMINI_API_KEY", "").strip()
     plu, prev, out = Path(a.plu), Path(a.prev), Path(a.out)
@@ -236,23 +239,39 @@ def main():
     mod = modele(cle) if cle and not essai else None
     log("Modèles :", ", ".join(mod) if mod else "aucun (textes des règlements seulement : ajoutez le secret GEMINI_API_KEY pour la lecture des règles)")
     docs = json.loads((plu / "index.json").read_text())["documents"]
+    # puis toute la France (documents listés par docs_france.py), règles seulement (sans le texte, trop volumineux)
+    france = {}
+    if a.france and Path(a.france).exists():
+        fr = json.loads(Path(a.france).read_text()).get("documents", {})
+        france = {k: v for k, v in sorted(fr.items(), key=lambda kv: (kv[1].get("rang", 99), kv[0])) if k not in docs}
+        log(f"France : {len(france)} documents en plus des départements copiés")
     faits, quota = 0, False
-    for part, d in sorted(docs.items()):
+    for part, d, local in [(k, v, True) for k, v in sorted(docs.items())] + [(k, v, False) for k, v in france.items()]:
         if faits >= a.max_docs:
             log(f"Limite de {a.max_docs} documents atteinte : la suite au prochain passage."); break
+        if quota and not local:
+            break  # plus de quota : la France attendra le prochain passage
         dest, dtx = out / f"{part}.json", out / "textes" / f"{part}.json"
         def a_jour(f):
             try:
                 return f.exists() and json.loads(f.read_text()).get("id") == d.get("id")
             except Exception:
                 return False
-        regles_ok, texte_ok = a_jour(dest), a_jour(dtx)
+        regles_ok, texte_ok = a_jour(dest), (a_jour(dtx) if local else True)
         if texte_ok and (regles_ok or not mod or quota):
             continue
-        zf = plu / "p" / part / "zones.json"
-        if not zf.exists() or d.get("type") == "CC":
+        if d.get("type") == "CC":
             continue
-        feats = json.loads(zf.read_text()).get("features", [])
+        if local:
+            zf = plu / "p" / part / "zones.json"
+            if not zf.exists():
+                continue
+            feats = json.loads(zf.read_text()).get("features", [])
+        else:
+            try:
+                feats = B.depuis_apicarto(part, "zone-urba")
+            except Exception as e:
+                log(f"{part} : zones indisponibles ({e})"); continue
         zones = sorted({f["properties"].get("libelle") for f in feats if f["properties"].get("libelle")
                         and re.match(r"^\d?(U|AU)", str(f["properties"].get("typezone") or "").upper())})
         if not zones:
@@ -263,13 +282,16 @@ def main():
             url = urls[0] if urls else None
             if not url:
                 dest.write_text(json.dumps({"id": d.get("id"), "erreur": "pas de règlement écrit publié", "zones": {}}, ensure_ascii=False))
-                dtx.write_text(json.dumps({"id": d.get("id"), "pages": []})); continue
+                if local: dtx.write_text(json.dumps({"id": d.get("id"), "pages": []}))
+                continue
             pages = pages_texte(urls)
             if sum(len(p) for p, _ in pages) < 2000:
                 dest.write_text(json.dumps({"id": d.get("id"), "document": url, "erreur": "règlement scanné (pas de texte)", "zones": {}}, ensure_ascii=False))
-                dtx.write_text(json.dumps({"id": d.get("id"), "document": url, "pages": []})); continue
-            # texte des pages utiles, servi au site : la lecture sur téléphone ne télécharge plus le PDF
-            dtx.write_text(json.dumps({"id": d.get("id"), "document": url, "fichiers": urls, "pages": pages_utiles(pages, zones)}, ensure_ascii=False, separators=(",", ":")))
+                if local: dtx.write_text(json.dumps({"id": d.get("id"), "document": url, "pages": []}))
+                continue
+            # texte des pages utiles, servi au site (départements copiés) : la lecture sur téléphone ne télécharge plus le PDF
+            if local:
+                dtx.write_text(json.dumps({"id": d.get("id"), "document": url, "fichiers": urls, "pages": pages_utiles(pages, zones)}, ensure_ascii=False, separators=(",", ":")))
             if essai or not mod or quota or regles_ok:
                 log(f"{part} : texte du règlement enregistré ({len(pages)} pages)"); continue
             res = {}
@@ -284,7 +306,7 @@ def main():
             n = sum(1 for z in res.values() if any(z[k] is not None for k in CHAMPS))
             log(f"{part} : {n} / {len(zones)} zones avec des règles ({len(pages)} pages)")
         except QuotaJour:
-            log("Quota du jour de Gemini atteint : les règles reprendront au prochain passage, les textes continuent."); quota = True
+            log("Quota du jour de Gemini atteint sur tous les modèles : la suite au prochain passage."); quota = True
         except Exception as e:
             log(f"{part} : {e}")
     log(f"Documents traités ce passage : {faits}. Règles : {len(list(out.glob('*.json')))} documents, textes : {len(list((out / 'textes').glob('*.json')))}.")

@@ -20,7 +20,7 @@ concurrency: { group: lecture-reglements, cancel-in-progress: false }
 jobs:
   lecture:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 340
     outputs:
       nouveau: ${{ steps.pub.outputs.nouveau }}
     steps:
@@ -32,11 +32,20 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install requests pypdf
+      - name: Liste des documents de toute la France (une fois par semaine)
+        run: |
+          if [ -f prev/france.json ] && [ $(( $(date +%s) - $(date -d "$(python3 -c "import json;print(json.load(open('prev/france.json'))['date'])")" +%s) )) -lt 604800 ]; then
+            cp prev/france.json france.json; echo "Liste de la semaine reprise"
+          else
+            python -u tools/docs_france.py --out france.json || cp prev/france.json france.json || true
+          fi
       - name: Lecture des règlements par Gemini
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ESSAI: ${{ inputs.essai && '1' || '' }}
-        run: python -u tools/build_regles.py --plu plu/plu --prev prev --out out --max-docs "${{ inputs.max_docs || '400' }}"
+        run: python -u tools/build_regles.py --plu plu/plu --prev prev --out out --max-docs "${{ inputs.max_docs || '400' }}" --france france.json
+      - name: Liste France gardée avec les règles
+        run: cp france.json out/france.json 2>/dev/null || true
       - id: pub
         name: Publication sur la branche regles (un seul commit)
         run: |

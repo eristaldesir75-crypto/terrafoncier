@@ -1242,6 +1242,20 @@ function renderCrm() {
   const geo = $('#crmGeo', v); if (geo) geo.onclick = () => download('suivi-foncier.geojson', JSON.stringify({ type: 'FeatureCollection', features: list.map((x) => ({ type: 'Feature', geometry: x.geometry, properties: { ...x, geometry: undefined, statut: store.STATUTS[x.statut] } })) }), 'application/geo+json');
 }
 
+/** Commune choisie : toutes les zones d'habitat de son PLU sont lues d'un coup par l'IA (si la clé est enregistrée). */
+async function lireCommune(com) {
+  if (!cleIA()) return;
+  let partition = null, libs = null;
+  try { const z = await pro.zonesListe(com.code); partition = z.document_urbanisme; libs = z.zones.filter((x) => x.logement_autorise).map((x) => x.code); } catch { partition = null; }
+  if (!partition || !libs || !libs.length) return;
+  try {
+    const r = await lecture.lireDocument({ partition, libs, commune: com.nom, onEtape: (t) => toast(`${com.nom} : ${t}`) });
+    if (r.lues) toast(`${com.nom} : règles lues pour ${r.avecRegles} zone(s) sur ${r.lues}${r.restantes ? `, ${r.restantes} restante(s)` : ''}`);
+    if (sel && sel.partition === partition) { if (tab === 'fiche') renderFiche(); else if (tab === 'pot') renderPot(); majPeek(); }
+  } catch (e) { toast(`${com.nom} : lecture du règlement impossible (${e.message})`); }
+}
+window.tfLireCommune = lireCommune;
+
 // ---------- Recherche ----------
 const q = $('#q'), sug = $('#suggest');
 let sugT, sugItems = [];
@@ -1261,7 +1275,7 @@ async function suggest() {
 }
 function pick(s) {
   sug.hidden = true; q.value = s.label;
-  if (s.kind === 'commune') { pro.setCommune(s.data); map.flyTo({ center: s.data.centre.coordinates, zoom: 14 }); toast(`${s.data.nom} : touchez une parcelle, ou lancez une prospection`); }
+  if (s.kind === 'commune') { pro.setCommune(s.data); map.flyTo({ center: s.data.centre.coordinates, zoom: 14 }); toast(`${s.data.nom} : touchez une parcelle, ou lancez une prospection`); lireCommune(s.data); }
   else { const [lng, lat] = s.data.geometry.coordinates; map.flyTo({ center: [lng, lat], zoom: 18 }); selectAt(lng, lat); }
 }
 $('#searchForm').addEventListener('submit', async (e) => {

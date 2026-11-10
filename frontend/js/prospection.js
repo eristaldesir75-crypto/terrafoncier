@@ -355,6 +355,8 @@ export function initProspection(ctx) {
       $('#proZonesAncien', v).hidden = false; return;
     }
     if (st.crit.commune !== com) return;
+    // commune choisie : lecture de toutes les zones de son PLU par l'IA, en arrière-plan
+    if (window.tfLireCommune) window.tfLireCommune(com);
     const choix = st.crit.zonesChoix && st.crit.zonesChoix.code === com.code ? new Set(st.crit.zonesChoix.libs) : null;
     const coche = (z) => (choix ? choix.has(z.libelle) : z.logement);
     const ligne = (z) => `<label class="zchk${z.construct ? '' : ' off'}"><input type="checkbox" data-zone="${esc(z.libelle)}" ${coche(z) && z.construct ? 'checked' : ''} ${z.construct ? '' : 'disabled'}>

@@ -262,7 +262,7 @@ export function reglesCopie(partition) {
 
 const enCours = new Map();
 const CH = ['ces', 'h', 'recul', 'ret', 'pt', 'stat'];
-const MAX_ZONES = 10; // zones lues en un seul appel (une commune entière d'un coup, pour ménager le quota)
+const MAX_ZONES = 15; // zones lues en un seul appel (une commune entière d'un coup, pour ménager le quota)
 
 /** Règles Gemini d'une zone -> règles enregistrées (fusion avec une saisie manuelle éventuelle). */
 function enregistrer(key, x, url) {
@@ -349,6 +349,37 @@ export function lireZone({ key, zone, partition, commune, onEtape, force = false
     enCours.delete(key);
     for (const l of resoudre.keys ? resoudre.keys() : []) enCours.delete(store.ruleKey(partition, l));
   }).catch(() => {});
+  return p;
+}
+
+/**
+ * Lit toutes les zones d'habitat d'un document (PLU ou PLUi) encore sans règles, par paquets de 15 zones par appel.
+ * @returns { lues, avecRegles, restantes }
+ */
+const lecturesDoc = new Map();
+export function lireDocument({ partition, commune, onEtape, libs = null }) {
+  if (lecturesDoc.has(partition)) return lecturesDoc.get(partition);
+  const p = (async () => {
+    await reglesCopie(partition);
+    // zones de la commune seulement (un PLUi en compte des centaines)
+    const aLire = async () => (await zonesVoisines(partition, null)).filter((l) => !libs || libs.includes(l));
+    if (!cleIA()) return { lues: 0, avecRegles: 0, restantes: (await aLire()).length, sansCle: true };
+    let lues = 0, avecRegles = 0;
+    const zs = await api.gpuByPartition('zone-urba', partition);
+    for (let tour = 0; tour < 8; tour++) {
+      const reste = await aLire();
+      if (!reste.length) break;
+      const lib = reste[0], zone = zs.find((z) => z.properties.libelle === lib);
+      if (!zone) break;
+      onEtape && onEtape(`Lecture du règlement : ${reste.length} zone(s) à lire…`);
+      const avant = reste.slice(0, MAX_ZONES);
+      await lireZone({ key: store.ruleKey(partition, lib), zone, partition, commune, avec: avant.slice(1), onEtape });
+      for (const l of avant) { if (dejaLue(store.ruleKey(partition, l))) { lues++; const r0 = store.getRules(store.ruleKey(partition, l)); if (CH.some((k) => r0[k] !== null && r0[k] !== undefined)) avecRegles++; } }
+    }
+    return { lues, avecRegles, restantes: (await aLire()).length };
+  })();
+  lecturesDoc.set(partition, p);
+  p.finally(() => lecturesDoc.delete(partition)).catch(() => {});
   return p;
 }
 

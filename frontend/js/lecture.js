@@ -35,7 +35,9 @@ export async function urlReglement(zone, partition) {
     const F = d ? d.fichiers : [];
     piece = F.filter((x) => /r[eè]glement/i.test(x.nom + ' ' + x.rubrique) && !/graphique|prescription|zonage|plan|annexe/i.test(x.nom) && /\.pdf$/i.test(x.nom)).sort((a, b) => a.nom.length - b.nom.length)[0] || null;
   } catch { piece = null; }
-  return [directe, piece && piece.url].filter(Boolean);
+  // le lien du GPU redirige vers data.geopf.fr sans autoriser la lecture par le navigateur (CORS) : lien direct vers le fichier
+  const direct = (u0) => { const m = u0 && u0.match(/\/api\/document\/([0-9a-f]+)\/files\/([^?#]+)/); return m ? `https://data.geopf.fr/annexes/gpu/documents/${encodeURIComponent(partition)}/${m[1]}/${m[2]}` : u0; };
+  return [...new Set([directe, piece && piece.url].filter(Boolean).map(direct))];
 }
 
 // Texte des PDF déjà lus, le temps de la visite (un règlement sert à toutes ses zones)

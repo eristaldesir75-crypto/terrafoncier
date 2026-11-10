@@ -314,6 +314,8 @@ async function selectFeature(f, token = ++selToken, forceTab) {
     sel.zLabel = sel.zone?.properties.libelle || sel.cc?.properties.libelle || (x['zone-urba'] === null ? '?' : 'RNU');
     sel.key = store.ruleKey(sel.partition, sel.zLabel);
     rerender();
+    // règles lues par l'IA côté serveur pour ce PLU (sans clé sur cet appareil)
+    lecture.reglesCopie(sel.partition).then((n) => { if (n && token === selToken) rerender(); });
   });
   extraP.then((x0) => secours(x0, ['prescription-surf', 'prescription-lin', 'info-surf'])).then((x) => {
     if (token !== selToken) return;
@@ -593,7 +595,7 @@ function lireReglementSel(force) {
   const maj = (fin) => { if (sel !== s0) return; if (fin && sel.fais) sel.fais = null; if (tab === 'fiche') renderFiche(); else if (tab === 'pot') renderPot(); majPeek(); };
   maj(false);
   lecture.lireZone({
-    key, zone: sel.zone, partition: sel.partition, commune: sel.feature.properties.nom_com,
+    key, zone: sel.zone, partition: sel.partition, commune: sel.feature.properties.nom_com, force,
     onEtape: (t) => { s0.iaLecture.etape = t; const e = document.getElementById('iaLitEtape'); if (e && sel === s0) e.textContent = t; },
   }).then(({ trouve }) => {
     s0.iaLecture = null;

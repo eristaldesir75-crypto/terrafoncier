@@ -1,0 +1,49 @@
+name: Lecture des règlements (IA)
+on:
+  schedule:
+    - cron: "43 3 * * *" # chaque nuit : lit les règlements pas encore lus (quota gratuit de Gemini), puis republie le site
+  workflow_dispatch:
+    inputs:
+      max_docs:
+        description: "Nombre maximal de documents lus ce passage"
+        default: "120"
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency: { group: lecture-reglements, cancel-in-progress: false }
+jobs:
+  lecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    outputs:
+      nouveau: ${{ steps.pub.outputs.nouveau }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copie des PLU et lectures précédentes
+        run: |
+          git fetch origin data --depth=1 && git worktree add plu origin/data
+          if git fetch origin regles --depth=1; then git worktree add prev origin/regles; else mkdir -p prev; fi
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install requests pypdf
+      - name: Lecture des règlements par Gemini
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python -u tools/build_regles.py --plu plu/plu --prev prev --out out --max-docs "${{ inputs.max_docs || '120' }}"
+      - id: pub
+        name: Publication sur la branche regles (un seul commit)
+        run: |
+          if diff -rq prev out -x .git >/dev/null 2>&1; then echo "nouveau=non" >> "$GITHUB_OUTPUT"; echo "Rien de nouveau"; exit 0; fi
+          echo "nouveau=oui" >> "$GITHUB_OUTPUT"
+          cd out
+          git init -q -b regles
+          git config user.name "fonciscope-bot"
+          git config user.email "fonciscope-bot@users.noreply.github.com"
+          git add -A
+          git commit -qm "Règles lues le $(date -u +%F)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" regles
+  publier:
+    needs: lecture
+    if: needs.lecture.outputs.nouveau == 'oui'
+    uses: ./.github/workflows/pages.yml

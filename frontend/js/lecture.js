@@ -148,14 +148,40 @@ async function demander(cle, parts) {
   finally { clearTimeout(t); }
 }
 
+// Règles déjà lues par l'IA côté serveur (traitement « Lecture des règlements », data/regles) : chargées une fois
+// par document et enregistrées pour les zones qui n'ont pas encore de règles sur cet appareil.
+const copies = new Map();
+export function reglesCopie(partition) {
+  if (!partition) return Promise.resolve(0);
+  if (!copies.has(partition)) {
+    copies.set(partition, fetch(`data/regles/${encodeURIComponent(partition)}.json`, { cache: 'no-cache' })
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+      .then((j) => {
+        let n = 0;
+        for (const [zone, regles] of Object.entries((j && j.zones) || {})) {
+          const key = store.ruleKey(partition, zone), avant = store.getRules(key);
+          if (avant && avant.source !== 'ia-copie') continue;
+          if (!['ces', 'h', 'recul', 'ret', 'pt', 'stat'].some((k) => regles[k] !== null && regles[k] !== undefined)) continue;
+          store.saveRules(key, { ...regles, source: 'ia-copie' }); n++;
+        }
+        return n;
+      }));
+  }
+  return copies.get(partition);
+}
+
 const enCours = new Map();
 /**
  * Lit les règles d'une zone dans le règlement et les enregistre.
  * @returns { regles, trouve } — regles : objet enregistré (ou null si rien de trouvé)
  */
-export function lireZone({ key, zone, partition, commune, onEtape }) {
+export function lireZone({ key, zone, partition, commune, onEtape, force = false }) {
   if (enCours.has(key)) return enCours.get(key);
   const p = (async () => {
+    // déjà lue côté serveur ?
+    await reglesCopie(partition);
+    const dej = store.getRules(key);
+    if (!force && dej && dej.source === 'ia-copie') return { regles: dej, trouve: ['ces', 'h', 'recul', 'ret', 'pt', 'stat'].filter((k) => dej[k] !== null && dej[k] !== undefined).length };
     const cle = cleIA();
     if (!cle) throw new ErreurIA("Ajoutez votre clé Gemini (bulle Assistant) pour lire le règlement automatiquement");
     const libelle = zone.properties.libelle;

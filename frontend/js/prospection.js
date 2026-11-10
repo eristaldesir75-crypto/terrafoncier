@@ -385,6 +385,7 @@ export function initProspection(ctx) {
       setStatus(`Document d'urbanisme de ${esc(com.nom)}…`, 3);
       const partition = await trouverPartition(com, signal);
 
+      await lecture.reglesCopie(partition); // règles déjà lues par l'IA côté serveur
       setStatus(`Zonage ${esc(partition)}…`, 6);
       const zones = (await api.gpuByPartition('zone-urba', partition, { signal })).filter((z) => z.geometry);
       zones.forEach((z) => (z.bbox = turf.bbox(z)));

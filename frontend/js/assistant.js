@@ -135,10 +135,12 @@ function rendu(t) {
   return html + (liste ? '</ul>' : '');
 }
 
-class ErreurIA extends Error {}
+export class ErreurIA extends Error {}
+/** Clé Gemini de l'utilisateur (enregistrée sur cet appareil), ou chaîne vide. */
+export const cleIA = () => lire(CLE);
 
 /** Choix du modèle : le plus récent des modèles « Flash » stables accessibles avec la clé. */
-async function choisirModele(cle, force) {
+export async function choisirModele(cle, force) {
   const m = !force && lire(MODELE);
   if (m) return m;
   const r = await fetch(`${API}/models?pageSize=200`, { headers: { 'x-goog-api-key': cle } });
@@ -153,7 +155,7 @@ async function choisirModele(cle, force) {
   return nom;
 }
 
-async function erreurHttp(r) {
+export async function erreurHttp(r) {
   let msg = '';
   try { const j = await r.json(); msg = j.error?.message || ''; } catch { /* corps illisible */ }
   if (r.status === 400 && /api key|API_KEY/i.test(msg)) return new ErreurIA('Clé Gemini refusée : vérifiez-la (bouton « Clé » en haut de la bulle)');
@@ -356,5 +358,5 @@ export function initAssistant(ctx) {
     }
   }
 
-  return { ouvrir, envoyer: (t) => { q.value = t; return envoyer(); } };
+  return { ouvrir, ecranCle: () => { ouvrir(true); ecranCle(); }, envoyer: (t) => { q.value = t; return envoyer(); } };
 }

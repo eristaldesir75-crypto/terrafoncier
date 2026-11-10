@@ -9,6 +9,8 @@ import { noter, contraintesDe, compacite, POIDS_NATURE } from './score.js';
 import { voisinages, regroupements, fusion, sansDoublons, facadesSurRue } from './remembrement.js';
 import * as permis from './permis.js';
 import { reglesGraphiquesParcelle, fusionRegles } from './regles.js';
+import * as lecture from './lecture.js';
+import { cleIA } from './assistant.js';
 
 const NATURES_DEFAUT = Object.keys(NATURES).filter((k) => NATURES[k].opp);
 const TUILE = 0.01; // degrés (≈ 1,1 km × 0,75 km)
@@ -616,6 +618,8 @@ export function initProspection(ctx) {
       renderResults();
       // adresses en arrière-plan : la liste est utilisable tout de suite, les adresses s'ajoutent au fil de l'eau
       ajouterAdresses(st.results).catch(() => {});
+      // zones sans règles : lecture du règlement écrit par l'IA (clé Gemini enregistrée), puis nouveau classement
+      if (cleIA() && st.zonesMissing.length) await lireZonesManquantes(st.results, signal);
     } catch (e) {
       st.erreur = e.name === 'AbortError' || signal.aborted ? 'Prospection arrêtée' : e.message;
       setStatus(`<p class="err">${esc(st.erreur)}</p>`);
@@ -623,6 +627,29 @@ export function initProspection(ctx) {
       st.running = false; st.ctrl = null;
       const btn = $('#proForm button[type=submit]'); if (btn) btn.disabled = false; $('#proStop')?.remove();
       if (st.results) renderResults();
+    }
+  }
+
+  /** Lit dans le règlement les règles des zones qui en manquent (6 zones au plus, les plus fournies d'abord). */
+  async function lireZonesManquantes(r, signal) {
+    const zs = st.zonesMissing.filter((m) => !lecture.dejaLue(m.key)).slice(0, 6);
+    if (!zs.length) return;
+    let lues = 0, trouvees = 0;
+    for (let i = 0; i < zs.length; i++) {
+      if (signal.aborted) break;
+      const m = zs[i], lib = m.zone.properties.libelle;
+      setStatus(`Lecture du règlement par l'IA : zone ${esc(lib)} (${i + 1} / ${zs.length}), ${m.n} terrain(s) concerné(s)…`, 97);
+      try {
+        const { trouve } = await lecture.lireZone({ key: m.key, zone: m.zone, partition: r.partition, commune: r.com.nom, onEtape: (t) => setStatus(`Zone ${esc(lib)} (${i + 1} / ${zs.length}) : ${esc(t)}`, 97) });
+        lues++; if (trouve) trouvees++;
+      } catch (e) {
+        r.avertissements.push(`Règlement de la zone ${lib} non lu par l'IA : ${e.message}`);
+        if (/quota|clé|Clé/i.test(e.message)) break;
+      }
+    }
+    if (lues) {
+      r.avertissements.push(`Règles lues par l'IA dans le règlement écrit pour ${trouvees} zone(s) sur ${lues} : à vérifier avant engagement (citations dans la fiche de chaque parcelle, onglet Urbanisme).`);
+      rerank();
     }
   }
 

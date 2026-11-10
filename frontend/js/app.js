@@ -9,7 +9,8 @@ import { reglesGraphiques, fusionRegles } from './regles.js';
 import { reglesParZone, plage } from './zones.js';
 import * as permis from './permis.js';
 import * as fais from './faisabilite.js';
-import { initAssistant } from './assistant.js';
+import { initAssistant, cleIA } from './assistant.js';
+import * as lecture from './lecture.js';
 
 // ---------- Utilitaires ----------
 const $ = (s, el = document) => el.querySelector(s);
@@ -323,6 +324,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
     const ps = Array.isArray(x['prescription-surf']) ? x['prescription-surf'] : null;
     sel.contraintes = ps ? contraintesDe(f, grille(ps.filter((p) => p.geometry)), sel.occ ? sel.occ.S : +f.properties.contenance) : null;
     rerender();
+    autoLecture();
   });
   Promise.all([occAtP, frP]).then(([occAt, fr]) => {
     if (token !== selToken) return;
@@ -361,7 +363,7 @@ function rulesBlock(key, zoneLabel, onChange, ctx = {}) {
       `<p class="note">Aucune règle enregistrée pour cette zone. Saisissez-les une fois depuis le règlement : elles serviront pour toutes les parcelles de la zone.</p>`}
     <div class="actions">
       <button type="button" class="ghost" data-act="edit">${saved ? 'Modifier les règles' : 'Saisir les règles'}</button>
-      ${backend ? '<button type="button" data-act="ia">Extraire avec l\'IA</button>' : ''}
+      ${backend ? '<button type="button" data-act="ia">Extraire avec l\'IA</button>' : `<button type="button" data-act="gem">${saved && /ia/.test(saved.source || '') ? 'Relire le règlement avec l\'IA' : 'Lire le règlement avec l\'IA'}</button>`}
     </div>
     <form class="form-grid" data-form hidden>
       ${RULE_FIELDS.map((fd) => `<label for="${uid}-${fd.k}">${esc(fd.label)}<input type="number" step="any" min="0" id="${uid}-${fd.k}" value="${saved && saved[fd.k] !== null && saved[fd.k] !== undefined ? (fd.pct ? +(saved[fd.k] * 100).toFixed(1) : saved[fd.k]) : ''}"></label>`).join('')}
@@ -375,6 +377,18 @@ function rulesBlock(key, zoneLabel, onChange, ctx = {}) {
     const rules = { source: 'manuel', citations: {} };
     RULE_FIELDS.forEach((fd) => { const v = $(`#${uid}-${fd.k}`, form).value; rules[fd.k] = v === '' ? null : fd.pct ? +v / 100 : +v; });
     store.saveRules(key, rules); toast('Règles enregistrées'); onChange && onChange();
+  };
+  const gem = wrap.querySelector('[data-act=gem]');
+  if (gem) gem.onclick = async () => {
+    if (!cleIA()) { assistant.ecranCle(); return; }
+    const zone = ctx.zone || sel?.zone, partition = ctx.partition || sel?.partition;
+    if (!zone || !partition) { toast('Zone du PLU inconnue'); return; }
+    gem.disabled = true;
+    try {
+      const { trouve } = await lecture.lireZone({ key, zone, partition, onEtape: (t) => (gem.textContent = t.length > 48 ? t.slice(0, 46) + '…' : t) });
+      toast(trouve ? `Zone ${zoneLabel} : ${trouve} règle(s) lue(s)` : `Zone ${zoneLabel} : règles non trouvées dans le règlement`);
+      onChange && onChange();
+    } catch (e) { toast(e.message); gem.disabled = false; gem.textContent = "Lire le règlement avec l'IA"; }
   };
   const ia = wrap.querySelector('[data-act=ia]');
   if (ia) ia.onclick = async () => {
@@ -503,7 +517,12 @@ function ficheUrba(body) {
   const opsZone = ops && sel.zone ? ops.filter((p) => p.centre && (() => { try { return turf.booleanPointInPolygon(turf.point(p.centre), sel.zone); } catch { return false; } })()) : [];
   const ref = opsZone.length >= 3 ? { l: opsZone, ou: `dans la zone ${sel.zLabel}` } : ops && ops.length >= 3 ? { l: ops, ou: 'dans la commune' } : null;
   const fmtR = (k, v) => (v === null || v === undefined ? null : k === 'ces' || k === 'pt' ? `${Math.round(v * 100)} %` : `${String(v).replace('.', ',')} m`);
-  const src = (k) => (fu.origine[k] === 'plan' ? '<span class="pill ok">plan graphique</span>' : fu.origine[k] === 'zone' ? '<span class="pill wa">vos règles</span>' : '');
+  const lu = store.getRules(sel.key), cit = (k) => lu && lu.citations && lu.citations[k] && lu.citations[k].status !== 'non_trouve' ? lu.citations[k] : null;
+  const src = (k) => (fu.origine[k] === 'plan' ? '<span class="pill ok">plan graphique</span>'
+    : fu.origine[k] === 'zone' ? (cit(k) ? `<span class="pill wa" title="${esc(cit(k).citation || '')}">lu par l'IA${cit(k).page ? ', p. ' + cit(k).page : ''}</span>` : '<span class="pill wa">vos règles</span>') : '');
+  const manque = ['ces', 'h', 'recul', 'ret', 'pt', 'stat'].some((k) => r[k] === null);
+  const lecturePossible = logementOk !== false && sel.zone && sel.partition && manque;
+  const iaEtat = sel.iaLecture && sel.iaLecture.key === sel.key ? sel.iaLecture : null;
   const verdict = !sel.zone && !sel.cc ? (sel.urba['zone-urba'] === 'loading' ? ['', 'Lecture du PLU…'] : ['wa', 'Zone non déterminée'])
     : sel.cc ? ['wa', 'Carte communale : constructible dans les secteurs délimités']
     : logementOk ? ['ok', 'Logement autorisé par le PLU']
@@ -527,13 +546,17 @@ function ficheUrba(body) {
       <p class="note">${ref.l.length} opérations de 5 logements collectifs ou plus autorisées depuis 2015 (permis de construire) : hauteur médiane <b>${med(ref.l.map((p) => p.niveaux)) ? 'R+' + (med(ref.l.map((p) => p.niveaux)) - 1) : '—'}</b>, densité médiane <b>${med(ref.l.map((p) => permis.densite(p))) ? f0(med(ref.l.map((p) => permis.densite(p)))) + ' logements/ha' : '—'}</b>, soit environ <b>${med(ref.l.map((p) => permis.densite(p))) ? Math.floor((S * med(ref.l.map((p) => permis.densite(p)))) / 10000) : '—'} logements</b> à cette densité sur la parcelle.</p></div>`
       : sel.permis === 'loading' ? '<p class="note">Recherche des opérations récentes de la commune…</p>' : ''}
     <dl class="kv">
-      <dt>Recul sur voie</dt><dd>${r.recul !== null ? fmtR('recul', r.recul) + ' ' + src('recul') : '<span class="note">dans le règlement écrit</span>'}</dd>
-      <dt>Retrait limites</dt><dd>${r.ret !== null ? fmtR('ret', r.ret) + ' ' + src('ret') : '<span class="note">dans le règlement écrit</span>'}</dd>
-      <dt>Stationnement</dt><dd>${r.stat !== null ? `${r.stat} place(s) / logement ${src('stat')}` : '<span class="note">dans le règlement écrit</span>'}</dd>
+      <dt>Recul sur voie</dt><dd>${r.recul !== null ? fmtR('recul', r.recul) + ' ' + src('recul') + condHtml(cit('recul')) : '<span class="note">non trouvé dans le règlement</span>'}</dd>
+      <dt>Retrait limites</dt><dd>${r.ret !== null ? fmtR('ret', r.ret) + ' ' + src('ret') + condHtml(cit('ret')) : '<span class="note">non trouvé dans le règlement</span>'}</dd>
+      <dt>Stationnement</dt><dd>${r.stat !== null ? `${String(r.stat).replace('.', ',')} place(s) / logement ${src('stat')}${condHtml(cit('stat'))}` : '<span class="note">non trouvé dans le règlement</span>'}</dd>
       <dt>OAP</dt><dd>${pending ? 'Chargement…' : oap.length ? [...new Set(oap.map((x) => x.properties.libelle))].map(esc).join(' · ') : 'Aucune'}</dd>
       <dt>Prescriptions</dt><dd>${pending ? 'Chargement…' : prescF.length ? [...new Set(prescF.map((x) => x.properties.libelle || x.properties.txt).filter(Boolean))].map(esc).join(' · ') : 'Aucune'}</dd>
     </dl>
-    ${logementOk !== false && (r.ces === null || r.h === null || r.recul === null || r.ret === null || r.stat === null) ? `<div class="warn plu-box"><b>Règles de la zone ${esc(sel.zLabel)} à lire dans le règlement du PLU.</b> ${r.ces === null && r.h === null ? "Le PLU de la commune ne publie pas l'emprise ni la hauteur sous forme de données." : 'Recul, retrait et stationnement ne sont publiés que dans le règlement écrit.'} Ouvrez-le ci-dessous, chapitre de la zone ${esc(sel.zLabel)}.</div>` : ''}
+    ${iaEtat && iaEtat.etat === 'cours' ? `<div class="synth-pot ia-lit" id="iaLit"><b>Lecture du règlement de la zone ${esc(sel.zLabel)} par l'IA…</b><br><span class="note" id="iaLitEtape">${esc(iaEtat.etape || '')}</span></div>` : ''}
+    ${iaEtat && iaEtat.etat === 'erreur' ? `<div class="warn">Lecture automatique du règlement impossible : ${esc(iaEtat.message)}. <button type="button" class="ghost" id="iaRelire">Réessayer</button></div>` : ''}
+    ${lu && /ia/.test(lu.source || '') ? `<p class="note">Règles lues par l'IA dans le règlement écrit${lu.document ? ` (<a href="${esc(lu.document)}" target="_blank" rel="noopener">PDF</a>)` : ''} : à vérifier avant engagement.${lu.zoneTrouvee === false ? ' Le chapitre de la zone n\'a pas été trouvé avec certitude.' : ''}${lu.remarque ? ' ' + esc(lu.remarque) : ''} <button type="button" class="btn-link" id="iaRelire2">Relire</button></p>` : ''}
+    ${lecturePossible && !cleIA() && !lecture.dejaLue(sel.key) ? `<div class="warn plu-box"><b>Le site peut lire le règlement de la zone ${esc(sel.zLabel)} pour vous.</b> Ajoutez votre clé Gemini gratuite pour remplir automatiquement emprise, hauteur, recul, retrait, pleine terre et stationnement. <button type="button" id="iaCleZone">Ajouter ma clé</button></div>` : ''}
+    ${!iaEtat && !(lecturePossible && !cleIA() && !lecture.dejaLue(sel.key)) && logementOk !== false && (r.ces === null || r.h === null || r.recul === null || r.ret === null || r.stat === null) ? `<div class="warn plu-box"><b>${lecture.dejaLue(sel.key) ? `Règles de la zone ${esc(sel.zLabel)} non trouvées par l'IA dans le règlement.` : `Règles de la zone ${esc(sel.zLabel)} à lire dans le règlement du PLU.`}</b> ${lecture.dejaLue(sel.key) ? 'Ouvrez le règlement ci-dessous pour les compléter.' : r.ces === null && r.h === null ? "Le PLU de la commune ne publie pas l'emprise ni la hauteur sous forme de données." : 'Recul, retrait et stationnement ne sont publiés que dans le règlement écrit.'} Ouvrez-le ci-dessous, chapitre de la zone ${esc(sel.zLabel)}.</div>` : ''}
     <div class="pieces"><div class="label">Documents du PLU</div><div id="piecesSlot"><div class="actions">
       ${regl ? `<a class="btn-link" href="${esc(regl)}" target="_blank" rel="noopener">Règlement de la zone</a>` : ''}
       <a class="btn-link" href="${api.gpuViewerUrl(lng, lat)}" target="_blank" rel="noopener">Géoportail de l'Urbanisme</a></div>
@@ -546,6 +569,37 @@ function ficheUrba(body) {
   else if (constr !== false) slot.appendChild(rulesBlock(sel.key, sel.zLabel, renderFiche));
   else slot.innerHTML = '<p class="note">Zone agricole ou naturelle : pas de potentiel de logement.</p>';
   if (sel.partition) afficherPieces($('#piecesSlot', body), sel.partition, regl, lng, lat);
+  // Lecture automatique du règlement écrit par l'IA : une fois par zone, dès qu'une règle manque
+  const relire = () => lireReglementSel(true);
+  ['#iaRelire', '#iaRelire2'].forEach((id) => { const b = $(id, body); if (b) b.onclick = relire; });
+  const kz = $('#iaCleZone', body); if (kz) kz.onclick = () => assistant.ecranCle();
+  if (lecturePossible && cleIA() && !lecture.dejaLue(sel.key) && !iaEtat && sel.urba['prescription-surf'] !== 'loading') lireReglementSel(false);
+}
+
+/** Règles manquantes pour la parcelle sélectionnée : lecture du règlement par l'IA si la clé est enregistrée. */
+function autoLecture() {
+  if (!sel || !sel.zone || !sel.partition || sel.iaLecture || !cleIA() || lecture.dejaLue(sel.key)) return;
+  if (zoneConstructible(sel.zone) !== true || zoneHorsLogement(sel.zone)) return;
+  const fu = fusionRegles(store.getRules(sel.key), sel.graph);
+  if (['ces', 'h', 'recul', 'ret', 'pt', 'stat'].some((k) => fu.regles[k] === null)) lireReglementSel(false);
+}
+const condHtml = (c) => (c && (c.article || c.condition) ? ` <span class="note">${esc([c.article, c.condition].filter(Boolean).join(' · '))}</span>` : '');
+/** Lance la lecture du règlement de la zone de la parcelle sélectionnée, puis réaffiche fiche, faisabilité et résumé. */
+function lireReglementSel(force) {
+  if (!sel || !sel.zone || !sel.partition) return;
+  if (!force && lecture.dejaLue(sel.key)) return;
+  const s0 = sel, key = sel.key;
+  s0.iaLecture = { key, etat: 'cours', etape: '' };
+  const maj = (fin) => { if (sel !== s0) return; if (fin && sel.fais) sel.fais = null; if (tab === 'fiche') renderFiche(); else if (tab === 'pot') renderPot(); majPeek(); };
+  maj(false);
+  lecture.lireZone({
+    key, zone: sel.zone, partition: sel.partition, commune: sel.feature.properties.nom_com,
+    onEtape: (t) => { s0.iaLecture.etape = t; const e = document.getElementById('iaLitEtape'); if (e && sel === s0) e.textContent = t; },
+  }).then(({ trouve }) => {
+    s0.iaLecture = null;
+    toast(trouve ? `Zone ${s0.zLabel} : ${trouve} règle(s) lue(s) dans le règlement` : `Zone ${s0.zLabel} : règles non trouvées dans le règlement`);
+    maj(true);
+  }).catch((e) => { s0.iaLecture = { key, etat: 'erreur', message: e.message }; maj(false); });
 }
 
 // Liens directs vers les pièces du PLU : règlement de la zone, plan de zonage, OAP, archive complète
@@ -1059,6 +1113,7 @@ function renderPot() {
     <div class="fiche-head"><div><span class="ref">${esc(refOf(p))} · zone ${esc(sel.zLabel)}</span><h2>Faisabilité</h2></div>
       <div class="actions"><button type="button" id="fais3d">${F.vue3d ? 'Vue 2D' : 'Voir en 3D'}</button><button type="button" class="ghost" id="faisReset">Réinitialiser</button></div></div>
     <div class="kpis" id="faisKpis"></div>
+    ${sel.iaLecture && sel.iaLecture.etat === 'cours' ? `<p class="synth-pot"><b>Lecture du règlement de la zone ${esc(sel.zLabel)} par l'IA…</b> Les valeurs se mettront à jour.</p>` : ''}
     <p class="note">Le bâtiment est dessiné en jaune sur la carte, à partir de la façade ${F.surRue ? 'sur rue' : '(la plus longue, rue non détectée)'} de ${fmt1(F.fac.a)} m. Faites-le glisser sur la carte pour le déplacer, ou modifiez les valeurs ci-dessous : tout se recalcule. Les valeurs marquées <span class="pill ok">PLU</span> viennent du PLU de la commune.</p>
     <div class="tw"><table class="fais-table"><tbody>${LIGNES.map(ligne).join('')}</tbody></table></div>
     <details class="rules-edit"><summary>Calcul réglementaire simplifié et règles de la zone</summary><div id="potSimple"></div></details>
@@ -1272,6 +1327,8 @@ async function iaParcelle(a, vue) {
   await new Promise((ok) => setTimeout(ok, 50));
   await attendre(selPrete);
   if (!sel || !sel.feature) throw new Error((sel && sel.error) || 'Parcelle introuvable à cet endroit');
+  // lecture du règlement de la zone en cours : on attend ses règles (2 min 30 au plus)
+  await attendre(() => !sel.iaLecture || sel.iaLecture.etat !== 'cours', 150000);
 }
 
 /** Résumé de la parcelle sélectionnée : uniquement des données publiques et des calculs du site. */

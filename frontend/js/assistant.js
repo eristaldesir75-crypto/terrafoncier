@@ -242,13 +242,13 @@ export function initAssistant(ctx) {
     fil.innerHTML = `<div class="ia-cle">
       <p><b>Activez l'assistant avec votre clé Gemini gratuite.</b></p>
       <ol><li>Ouvrez <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> avec votre compte Google.</li><li>Touchez « Create API key », puis copiez la clé.</li><li>Collez-la ci-dessous.</li></ol>
-      <label for="iaCle">Clé Gemini<input type="password" id="iaCle" autocomplete="off" spellcheck="false" placeholder="AIza…"></label>
+      <label for="iaCle">Clé Gemini<input type="password" id="iaCle" autocomplete="off" spellcheck="false" placeholder="Collez votre clé ici"></label>
       <div class="actions"><button type="button" id="iaCleOk">Activer</button>${lire(CLE) ? '<button type="button" class="ghost" id="iaCleSup">Supprimer la clé</button>' : ''}</div>
       <p class="note">La clé reste dans ce navigateur, sur cet appareil : à coller une fois par appareil. L'assistant n'envoie à Gemini que vos demandes et des données publiques (cadastre, PLU, résultats de calcul), jamais vos notes de suivi. Sur la version gratuite, Google peut utiliser ces échanges pour améliorer ses modèles.</p></div>`;
     const inp = fil.querySelector('#iaCle');
     fil.querySelector('#iaCleOk').onclick = async () => {
       const k = inp.value.trim();
-      if (!/^[\w-]{20,}$/.test(k)) { ctx.toast('Clé incomplète : collez-la en entier'); return; }
+      if (!/^[\w.-]{20,}$/.test(k)) { ctx.toast('Clé incomplète : collez-la en entier'); return; }
       const b = fil.querySelector('#iaCleOk'); b.disabled = true; b.textContent = 'Vérification…';
       try { ecrire(MODELE, ''); await choisirModele(k, true); ecrire(CLE, k); ctx.toast('Assistant activé'); accueil(); q.focus(); }
       catch (e) { b.disabled = false; b.textContent = 'Activer'; ctx.toast(e instanceof ErreurIA ? e.message : 'Vérification impossible : connexion à Google refusée'); }

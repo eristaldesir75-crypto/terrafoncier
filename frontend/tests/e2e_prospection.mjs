@@ -60,7 +60,7 @@ if (await page.locator('#tab-pot').count()) {
   await page.waitForSelector('#faisKpis div', { timeout: 40000 }).catch(() => {});
   console.log('FAISABILITÉ :', (await page.locator('#v-pot').innerText().catch(() => '')).replace(/\n+/g, ' | ').slice(0, 1600));
   await page.screenshot({ path: 'e2e-2d.png' });
-  const b64 = async (nom) => { const buf = await page.screenshot({ type: 'jpeg', quality: 45, clip: { x: 0, y: 60, width: 1400 - 470, height: 840 } }); console.log(`IMG-${nom}-DEBUT${buf.toString('base64')}IMG-${nom}-FIN`); };
+  const b64 = async (nom) => { const buf = await page.screenshot({ type: 'jpeg', quality: 45, clip: { x: 0, y: 60, width: 1400 - 470, height: 840 } }); const t = buf.toString('base64'); for (let i = 0; i < t.length; i += 3000) console.log(`IMG-${nom}-${String(i / 3000).padStart(4, '0')}:${t.slice(i, i + 3000)}`); console.log(`IMG-${nom}-N:${Math.ceil(t.length / 3000)}`); };
   await b64('2D');
   const b3 = page.locator('#fais3d');
   if (await b3.count()) { await b3.click(); await page.waitForTimeout(5000); await page.screenshot({ path: 'e2e-3d.png' }); await b64('3D'); }

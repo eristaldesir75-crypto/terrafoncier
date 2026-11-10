@@ -29,19 +29,48 @@ function pdfjs() {
 export async function urlReglement(zone, partition) {
   const u = api.reglementUrl(zone, partition);
   const directe = u && !/download-by-partition/.test(u) ? u : null;
-  let piece = null;
+  // PLUi : règlement souvent en plusieurs fichiers (dispositions communes, tomes par zone ou par commune) :
+  // ceux qui citent la zone ou la commune d'abord, puis les dispositions communes, puis le plus court
+  let pieces = [];
   try {
     const d = await api.piecesPlu(partition);
     const F = d ? d.fichiers : [];
-    piece = F.filter((x) => /r[eè]glement/i.test(x.nom + ' ' + x.rubrique) && !/graphique|prescription|zonage|plan|annexe/i.test(x.nom) && /\.pdf$/i.test(x.nom)).sort((a, b) => a.nom.length - b.nom.length)[0] || null;
-  } catch { piece = null; }
+    const lib = zone && zone.properties ? zone.properties.libelle || '' : '';
+    const base = lib.replace(/-.*$/, '').replace(/[a-z]+\d*$/, '');
+    const insee = zone && zone.properties && zone.properties.insee ? String(zone.properties.insee) : '';
+    const note = (x) => {
+      const n = x.nom.replace(/\.pdf$/i, '');
+      let v = 0;
+      if (lib && new RegExp(`(^|[^A-Za-z0-9])${lib.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^A-Za-z0-9]|$)`).test(n)) v += 10;
+      else if (base && new RegExp(`(^|[^A-Za-z0-9])${base}([^A-Za-z]|$)`).test(n)) v += 6;
+      if (/zones?_?u|urbaines?/i.test(n) && /^\d?U/.test(lib)) v += 3;
+      if (/zones?_?au|a_urbaniser/i.test(n) && /^\d?AU/.test(lib)) v += 3;
+      if (insee && n.includes(insee)) v += 5;
+      if (/commun|g[ée]n[ée]ral|disposition|tome_?1|livre_?1|partie_?1/i.test(n)) v += 2;
+      return v;
+    };
+    pieces = F.filter((x) => /r[eè]glement/i.test(x.nom + ' ' + x.rubrique) && !/graphique|prescription|zonage|plan|annexe|lexique|nuancier|palette/i.test(x.nom) && /\.pdf$/i.test(x.nom))
+      .sort((a, b) => note(b) - note(a) || a.nom.length - b.nom.length);
+  } catch { pieces = []; }
   // le lien du GPU redirige vers data.geopf.fr sans autoriser la lecture par le navigateur (CORS) : lien direct vers le fichier
   const direct = (u0) => { const m = u0 && u0.match(/\/api\/document\/([0-9a-f]+)\/files\/([^?#]+)/); return m ? `https://data.geopf.fr/annexes/gpu/documents/${encodeURIComponent(partition)}/${m[1]}/${m[2]}` : u0; };
-  return [...new Set([directe, piece && piece.url].filter(Boolean).map(direct))];
+  return [...new Set([directe, ...pieces.slice(0, 4).map((x) => x.url)].filter(Boolean).map(direct))];
 }
 
 // Texte des PDF déjà lus, le temps de la visite (un règlement sert à toutes ses zones)
 const textes = new Map();
+/** Lit plusieurs fichiers du règlement (PLUi en plusieurs tomes) : pages réunies, chacune avec son fichier et sa page. */
+async function lireReglement(urls, onEtape, max = 3) {
+  const docs = [];
+  for (const u of urls) {
+    if (docs.length >= max) break;
+    try { docs.push(await lirePdf([u], onEtape)); } catch (e) { if (!docs.length && u === urls[urls.length - 1]) throw e; }
+  }
+  if (!docs.length) throw new Error('Aucun règlement écrit lisible pour ce document');
+  const nom = (u) => decodeURIComponent(u.split('/').pop());
+  const pages = docs.flatMap((d) => d.pages.map((t, i) => ({ t, lab: docs.length > 1 ? `page ${i + 1} de ${nom(d.url)}` : `page ${i + 1}` })));
+  return { url: docs[0].url, urls: docs.map((d) => d.url), pages, octets: docs[0].octets, pdf: docs[0].pdf };
+}
 async function lirePdf(urls, onEtape) {
   for (const url of urls) {
     if (textes.has(url)) return textes.get(url);
@@ -82,6 +111,8 @@ function pagesDeZone(pages, zone) {
   const cs = codes(zone);
   const re = cs.map((c) => new RegExp(`(?<![A-Za-z0-9])${echap(c)}(?![A-Za-z0-9])`, 'g'));
   const titre = cs.map((c) => new RegExp(`(zone|secteur|chapitre|titre|dispositions applicables)[^\\n]{0,40}(?<![A-Za-z0-9])${echap(c)}(?![A-Za-z0-9])`, 'i'));
+  const labs = pages.map((p) => p.lab);
+  pages = pages.map((p) => p.t);
   const score = pages.map((t, i) => {
     let s = 0;
     re.forEach((r, k) => { const n = (t.match(r) || []).length; s += n * (k === 0 ? 2 : 1); });
@@ -103,7 +134,7 @@ function pagesDeZone(pages, zone) {
   pages.forEach((t, i) => { if (/stationnement/i.test(t) && /logement/i.test(t) && /place/i.test(t) && choisies.size < 70) choisies.add(i); });
   const liste = [...choisies].sort((a, b) => a - b);
   let total = 0; const out = [];
-  for (const i of liste) { const t = `[page ${i + 1}]\n${pages[i]}\n`; if (total + t.length > MAX_CAR) break; out.push(t); total += t.length; }
+  for (const i of liste) { const t = `[${labs[i]}]\n${pages[i]}\n`; if (total + t.length > MAX_CAR) break; out.push(t); total += t.length; }
   return out.join('\n');
 }
 
@@ -213,10 +244,10 @@ export function lireZone({ key, zone, partition, commune, onEtape, force = false
     const libelle = zone.properties.libelle;
     const urls = await urlReglement(zone, partition);
     if (!urls.length) throw new Error('Aucun règlement écrit publié au Géoportail de l\'Urbanisme pour ce document');
-    const doc = await lirePdf(urls, onEtape);
+    const doc = await lireReglement(urls, onEtape);
     const texte = pagesDeZone(doc.pages, libelle);
     let parts;
-    if (texte.replace(/\[page \d+\]|\s/g, '').length > 1500) parts = [{ text: `${consigne(libelle, commune)}\n\n${texte}` }];
+    if (texte.replace(/\[page [^\]]*\]|\s/g, '').length > 1500) parts = [{ text: `${consigne(libelle, commune)}\n\n${texte}` }];
     else if (doc.octets <= 18e6) {
       // règlement scanné (pas de texte) : le PDF est envoyé tel quel, Gemini le lit comme une image
       onEtape && onEtape('Règlement scanné : envoi du PDF à Gemini…');

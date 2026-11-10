@@ -308,7 +308,9 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   coreP.then((x0) => secours(x0, ['zone-urba', 'secteur-cc'])).then((x) => {
     if (token !== selToken) return;
     Object.assign(sel.urba, x);
-    sel.zone = (x['zone-urba'] || [])[0] || null;
+    // plusieurs documents au même endroit (ancien PLU communal encore publié et PLUi) : le plus récemment approuvé s'applique
+    const zs = (x['zone-urba'] || []).slice().sort((a, b) => String(b.properties.datappro || '').localeCompare(String(a.properties.datappro || '')) || (/PSMV/.test(a.properties.partition || '') - /PSMV/.test(b.properties.partition || '')));
+    sel.zone = zs[0] || null;
     sel.cc = (x['secteur-cc'] || [])[0] || null;
     sel.partition = sel.zone?.properties.partition || sel.cc?.properties.partition || sel.partition || null;
     sel.zLabel = sel.zone?.properties.libelle || sel.cc?.properties.libelle || (x['zone-urba'] === null ? '?' : 'RNU');

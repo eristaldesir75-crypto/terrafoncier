@@ -99,11 +99,12 @@ def cartographie_communes(deps):
         def une(c):
             insee = c["code"]
             ds = docs_en_vigueur(insee)
-            if not ds and c.get("codeEpci"):
+            # PLUi de l'intercommunalité : toujours cherché, même si un ancien PLU communal est encore publié
+            if c.get("codeEpci"):
                 e = c["codeEpci"]
                 if e not in epci_cache:
                     epci_cache[e] = docs_en_vigueur(e)
-                ds = epci_cache[e]
+                ds = ds + [d for d in epci_cache[e] if d not in ds]
             parts = {d["name"]: d for d in ds}
             entry = {"nom": c["nom"]}
             if not parts and c.get("centre"):
@@ -112,7 +113,19 @@ def cartographie_communes(deps):
                     l = gpu_json("/document", {"partition": p, "status": "document.production"}) or []
                     parts = {d["name"]: d for d in l if str(d.get("name", "")).startswith("DU_")}
             if parts:
-                entry["partitions"] = sorted(parts)
+                # le document le plus récent d'abord (c'est lui qui s'applique quand un PLUi remplace un PLU)
+                def date_doc(k):
+                    m = re.search(r"_(\d{8})(?:_|$)", str(parts[k].get("originalName") or ""))
+                    return m.group(1) if m else "0"
+                entry["partitions"] = sorted(parts, key=lambda k: (date_doc(k), k), reverse=True)
+                # plusieurs documents (ancien PLU communal et PLUi, ou PLUi partiel) : celui qui s'applique au centre de la commune d'abord
+                if len(parts) > 1 and c.get("centre"):
+                    try:
+                        p0 = partition_par_point(*c["centre"]["coordinates"])
+                    except Exception:
+                        p0 = None
+                    if p0 in parts:
+                        entry["partitions"] = [p0] + [k for k in entry["partitions"] if k != p0]
             else:
                 g = gpu_json(f"/grid/{insee}") or {}
                 entry["rnu"] = bool(g.get("rnu"))

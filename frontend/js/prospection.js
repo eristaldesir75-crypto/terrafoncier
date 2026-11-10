@@ -291,6 +291,7 @@ export function initProspection(ctx) {
     let partition = null;
     const copie = await api.communeCopie(com.code);
     if (copie && copie.rnu) throw new api.ApiError(`${com.nom} est au RNU : pas de PLU ni de carte communale, c'est le règlement national d'urbanisme qui s'applique`);
+    // copie : document qui s'applique au centre de la commune en premier (ancien PLU et PLUi, PLUi partiels)
     if (copie && copie.partitions && copie.partitions.length) partition = copie.partitions.find((x) => !/PSMV/i.test(x)) || copie.partitions[0];
     const [cx, cy] = com.centre.coordinates;
     const points = [[0, 0], [0.006, 0], [-0.006, 0], [0, 0.004], [0, -0.004], [0.012, 0.008], [-0.012, -0.008], [0.012, -0.008], [-0.012, 0.008]];

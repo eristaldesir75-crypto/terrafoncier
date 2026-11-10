@@ -434,7 +434,8 @@ export function initProspection(ctx) {
         if (!dest) { compte.zone++; continue; }
         if (dest === 'activite' && !okSeule) { compte.surface++; continue; }
         const k = { f, zone: z, zoneLib: z.properties.libelle, pt: [x, y], S, dest };
-        if (okSeule) cand.push(k); else pool.push(k);
+        if (okSeule) cand.push(k);
+        if (okPool && dest === 'logement') pool.push(k); // petite parcelle : aussi candidate au remembrement
       }
       if (!cand.length && !pool.length) {
         st.results = { com, partition, list: [], attente: [], compte, secs: Math.round((performance.now() - t0) / 1000), avertissements: [] };

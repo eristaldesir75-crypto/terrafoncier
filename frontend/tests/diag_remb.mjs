@@ -3,7 +3,7 @@ import { chromium } from 'playwright';
 const b = await chromium.launch(); const page = await b.newPage({ viewport: { width: 1400, height: 900 } });
 await page.goto('https://fonciscope.github.io/#14/47.39/0.66', { waitUntil: 'load' });
 await page.waitForTimeout(2500);
-for (const crit of [{ commune: 'La Riche', zones: ['UA', 'UAa'] }, { commune: 'La Riche' }]) {
+for (const crit of [{ commune: 'La Riche', zones: ['UA', 'UAa'], surface_min: 0 }, { commune: 'La Riche', zones: ['UA', 'UAa'], surface_min: 0, logements_min: 0 }]) {
   const r = await page.evaluate(async (crit) => {
     const pro = window.tfDebug().pro;
     const res = await pro.lancer(crit);

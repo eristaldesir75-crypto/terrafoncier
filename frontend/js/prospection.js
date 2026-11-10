@@ -409,6 +409,13 @@ export function initProspection(ctx) {
 
       // 1. Parcelles situées dans une zone retenue (index des zones pour aller vite)
       const seule = c.mode !== 'remembrement', remb = c.mode !== 'seule';
+      // Surface visée par le remembrement : la surface minimale, ou à défaut celle qu'il faut pour le nombre de logements
+      // demandé à la densité des opérations collectives de la commune (1 000 m² sans repère). Sans elle, aucune parcelle
+      // ne serait « trop petite » et le remembrement ne proposerait rien.
+      const dens0 = remb ? await Promise.race([densP, new Promise((ok) => setTimeout(() => ok(null), 5000))]) : null;
+      const dMed = dens0 && dens0.commune.n >= 3 ? dens0.commune.med : null;
+      const sCible = c.lmin && dMed ? Math.round((c.lmin * 10000) / dMed) : 0;
+      const sRemb = c.smin || Math.max(1000, Math.min(sCible, 5000));
       const cand = [], pool = [];
       const compte = { total: parcels.length, surface: 0, perimetre: 0, zone: 0, nature: 0, regles: 0, sansRegles: 0, contraintes: 0, score: 0, groupes: 0 };
       for (let n = 0; n < parcels.length; n++) {
@@ -417,7 +424,7 @@ export function initProspection(ctx) {
         if (!f.geometry) continue;
         const S = +f.properties.contenance || 0;
         const okSeule = seule && S >= (c.smin || 0) && !(c.smax && S > c.smax);
-        const okPool = remb && S >= 150 && S < (c.smin || Infinity);
+        const okPool = remb && S >= 150 && S < sRemb;
         if (!okSeule && !okPool) { compte.surface++; continue; }
         const pt = turf.pointOnFeature(f), [x, y] = pt.geometry.coordinates;
         if (bounds && !bounds.contains([x, y])) { compte.perimetre++; continue; }
@@ -556,11 +563,9 @@ export function initProspection(ctx) {
         // Logements minimum demandés : des regroupements plus grands sont aussi cherchés, assez vastes pour les atteindre
         // à la densité des opérations collectives de la commune (sinon les regroupements tout juste à la surface minimale
         // restent sous le nombre de logements et disparaissent)
-        const dens = await Promise.race([densP, new Promise((ok) => setTimeout(() => ok(null), 4000))]);
-        const dMed = dens && dens.commune.n >= 3 ? dens.commune.med : null;
-        const sCible = c.lmin && dMed ? Math.min(Math.round((c.lmin * 10000) / dMed), 4 * (c.smin || 1000)) : 0;
+        const sGrand = sCible ? Math.min(sCible, 4 * sRemb) : 0;
         const vus = new Set(), groupes = [];
-        for (const smin of [c.smin || 0, ...(sCible > (c.smin || 0) ? [sCible] : [])]) {
+        for (const smin of [sRemb, ...(sGrand > sRemb ? [sGrand] : [])]) {
           for (const g of regroupements(items, vois, { smin, smax: c.smax || 0, maxParcelles: c.maxParcelles || 3 })) {
             const k = g.slice().sort((x, y) => x - y).join(',');
             if (!vus.has(k)) { vus.add(k); groupes.push(g); }
@@ -693,7 +698,7 @@ export function initProspection(ctx) {
     const c = r.compte;
     const g = r.list.filter((h) => h.groupe).length, e = r.list.filter((h) => h.cat === 'entrepot').length;
     return `<b>${f0(r.list.length - e)} terrain(s) pour du logement</b>${g ? ` dont ${f0(g)} remembrement(s)` : ''}${e ? ` · <b>${f0(e)} entrepôt(s) et local(aux) d'activité</b>` : ''} sur ${f0(c.total)} parcelles en ${r.secs} s
-      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible ou moins de logements que demandé)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.facade ? `, ${f0(c.facade)} regroupements sans pignon sur rue` : ''}${c.oap ? `, ${f0(c.oap)} en secteur d'OAP` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
+      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible ou moins de logements que demandé)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.facade ? `, ${f0(c.facade)} regroupements sans pignon sur rue` : ''}${c.oap ? `, ${f0(c.oap)} en secteur d'OAP` : ''}${c.groupes ? ` · ${f0(c.groupes)} regroupements de parcelles étudiés` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
   }
 
   // ---------- Résultats ----------

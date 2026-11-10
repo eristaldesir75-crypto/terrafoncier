@@ -31,11 +31,12 @@ await page.waitForSelector('#peek .peek-kpis', { timeout: 40000 }).catch(() => {
 await page.click('#peek [data-go=fiche]').catch(() => {});
 await page.waitForTimeout(1500);
 await page.click('[data-ft=urba]').catch(() => {});
-const t0 = Date.now();
+const t0 = Date.now(); let vu = false;
 for (let i = 0; i < 90; i++) {
   const e = await page.evaluate(() => { const s = window.tfDebug().sel; return s && s.iaLecture ? s.iaLecture.etat + ' ' + (s.iaLecture.etape || '') + (s.iaLecture.message || '') : 'aucune'; });
   if (i % 5 === 0) console.log(`ÉTAT ${Math.round((Date.now() - t0) / 1000)} s :`, e);
-  if (/aucune|erreur/.test(e) && i > 3) { console.log('FIN :', e); break; }
+  if (/cours/.test(e)) vu = true;
+  if (/erreur/.test(e) || (vu && /aucune/.test(e)) || (!vu && i > 45)) { console.log('FIN :', e); break; }
   await page.waitForTimeout(1000);
 }
 await page.waitForTimeout(1000);

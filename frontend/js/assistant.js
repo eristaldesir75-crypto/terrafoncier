@@ -169,7 +169,7 @@ export async function erreurHttp(r) {
   try { const j = await r.json(); msg = j.error?.message || ''; } catch { /* corps illisible */ }
   if (r.status === 400 && /api key|API_KEY/i.test(msg)) return new ErreurIA('Clé Gemini refusée : vérifiez-la (bouton « Clé » en haut de la bulle)');
   if (r.status === 403) return new ErreurIA("Clé Gemini sans accès à l'API : vérifiez qu'elle a été créée sur aistudio.google.com");
-  if (r.status === 429) return new ErreurIA('Quota gratuit de Gemini atteint pour le moment : réessayez dans une minute (ou demain si la limite du jour est atteinte)');
+  if (r.status === 429) { const e = new ErreurIA(`Quota gratuit de Gemini atteint pour le modèle ${r.url.match(/models\/([^:]+)/)?.[1] || ''} : réessayez dans une minute (ou demain si la limite du jour est atteinte)`); e.quota = true; e.jour = /per ?day|PerDay|daily/i.test(msg); return e; }
   if (r.status === 404) { const e = new ErreurIA('Modèle indisponible'); e.modele = true; return e; }
   if (r.status >= 500) { const e = new ErreurIA(`Gemini ne répond pas pour le moment (erreur ${r.status}${msg ? ' : ' + msg.slice(0, 140) : ''}) : réessayez dans un instant`); e.serveur = true; return e; }
   return new ErreurIA(`Gemini : ${msg || 'erreur ' + r.status}`);
@@ -179,8 +179,10 @@ export async function erreurHttp(r) {
 const reflexion = (modele) => (/gemini-2\./.test(modele) ? { thinkingBudget: /pro/.test(modele) ? 128 : 0 } : { thinkingLevel: 'low' });
 let sansReflexion = false; // modèle qui refuse le réglage : envoyé sans
 
+const epuises = new Set(); // modèles dont le quota est atteint pendant cette visite
 async function generer(cle, contents, contexte) {
   let modele = await choisirModele(cle);
+  if (epuises.has(modele)) { const l = (await modelesFlash(cle).catch(() => [])).filter((m) => !epuises.has(m)); if (l[0]) modele = l[0]; }
   const corps = () => JSON.stringify({
     systemInstruction: { parts: [{ text: `${SYSTEME}\n\nÉtat actuel du site : ${contexte}` }] },
     contents, tools: [{ functionDeclarations: OUTILS }],
@@ -204,6 +206,8 @@ async function generer(cle, contents, contexte) {
     }
     const e = await erreurHttp(r);
     if (e.serveur && essai < 2) { await new Promise((ok) => setTimeout(ok, 2500 * (essai + 1))); continue; }
+    // quota d'un modèle atteint : chaque modèle a son propre quota gratuit, on passe au suivant
+    if (e.quota && essai < 2) { const l = (await modelesFlash(cle).catch(() => [])).filter((m) => m !== modele && !epuises.has(m)); epuises.add(modele); if (l[0]) { modele = l[0]; continue; } }
     if (e.modele && essai < 2) { modele = await choisirModele(cle, true); continue; }
     throw e;
   }

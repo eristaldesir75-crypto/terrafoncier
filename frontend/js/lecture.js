@@ -8,7 +8,7 @@ import { cleIA, choisirModele, erreurHttp, ErreurIA, modelesFlash } from './assi
 
 const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
-const MAX_CAR = 160000; // texte envoyé par zone (≈ 45 000 jetons)
+const MAX_CAR = 70000; // texte envoyé par zone (≈ 20 000 jetons, pour ménager le quota gratuit)
 
 let pdfjsP = null;
 function pdfjs() {
@@ -170,15 +170,16 @@ zone_trouvee = false si les extraits ne contiennent pas le chapitre ou les règl
 async function demander(cle, parts, onEtape) {
   const principal = await choisirModele(cle);
   let autres = null;
-  const essais = [{ m: principal, schema: true }, { m: principal, schema: true, pause: 3000 }, { m: principal, schema: false, pause: 2000 }, { m: 'autre', schema: false }, { m: 'autre2', schema: false }];
+  const essais = [{ m: principal, schema: true }, { m: principal, schema: true, pause: 3000 }, { m: principal, schema: false, pause: 2000 }, { m: 'autre', schema: true }, { m: 'autre2', schema: true }, { m: 'autre3', schema: false }];
+  const quotaPlein = new Set();
   let derniere = null;
   for (const e of essais) {
     let mod = e.m;
     if (mod.startsWith('autre')) {
       if (!autres) { try { autres = (await modelesFlash(cle)).filter((x) => x !== principal); } catch { autres = []; } }
-      mod = autres[mod === 'autre' ? 0 : 1];
+      mod = autres.filter((x) => !quotaPlein.has(x))[0];
       if (!mod) continue;
-    }
+    } else if (quotaPlein.has(mod)) continue;
     if (e.pause) await new Promise((ok) => setTimeout(ok, e.pause));
     if (derniere && onEtape) onEtape(`Gemini saturé, nouvel essai${mod !== principal ? ' avec ' + mod : ''}…`);
     const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 150000);
@@ -191,6 +192,7 @@ async function demander(cle, parts, onEtape) {
       });
       if (!r.ok) {
         const err = await erreurHttp(r);
+        if (err.quota) { quotaPlein.add(mod); derniere = err; continue; } // chaque modèle a son quota : on passe au suivant
         if (err.serveur || err.modele) { derniere = err; continue; }
         throw err;
       }

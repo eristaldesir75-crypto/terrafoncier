@@ -299,3 +299,14 @@ dialog::backdrop{background:rgba(23,38,59,.45)}
 .rules-edit{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px}
 .rules-edit summary{cursor:pointer;font-weight:600;font-size:14px}
 .rules-edit[open] summary{margin-bottom:10px}
+.fais-table{min-width:0}
+.fais-table td{padding:6px 8px;font-size:13px;vertical-align:middle}
+.fais-table td:first-child{width:52%}
+.fais-table td.ind{padding-left:22px;color:var(--muted)}
+.fais-table input[type=number]{width:86px;padding:4px 7px;text-align:right;display:inline-block}
+.fais-table td.rg{white-space:nowrap}
+.fais-table td.rg input[type=range]{width:110px;vertical-align:middle}
+.fais-table tr.sec th{background:var(--surface-2);font-size:13px;color:var(--ink);padding:8px}
+.fais-table tr.fort td{background:var(--accent-soft)}
+.fais-table tr.fort b{color:var(--accent)}
+.fais-table .pill{margin-left:4px}

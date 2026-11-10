@@ -433,3 +433,9 @@ export async function adressesParcelles(features, onProgress) {
   await Promise.all([w(), w(), w(), w(), w(), w()]);
   return out;
 }
+
+/** Parcelles cadastrales qui touchent une géométrie (voisines d'une parcelle). */
+export async function parcellesAutour(geom) {
+  const fc = await getJSON(`${APICARTO}/cadastre/parcelle?geom=${g(geom)}&_limit=200`, { timeout: 20000, retries: 1 });
+  return fc.features || [];
+}

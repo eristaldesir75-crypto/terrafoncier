@@ -54,6 +54,15 @@ if (await ligne.count()) {
   await page.waitForTimeout(12000);
   console.log('FICHE :', (await page.locator('#v-fiche').innerText()).slice(0, 900));
 }
+// faisabilité de la parcelle ouverte : esquisse, bilan, 3D
+if (await page.locator('#tab-pot').count()) {
+  await page.click('#tab-pot');
+  await page.waitForSelector('#faisKpis div', { timeout: 40000 }).catch(() => {});
+  console.log('FAISABILITÉ :', (await page.locator('#v-pot').innerText().catch(() => '')).replace(/\n+/g, ' | ').slice(0, 1600));
+  await page.screenshot({ path: 'e2e-2d.png' });
+  const b3 = page.locator('#fais3d');
+  if (await b3.count()) { await b3.click(); await page.waitForTimeout(4000); await page.screenshot({ path: 'e2e-3d.png' }); }
+}
 await page.screenshot({ path: 'e2e.png' });
 console.log('ERREURS JS :', erreurs.length ? erreurs.join('\n') : 'aucune');
 await browser.close();

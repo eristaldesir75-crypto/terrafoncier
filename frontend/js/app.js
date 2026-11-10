@@ -8,6 +8,7 @@ import { initProspection, CRIT_DEFAUT } from './prospection.js';
 import { reglesGraphiques, fusionRegles } from './regles.js';
 import { reglesParZone, plage } from './zones.js';
 import * as permis from './permis.js';
+import * as fais from './faisabilite.js';
 
 // ---------- Utilitaires ----------
 const $ = (s, el = document) => el.querySelector(s);
@@ -77,6 +78,8 @@ const map = new maplibregl.Map({
       bati: { type: 'geojson', data: empty },
       permis: { type: 'geojson', data: empty },
       vefa: { type: 'geojson', data: empty },
+      bat: { type: 'geojson', data: empty },
+      bati3d: { type: 'geojson', data: empty },
     },
     layers: [
       { id: 'plan', type: 'raster', source: 'plan' },
@@ -95,6 +98,10 @@ const map = new maplibregl.Map({
       { id: 'sel-line', type: 'line', source: 'sel', paint: { 'line-color': '#1560d4', 'line-width': 3 } },
       { id: 'vefa-pt', type: 'circle', source: 'vefa', layout: { visibility: 'none' }, paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'ventes'], 1, 5, 30, 11, 150, 17], 'circle-color': '#8e3fb8', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-opacity': 0.85 } },
       { id: 'permis-pt', type: 'circle', source: 'permis', paint: { 'circle-radius': ['interpolate', ['linear'], ['get', 'logements'], 2, 6, 50, 11, 200, 18], 'circle-color': ['match', ['get', 'etat'], 6, '#1f6b45', 5, '#e0661b', 2, '#2347c5', '#8a8f98'], 'circle-stroke-color': '#fff', 'circle-stroke-width': 2, 'circle-opacity': 0.9 } },
+      { id: 'bati3d', type: 'fill-extrusion', source: 'bati3d', layout: { visibility: 'none' }, paint: { 'fill-extrusion-color': '#c9cfd6', 'fill-extrusion-height': ['coalesce', ['get', 'hauteur'], 6], 'fill-extrusion-opacity': 0.85 } },
+      { id: 'bat-fill', type: 'fill', source: 'bat', paint: { 'fill-color': '#0f6e5a', 'fill-opacity': 0.35 } },
+      { id: 'bat-line', type: 'line', source: 'bat', paint: { 'line-color': '#0f6e5a', 'line-width': 2.5 } },
+      { id: 'bat-3d', type: 'fill-extrusion', source: 'bat', layout: { visibility: 'none' }, paint: { 'fill-extrusion-color': '#2fa585', 'fill-extrusion-height': ['get', 'hauteur'], 'fill-extrusion-opacity': 0.92 } },
       { id: 'env-line', type: 'line', source: 'env', paint: { 'line-color': '#e0661b', 'line-width': 2, 'line-dasharray': [2, 1.5] } },
     ],
   },
@@ -102,7 +109,7 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
 map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'top-right');
 map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
-map.on('click', (e) => { if (e.defaultPrevented || (map.getLayer('permis-pt') && map.queryRenderedFeatures(e.point, { layers: ['permis-pt', 'vefa-pt'] }).length)) return; selectAt(e.lngLat.lng, e.lngLat.lat); });
+map.on('click', (e) => { if (e.defaultPrevented || (map.getLayer('permis-pt') && map.queryRenderedFeatures(e.point, { layers: ['permis-pt', 'vefa-pt', 'bat-fill'] }).length)) return; selectAt(e.lngLat.lng, e.lngLat.lat); });
 
 // Infobulle au survol des terrains de la prospection
 const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: 'tf-pop' });
@@ -241,6 +248,7 @@ async function selectFeature(f, token = ++selToken, forceTab) {
   map.getSource('bati').setData(empty);
   map.getSource('permis').setData(empty);
   map.getSource('vefa').setData(empty);
+  map.getSource('bat').setData(empty); map.getSource('bati3d').setData(empty);
   if (forceTab) showTab(forceTab);
   else if (tab !== 'pot' && tab !== 'pro' && tab !== 'crm') showTab('fiche');
   const pt = turf.pointOnFeature(f).geometry;
@@ -466,7 +474,7 @@ function ficheSynthese(body) {
       <dt>Signaux</dt><dd>${occ && occ.flags.length ? occ.flags.map((x) => esc(x.t)).join(' · ') : 'Aucun'}</dd>
       <dt>Potentiel</dt><dd>${pot && pot.ok ? `${m2(pot.sdp)} de plancher ÷ ${store.settings().sMoy} m² = ${pot.real} logements` : constr === false ? 'Zone A ou N : pas de logement' : sel.urba['prescription-surf'] === 'loading' ? 'Lecture des règles du PLU…' : 'Règles de la zone à renseigner (onglet Urbanisme)'}</dd>
     </dl>
-    <div class="actions"><button type="button" id="goPot">Détail du potentiel</button></div>`;
+    <div class="actions"><button type="button" id="goPot">Faisabilité et esquisse</button></div>`;
   $('#goPot', body).onclick = () => showTab('pot');
   const retry = $('#retryUrba', body); if (retry) retry.onclick = () => selectFeature(sel.feature);
 }
@@ -825,15 +833,14 @@ function ficheText() {
 }
 
 // ---------- Vue Potentiel ----------
-function renderPot() {
-  const v = $('#v-pot');
+function renderPotSimple(v) {
   if (!sel || !sel.feature || sel.loading) { v.innerHTML = '<p class="empty">Sélectionnez une parcelle sur la carte.</p>'; return; }
   const p = sel.feature.properties, hyp = store.settings();
   const pot = potentielSel();
   map.getSource('env').setData(pot.ok && pot.envFeat ? pot.envFeat : empty);
   if (!pot.ok) {
     v.innerHTML = `<span class="ref">${esc(refOf(p))} · zone ${esc(sel.zLabel)}</span><h2>Potentiel non calculable</h2><p>${esc(pot.raison)}.</p><div id="rulesSlot"></div>`;
-    if (zoneConstructible(sel.zone) !== false) $('#rulesSlot', v).appendChild(rulesBlock(sel.key, sel.zLabel, renderPot));
+    if (zoneConstructible(sel.zone) !== false) $('#rulesSlot', v).appendChild(rulesBlock(sel.key, sel.zLabel, () => { if (sel) sel.fais = null; renderPot(); }));
     return;
   }
   v.innerHTML = `
@@ -855,6 +862,176 @@ function renderPot() {
       ${pot.missing.length ? `<p class="note">Règles non renseignées : ${pot.missing.map(esc).join(', ')}.</p>` : ''}</div>
     <p class="note">Estimation indicative. Hypothèses modifiables dans Réglages. Ne remplace ni un certificat d'urbanisme ni une étude de faisabilité.</p>`;
 }
+
+// ---------- Faisabilité : esquisse, 3D et bilan ----------
+const LIGNES = [
+  ['Terrain'],
+  ['S', 'Surface de la parcelle', 'm²', 'in'],
+  ['inc', 'Espaces inconstructibles (EBC, emplacements réservés…)', 'm²', 'in'],
+  ['Sc', 'Surface constructible de la parcelle', 'm²', 'out'],
+  ['ces', 'Emprise au sol autorisée', '%', 'in'],
+  ['empMax', "Surface de l'emprise au sol maximale", 'm²', 'out'],
+  ['Implantation (esquisse)'],
+  ['a', 'Linéaire de façade exploitable (a)', 'm', 'in'],
+  ['b', 'Retrait sur limites séparatives (b)', 'm', 'in'],
+  ['c', 'Longueur du bâtiment (c = a − 2b)', 'm', 'out'],
+  ['d', 'Profondeur du bâtiment (d)', 'm', 'in'],
+  ['recul', 'Recul sur voie', 'm', 'in'],
+  ['decal', 'Décalage latéral', 'm', 'range', -30, 30],
+  ['avance', 'Avancée vers le fond', 'm', 'range', -10, 40],
+  ['rot', 'Rotation', '°', 'range', -45, 45],
+  ['empCalc', 'Emprise dessinée', 'm²', 'out'],
+  ['emp', "Surface de l'emprise au sol retenue", 'm²', 'out', null, null, true],
+  ['Niveaux'],
+  ['niv', 'Nombre maximum de niveaux', 'niveaux', 'in'],
+  ['NIVEAUX'],
+  ['brute', 'Surface brute', 'm²', 'out'],
+  ['Surfaces et logements'],
+  ['ratioBrut', 'Ratio surface de plancher / surface brute', '%', 'in'],
+  ['sdp', 'Surface de plancher', 'm²', 'out', null, null, true],
+  ['ratioHab', 'Ratio surface habitable / surface de plancher', '%', 'in'],
+  ['shab', 'Surface habitable', 'm²', 'out'],
+  ['taille', "Taille moyenne d'un logement (SDP)", 'm²', 'in'],
+  ['lgt', 'Nombre de logements', 'logements', 'out', null, null, true],
+  ['social', 'Part obligatoire de logements sociaux', '%', 'in'],
+  ['seuilSocial', 'Seuil de mixité sociale (SDP)', 'm²', 'in'],
+  ['sociaux', 'Dont logements sociaux', 'logements', 'out'],
+  ['Stationnement'],
+  ['placesLgt', 'Places exigées par logement', 'places', 'in'],
+  ['places', 'Nombre de places exigées', 'places', 'out', null, null, true],
+  ['placeSurf', "Surface d'une place en surface", 'm²', 'in'],
+  ['surfBox', 'Espace libre pour stationner en surface', 'm²', 'out'],
+  ['placesSurf', 'Places constructibles en surface', 'places', 'out'],
+  ['ptSsol', 'Pleine terre (non constructible en sous-sol)', '%', 'in'],
+  ['parNivSsol', 'Surface constructible par niveau de sous-sol', 'm²', 'out'],
+  ['placeSsol', "Surface d'une place en sous-sol", 'm²', 'in'],
+  ['maxParNiv', 'Places par niveau de sous-sol', 'places', 'out'],
+  ['nivSsol', 'Niveaux de sous-sol nécessaires', 'niveaux', 'out', null, null, true],
+];
+const fmt1 = (x) => (Number.isFinite(x) ? (Math.round(x * 10) / 10).toLocaleString('fr-FR') : '—');
+
+async function initFais(token) {
+  const f = sel.feature, p = f.properties, hyp = store.settings();
+  sel.fais = { idu: p.idu, chargement: true, vue3d: false };
+  let voisines = [], autour = [];
+  try {
+    const zone = turf.buffer(f, 3, { units: 'meters' });
+    const large = turf.bboxPolygon(turf.bbox(turf.buffer(f, 70, { units: 'meters' })));
+    [voisines, autour] = await Promise.all([
+      api.parcellesAutour(turf.truncate(zone, { precision: 6 }).geometry).catch(() => []),
+      api.batiments(turf.truncate(large, { precision: 6 }).geometry).then((x) => x || []),
+    ]);
+  } catch { /* voisines inconnues : plus long côté */ }
+  if (token !== selToken) return;
+  voisines = voisines.filter((v) => v.properties.idu !== p.idu && !String(p.idu).includes(v.properties.idu));
+  const fac = fais.facade(f, voisines);
+  const fu = fusionRegles(store.getRules(sel.key), sel.graph);
+  const S = +p.contenance || turf.area(f);
+  const inc = (sel.contraintes || []).filter((c) => c.k === 'ebc' || c.k === 'er').reduce((a, c) => a + c.part * S, 0);
+  const v = fais.valeursInitiales({ S, regles: fu.regles, hyp, fac, inconstructible: inc });
+  const autourFc = autour.filter((b) => !turf.booleanPointInPolygon(turf.pointOnFeature(b), f)).map((b) => ({ type: 'Feature', geometry: b.geometry, properties: { hauteur: +b.properties.hauteur || (+b.properties.nombre_d_etages || 1) * 3 } }));
+  sel.fais = { idu: p.idu, fac, v, v0: { ...v }, vue3d: false, autour: autourFc, origine: fu.origine, surRue: fac.surRue };
+  renderPot();
+}
+
+function dessinerFais() {
+  const F = sel.fais, v = F.v, hyp = store.settings();
+  const c = Math.max(0, v.a - 2 * v.b);
+  const es = fais.esquisse(sel.feature, F.fac, { c, d: v.d, recul: v.recul, decal: v.decal, avance: v.avance, rot: v.rot, ret: v.b });
+  F.es = es;
+  const pct = v.niveaux && v.niveaux.length ? v.niveaux : fais.niveauxPct(v.niv);
+  const h = pct.reduce((a, x) => a + x / 100, 0) * hyp.hEt;
+  map.getSource('bat').setData(es.bat ? { type: 'FeatureCollection', features: [{ ...es.bat, properties: { hauteur: Math.max(3, h) } }] } : empty);
+  map.getSource('bati3d').setData({ type: 'FeatureCollection', features: F.autour || [] });
+  map.getSource('env').setData(es.env && v.b > 0 ? es.env : empty);
+  return es.emprise;
+}
+
+function majFais(root) {
+  const F = sel.fais; if (!F || !F.v) return;
+  const emprise = dessinerFais();
+  const B = fais.bilan(F.v, emprise);
+  root.querySelectorAll('[data-out]').forEach((el) => { const k = el.dataset.out; el.textContent = k === 'c' ? fmt1(B.c) : f0(B[k]); });
+  root.querySelectorAll('[data-pct]').forEach((el) => { const i = +el.dataset.pct; el.textContent = `soit ${f0((B.emp * (B.pct[i] || 0)) / 100)} m²`; });
+  root.querySelectorAll('[data-rv]').forEach((el) => { el.textContent = `${F.v[el.dataset.rv]}`; });
+  const kp = $('#faisKpis', root);
+  if (kp) kp.innerHTML = `<div><span>Emprise</span><strong>${m2(B.emp)}</strong></div><div><span>Surface de plancher</span><strong>${m2(B.sdp)}</strong></div><div><span>Logements</span><strong>${B.lgt}</strong></div><div><span>Places</span><strong>${B.places}</strong></div>`;
+  F.B = B;
+}
+
+function vue3d(on) {
+  const F = sel.fais; F.vue3d = on;
+  vis('bat-3d', on); vis('bati3d', on); vis('bat-fill', !on);
+  const c = turf.centroid(sel.feature).geometry.coordinates;
+  map.easeTo(on ? { center: c, zoom: Math.max(map.getZoom(), 18), pitch: 60, bearing: (F.fac.cap + 200) % 360, duration: 900 } : { pitch: 0, bearing: 0, duration: 700 });
+}
+
+function renderPot() {
+  const v = $('#v-pot');
+  if (!sel || !sel.feature || sel.loading) { v.innerHTML = '<p class="empty">Sélectionnez une parcelle sur la carte : la faisabilité se calcule et le bâtiment se dessine ici.</p>'; return; }
+  const p = sel.feature.properties;
+  if (zoneConstructible(sel.zone) === false) { v.innerHTML = `<h2>Faisabilité</h2><p class="empty">Zone ${esc(sel.zLabel)} agricole ou naturelle : pas de logement possible.</p>`; return; }
+  if (!sel.fais || sel.fais.idu !== p.idu) { initFais(selToken); v.innerHTML = '<p class="note">Recherche de la façade sur rue et des bâtiments voisins…</p>'; return; }
+  if (!sel.fais.v) { v.innerHTML = '<p class="note">Recherche de la façade sur rue et des bâtiments voisins…</p>'; return; }
+  const F = sel.fais, val = F.v, pct = val.niveaux && val.niveaux.length ? val.niveaux : fais.niveauxPct(val.niv);
+  const orig = (k) => ({ ces: 'ces', niv: 'h', b: 'ret', recul: 'recul', placesLgt: 'stat', ptSsol: 'pt' }[k]);
+  const pillO = (k) => { const o = F.origine[orig(k)]; return o === 'plan' ? '<span class="pill ok">PLU</span>' : o === 'zone' ? '<span class="pill wa">vos règles</span>' : ''; };
+  const ligne = ([k, label, unit, type, min, max, fort]) => {
+    if (!label) {
+      if (k === 'NIVEAUX') return pct.map((x, i) => `<tr><td class="ind">Niveau ${i + 1}${i === 0 ? ' (rez-de-chaussée)' : ''}</td><td><input type="number" step="5" min="0" max="100" data-niv="${i}" value="${x}"> %</td><td class="n" data-pct="${i}"></td></tr>`).join('');
+      return `<tr class="sec"><th colspan="3">${esc(k)}</th></tr>`;
+    }
+    if (type === 'in') return `<tr><td>${esc(label)} ${pillO(k)}</td><td><input type="number" step="any" data-k="${k}" value="${val[k]}"> ${esc(unit)}</td><td class="n"></td></tr>`;
+    if (type === 'range') return `<tr><td>${esc(label)}</td><td class="rg"><input type="range" min="${min}" max="${max}" step="0.5" data-k="${k}" value="${val[k]}"> <span data-rv="${k}">${val[k]}</span> ${esc(unit)}</td><td class="n"></td></tr>`;
+    return `<tr class="${fort ? 'fort' : ''}"><td>${esc(label)}</td><td></td><td class="n"><b data-out="${k}"></b> ${esc(unit)}</td></tr>`;
+  };
+  v.innerHTML = `
+    <div class="fiche-head"><div><span class="ref">${esc(refOf(p))} · zone ${esc(sel.zLabel)}</span><h2>Faisabilité</h2></div>
+      <div class="actions"><button type="button" id="fais3d">${F.vue3d ? 'Vue 2D' : 'Voir en 3D'}</button><button type="button" class="ghost" id="faisReset">Réinitialiser</button></div></div>
+    <div class="kpis" id="faisKpis"></div>
+    <p class="note">Le bâtiment est dessiné en vert sur la carte, à partir de la façade ${F.surRue ? 'sur rue' : '(la plus longue, rue non détectée)'} de ${fmt1(F.fac.a)} m. Faites-le glisser sur la carte pour le déplacer, ou modifiez les valeurs ci-dessous : tout se recalcule. Les valeurs marquées <span class="pill ok">PLU</span> viennent du PLU de la commune.</p>
+    <div class="tw"><table class="fais-table"><tbody>${LIGNES.map(ligne).join('')}</tbody></table></div>
+    <details class="rules-edit"><summary>Calcul réglementaire simplifié et règles de la zone</summary><div id="potSimple"></div></details>
+    <p class="note">Esquisse indicative : à confirmer avec le règlement complet (implantation, prospects, stationnement) et un architecte.</p>`;
+  const root = v;
+  root.querySelectorAll('input[data-k]').forEach((i) => i.addEventListener('input', () => {
+    const x = parseFloat(i.value); if (!Number.isFinite(x)) return;
+    F.v[i.dataset.k] = x;
+    if (i.dataset.k === 'niv') { F.v.niveaux = null; renderPot(); return; }
+    majFais(root);
+  }));
+  root.querySelectorAll('input[data-niv]').forEach((i) => i.addEventListener('input', () => {
+    const l = (F.v.niveaux && F.v.niveaux.length ? F.v.niveaux : fais.niveauxPct(F.v.niv)).slice();
+    l[+i.dataset.niv] = parseFloat(i.value) || 0; F.v.niveaux = l; majFais(root);
+  }));
+  $('#fais3d', v).onclick = () => { vue3d(!F.vue3d); $('#fais3d', v).textContent = F.vue3d ? 'Vue 2D' : 'Voir en 3D'; };
+  $('#faisReset', v).onclick = () => { F.v = { ...F.v0 }; renderPot(); };
+  renderPotSimple($('#potSimple', v));
+  majFais(root);
+}
+// Glisser l'esquisse sur la carte : le déplacement est converti en décalage latéral et en avancée
+let dragBat = null;
+map.on('mousedown', 'bat-fill', (e) => {
+  if (!sel || !sel.fais || !sel.fais.v) return;
+  e.preventDefault(); map.dragPan.disable();
+  dragBat = { start: [e.lngLat.lng, e.lngLat.lat], decal: sel.fais.v.decal, avance: sel.fais.v.avance };
+  map.getCanvas().style.cursor = 'grabbing';
+});
+map.on('mousemove', (e) => {
+  if (!dragBat || !sel || !sel.fais) return;
+  const F = sel.fais, cur = [e.lngLat.lng, e.lngLat.lat];
+  const dist = turf.distance(dragBat.start, cur, { units: 'meters' }), cap = turf.bearing(dragBat.start, cur);
+  const ang = ((cap - F.fac.cap) * Math.PI) / 180;
+  const mid = turf.midpoint(F.fac.p1, F.fac.p2), dedans = turf.booleanPointInPolygon(turf.destination(mid, 2, F.fac.cap + 90, { units: 'meters' }), sel.feature) ? 1 : -1;
+  F.v.decal = Math.round((dragBat.decal + dist * Math.cos(ang)) * 2) / 2;
+  F.v.avance = Math.round((dragBat.avance + dedans * dist * Math.sin(ang)) * 2) / 2;
+  const root = $('#v-pot');
+  ['decal', 'avance'].forEach((k) => { const i = root.querySelector(`input[data-k="${k}"]`); if (i) i.value = F.v[k]; });
+  majFais(root);
+});
+map.on('mouseup', () => { if (dragBat) { dragBat = null; map.dragPan.enable(); map.getCanvas().style.cursor = ''; } });
+map.on('mouseenter', 'bat-fill', () => { if (!dragBat) map.getCanvas().style.cursor = 'grab'; });
+map.on('mouseleave', 'bat-fill', () => { if (!dragBat) map.getCanvas().style.cursor = ''; });
 
 // ---------- Prospection ----------
 const pro = initProspection({

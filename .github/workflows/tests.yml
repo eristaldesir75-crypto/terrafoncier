@@ -40,7 +40,7 @@ jobs:
         working-directory: frontend
         run: |
           npm init -y >/dev/null && npm i @turf/turf@7.1.0 --no-audit --no-fund >/dev/null
-          node tests/test_occupation.mjs && node tests/test_regles.mjs && node tests/test_zones.mjs && node tests/test_remembrement.mjs
+          node tests/test_occupation.mjs && node tests/test_regles.mjs && node tests/test_zones.mjs && node tests/test_remembrement.mjs && node tests/test_faisabilite.mjs
   e2e:
     if: github.event_name == 'workflow_dispatch' && inputs.e2e
     runs-on: ubuntu-latest
@@ -61,4 +61,4 @@ jobs:
         run: cp frontend/tests/e2e_prospection.mjs . && node e2e_prospection.mjs
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: capture, path: e2e.png }
+        with: { name: capture, path: "e2e*.png" }

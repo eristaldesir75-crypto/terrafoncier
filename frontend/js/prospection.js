@@ -514,7 +514,7 @@ export function initProspection(ctx) {
         let pot = null;
         h.aConfirmer = !rules;
         if (rules) {
-          pot = computePotentiel(h.f, rules, hyp, { contenance: h.occ.S, batiSdp: h.occ.stats.sdp });
+          pot = computePotentiel(h.f, rules, hyp, { contenance: h.occ.S, batiSdp: h.occ.stats.sdp, facade: h.facade });
           if (!pot.ok) { pot = null; h.aConfirmer = true; }
         }
         h.pot = pot;

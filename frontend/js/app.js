@@ -417,7 +417,7 @@ const FICHE_TABS = [['synthese', 'Synthèse'], ['urba', 'Urbanisme'], ['bati', '
 function potentielSel() {
   if (!sel || !sel.feature) return null;
   const rules = fusionRegles(store.getRules(sel.key), sel.graph).regles;
-  return computePotentiel(sel.feature, rules, store.settings(), { contenance: sel.feature.properties.contenance, batiSdp: sel.bati?.sdp, constructible: zoneConstructible(sel.zone) });
+  return computePotentiel(sel.feature, rules, store.settings(), { contenance: sel.feature.properties.contenance, batiSdp: sel.bati?.sdp, constructible: zoneConstructible(sel.zone), facade: sel.fais && sel.fais.idu === sel.feature.properties.idu && sel.fais.surRue ? sel.fais.fac.a : null });
 }
 function noteSel(pot) {
   if (!sel.occ) return null;

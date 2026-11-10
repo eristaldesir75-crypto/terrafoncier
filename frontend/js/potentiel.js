@@ -23,19 +23,21 @@ export function computePotentiel(feature, rules, hyp, opts = {}) {
   if (opts.constructible === false) return { ok: false, raison: 'Zone non constructible pour du logement (A ou N)' };
   const r = Object.fromEntries(RULE_FIELDS.map((f) => [f.k, num(rules && rules[f.k])]));
   if (r.ces === null && r.h === null) return { ok: false, raison: "Règles d'emprise et de hauteur manquantes : saisissez-les ou lancez l'extraction IA" };
+  // sans hauteur maximale, le nombre de niveaux n'est pas connu : pas de nombre de logements (plutôt qu'un calcul faux à 1 niveau)
+  if (r.h === null) return { ok: false, raison: 'Hauteur maximale inconnue : à lire dans le règlement de la zone' };
 
   const S = num(opts.contenance) || turf.area(feature);
-  // Enveloppe : retrait sur toutes les limites (approximation), puis recul supplémentaire côté voie estimé sur la façade.
-  const retrait = r.ret ?? 0;
+  // Enveloppe constructible : retrait sur les limites séparatives, recul sur la voie.
+  // Le retrait ne s'applique pas côté rue (c'est le recul qui s'y applique) : la bande de retrait le long de la façade
+  // est rendue, puis le recul est retiré sur la longueur de façade (réelle si connue, sinon côté du carré équivalent).
+  const retrait = r.ret ?? 0, recul = r.recul ?? 0;
+  const facade = Math.max(0, num(opts.facade) || Math.sqrt(S));
   let envFeat = null, envArea = S;
   try {
     envFeat = retrait > 0 ? turf.buffer(feature, -retrait, { units: 'meters' }) : feature;
     envArea = envFeat ? turf.area(envFeat) : 0;
   } catch { envFeat = null; envArea = S; }
-  if (r.recul !== null && r.recul > retrait && envArea > 0) {
-    const facade = Math.sqrt(envArea); // estimation : façade ≈ côté d'un carré équivalent
-    envArea = Math.max(0, envArea - (r.recul - retrait) * facade);
-  }
+  if (envArea > 0) envArea = Math.min(S, Math.max(0, envArea + (retrait - recul) * Math.max(0, facade - 2 * retrait)));
 
   const caps = [{ n: 'Enveloppe après reculs', v: envArea }];
   if (r.ces !== null) caps.push({ n: "Emprise réglementaire (CES)", v: r.ces * S });

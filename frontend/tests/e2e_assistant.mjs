@@ -66,6 +66,8 @@ const dire = async (t, attente = 30000) => {
   console.log('FIL :', (await page.locator('#iaFil').innerText()).replace(/\n+/g, ' | ').slice(-600));
 };
 await dire('Quelles zones à Saran ?');
+page.on('console', (m) => { if (m.text().startsWith('ETAPE')) console.log(m.text()); });
+await page.evaluate(() => { let der = '', t0 = performance.now(); setInterval(() => { const s = (document.querySelector('#proStatus')?.innerText || '').split('\n')[0].replace(/[\d\s]+\/[\d\s]+/g, ' n/n').slice(0, 70); if (s !== der) { der = s; console.log('ETAPE ' + Math.round((performance.now() - t0) / 1000) + ' s : ' + s); } }, 250); });
 await dire('Prospecte Saran pour du collectif, plus de 1500 m²', 240000);
 await img('A3-prospection');
 await dire('Fais la faisabilité du terrain 1 en R+3', 60000);

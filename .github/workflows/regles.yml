@@ -1,7 +1,7 @@
 name: Lecture des règlements (IA)
 on:
   schedule:
-    - cron: "43 3 * * *" # chaque nuit : lit les règlements pas encore lus (quota gratuit de Gemini), puis republie le site
+    - cron: "17 7 * * *" # 8 h 17 à Paris, juste avant la remise à zéro du quota Gemini (minuit heure du Pacifique, 9 h à Paris) : on utilise le reste du quota de la veille
   workflow_dispatch:
     inputs:
       max_docs:

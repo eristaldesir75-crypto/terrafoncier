@@ -477,28 +477,57 @@ function ficheUrba(body) {
   const arr = (k) => (Array.isArray(sel.urba[k]) ? sel.urba[k] : []);
   const pending = sel.urba['prescription-surf'] === 'loading';
   const prescF = [...arr('prescription-surf'), ...arr('prescription-lin')];
-  // Prescriptions graphiques d'emprise (38), de hauteur (39) ou de pleine terre (43) : la valeur est sur un plan, pas dans le règlement écrit
-  const planGraphique = prescF.filter((x) => ['38', '39', '43'].includes(String(x.properties.typepsc))).map((x) => x.properties.libelle);
   const oap = prescF.concat(arr('info-surf')).filter((x) => /OAP|orientation/i.test(x.properties.libelle || ''));
   const constr = zoneConstructible(sel.zone);
   const regl = api.reglementUrl(sel.zone, sel.partition);
+  const hyp = store.settings();
+  const fu = fusionRegles(store.getRules(sel.key), sel.graph);
+  const r = fu.regles, pot = potentielSel();
+  const S = +sel.feature.properties.contenance || 0;
+  const logementOk = sel.zone ? constr === true && !zoneHorsLogement(sel.zone) : null;
+  // repères tirés des permis récents de la commune (chargés en arrière-plan)
+  if (sel.permis === undefined) chargerProjets(selToken);
+  const ops = Array.isArray(sel.permis) ? sel.permis.filter((p) => p.etat !== 4 && p.collectifs >= 5 && (p.autorisation || '') >= '2015') : null;
+  const med = (a) => { const t = a.filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y); return t.length ? t[t.length >> 1] : null; };
+  const opsZone = ops && sel.zone ? ops.filter((p) => p.centre && (() => { try { return turf.booleanPointInPolygon(turf.point(p.centre), sel.zone); } catch { return false; } })()) : [];
+  const ref = opsZone.length >= 3 ? { l: opsZone, ou: `dans la zone ${sel.zLabel}` } : ops && ops.length >= 3 ? { l: ops, ou: 'dans la commune' } : null;
+  const fmtR = (k, v) => (v === null || v === undefined ? null : k === 'ces' || k === 'pt' ? `${Math.round(v * 100)} %` : `${String(v).replace('.', ',')} m`);
+  const src = (k) => (fu.origine[k] === 'plan' ? '<span class="pill ok">plan graphique</span>' : fu.origine[k] === 'zone' ? '<span class="pill wa">vos règles</span>' : '');
+  const verdict = !sel.zone && !sel.cc ? (sel.urba['zone-urba'] === 'loading' ? ['', 'Lecture du PLU…'] : ['wa', 'Zone non déterminée'])
+    : sel.cc ? ['wa', 'Carte communale : constructible dans les secteurs délimités']
+    : logementOk ? ['ok', 'Logement autorisé par le PLU']
+    : constr === false ? ['no', 'Zone agricole ou naturelle : pas de logement']
+    : ['no', "Zone d'activités, d'équipements ou d'urbanisation future : logement non prévu"];
   body.innerHTML = `
+    <div class="synth">
+      <div class="synth-head"><span class="pill ${verdict[0]}">${esc(verdict[1])}</span></div>
+      <h3>${z ? `Zone ${esc(z.libelle)}` : sel.cc ? esc(sel.cc.properties.libelle || 'Carte communale') : 'Zone —'}</h3>
+      <p class="note">${z ? esc(z.libelong || '') : ''}${d ? ` · ${esc(d.du_type || '')} ${esc(d.grid_title || '')}` : sel.partition ? ` · ${esc(sel.partition)}` : ''}${z && z.destdomi ? ` · destination dominante : ${esc(z.destdomi)}` : ''}</p>
+      <div class="kpis">
+        <div><span>Emprise au sol max</span><strong>${fmtR('ces', r.ces) || '—'}</strong>${src('ces')}</div>
+        <div><span>Hauteur max</span><strong>${r.h !== null ? `${fmtR('h', r.h)} · R+${Math.max(0, Math.floor(r.h / hyp.hEt) - 1)}` : '—'}</strong>${src('h')}</div>
+        <div><span>Pleine terre min</span><strong>${fmtR('pt', r.pt) || '—'}</strong>${src('pt')}</div>
+        <div><span>OAP</span><strong class="small">${pending ? '…' : oap.length ? 'Oui' : 'Non'}</strong></div>
+      </div>
+      ${pot && pot.ok ? `<div class="synth-pot"><b>${f0(pot.E)} m²</b> d'emprise × ${pot.niv} niveau(x) × ${hyp.k} = <b>${f0(pot.sdp)} m² de plancher</b> ÷ ${hyp.sMoy} m² = <b>${pot.real} logements</b> sur ${m2(S)}</div>`
+        : logementOk ? `<p class="note">Potentiel non calculable : ni le plan graphique ni vos règles ne donnent l'emprise ou la hauteur de cette zone. ${ref ? 'Les repères ci-dessous donnent un ordre de grandeur.' : ''}</p>` : ''}
+    </div>
+    ${ref ? `<div class="synth-ref"><div class="label">Ce qui s'est construit récemment ${esc(ref.ou)}</div>
+      <p class="note">${ref.l.length} opérations de 5 logements collectifs ou plus autorisées depuis 2015 (permis de construire) : hauteur médiane <b>${med(ref.l.map((p) => p.niveaux)) ? 'R+' + (med(ref.l.map((p) => p.niveaux)) - 1) : '—'}</b>, densité médiane <b>${med(ref.l.map((p) => permis.densite(p))) ? f0(med(ref.l.map((p) => permis.densite(p)))) + ' logements/ha' : '—'}</b>, soit environ <b>${med(ref.l.map((p) => permis.densite(p))) ? Math.floor((S * med(ref.l.map((p) => permis.densite(p)))) / 10000) : '—'} logements</b> à cette densité sur la parcelle.</p></div>`
+      : sel.permis === 'loading' ? '<p class="note">Recherche des opérations récentes de la commune…</p>' : ''}
     <dl class="kv">
-      <dt>Document</dt><dd>${d ? `${esc(d.du_type || 'Document')} · ${esc(d.grid_title || sel.partition || '')}${z && z.datappro ? ' · approuvé le ' + esc(String(z.datappro).replace(/^(\d{4})(\d{2})(\d{2})$/, '$3/$2/$1')) : ''}` : sel.cc ? 'Carte communale' : sel.urba.document === 'loading' ? (sel.partition ? `${esc(sel.partition)} <span class="note">(chargement…)</span>` : 'Chargement…') : sel.partition ? `Document ${esc(sel.partition)}` : sel.urba.document === null ? '<span class="pill wa">service indisponible</span>' : 'Aucun document au GPU (RNU possible)'}</dd>
-      <dt>Zone</dt><dd>${z ? `<b>${esc(z.libelle)}</b> ${esc(z.libelong || '')} <span class="pill ${constr ? 'ok' : constr === false ? 'no' : 'wa'}">${esc(z.typezone || '')}</span>` : sel.cc ? esc(sel.cc.properties.libelle || 'Secteur de carte communale') : '—'}</dd>
-      <dt>Destination</dt><dd>${z && z.destdomi ? esc(z.destdomi) : 'Non renseignée au GPU'}</dd>
-      <dt>OAP</dt><dd>${pending ? 'Chargement…' : oap.length ? [...new Set(oap.map((x) => x.properties.libelle))].map(esc).join(' · ') : 'Aucune détectée'}</dd>
+      <dt>Recul sur voie</dt><dd>${r.recul !== null ? fmtR('recul', r.recul) + ' ' + src('recul') : '<span class="note">dans le règlement écrit</span>'}</dd>
+      <dt>Retrait limites</dt><dd>${r.ret !== null ? fmtR('ret', r.ret) + ' ' + src('ret') : '<span class="note">dans le règlement écrit</span>'}</dd>
+      <dt>Stationnement</dt><dd>${r.stat !== null ? `${r.stat} place(s) / logement ${src('stat')}` : '<span class="note">dans le règlement écrit</span>'}</dd>
+      <dt>OAP</dt><dd>${pending ? 'Chargement…' : oap.length ? [...new Set(oap.map((x) => x.properties.libelle))].map(esc).join(' · ') : 'Aucune'}</dd>
       <dt>Prescriptions</dt><dd>${pending ? 'Chargement…' : prescF.length ? [...new Set(prescF.map((x) => x.properties.libelle || x.properties.txt).filter(Boolean))].map(esc).join(' · ') : 'Aucune'}</dd>
     </dl>
     <div class="actions">
-      ${regl ? `<a href="${esc(regl)}" target="_blank" rel="noopener">Règlement</a>` : ''}
-      <a href="${api.gpuViewerUrl(lng, lat)}" target="_blank" rel="noopener">Géoportail de l'Urbanisme</a>
+      ${regl ? `<a class="btn-link" href="${esc(regl)}" target="_blank" rel="noopener">Ouvrir le règlement</a>` : ''}
+      <a class="btn-link" href="${api.gpuViewerUrl(lng, lat)}" target="_blank" rel="noopener">Géoportail de l'Urbanisme</a>
     </div>
-    ${sel.graph && sel.graph.n ? `<div class="rules-plan"><div class="label">Règles du plan graphique à cette parcelle</div><ul class="list">${Object.values(sel.graph.sources).map((t) => `<li>${esc(t)}</li>`).join('')}</ul><p class="note"><span class="pill ok">GPU</span> Valeurs publiées par la collectivité au Géoportail de l'Urbanisme. Elles remplacent, pour cette parcelle, la valeur saisie pour la zone dans le calcul du potentiel.</p></div>` : ''}
-    ${planGraphique.length && !(sel.graph && sel.graph.n) ? `<p class="note"><span class="pill wa">plan graphique</span> ${[...new Set(planGraphique)].map(esc).join(', ')} : la valeur est fixée sur un plan du PLU, pas seulement dans le règlement écrit. Vérifiez-la sur le Géoportail de l'Urbanisme avant de saisir les règles.</p>` : ''}
-    ${constr !== false && (z || sel.cc) ? reglesParcelleHtml() : ''}
-    <div id="rulesSlot"></div>
-    ${sel.partition ? `<div class="zones-sec"><div class="label">Toutes les zones du PLU</div><p class="note">Règles de constructibilité de chaque zone du document ${esc(sel.partition)} : valeurs du plan graphique, vos règles enregistrées, lien vers le règlement.</p><div id="zonesSlot"><button type="button" id="loadZones">Afficher le tableau des zones</button></div></div>` : ''}`;
+    <details class="rules-edit"><summary>Compléter ou corriger les règles de la zone ${esc(sel.zLabel)}</summary><div id="rulesSlot"></div></details>
+    ${sel.partition ? `<div class="zones-sec"><div class="label">Toutes les zones du PLU</div><p class="note">Règles de constructibilité de chaque zone du document ${esc(sel.partition)}.</p><div id="zonesSlot"><button type="button" class="ghost" id="loadZones">Afficher le tableau des zones</button></div></div>` : ''}`;
   const lz = $('#loadZones', body); if (lz) lz.onclick = () => renderZones($('#zonesSlot', body), sel.partition, sel.zLabel);
   const slot = $('#rulesSlot', body);
   if (!z && !sel.cc && sel.zLabel === '?') slot.innerHTML = '<p class="note">Zone non déterminée : réessayez pour charger le zonage avant de saisir des règles.</p>';
@@ -710,7 +739,7 @@ function ficheProjets(body) {
 function chargerProjets(token) {
   if (!sel || !sel.feature) return;
   const insee = sel.feature.properties.code_insee;
-  const refresh = () => { if (token !== selToken) return; if (tab === 'fiche' && ficheTab === 'projets') renderFiche(); else { dessinerPermis(); dessinerVefa(); } };
+  const refresh = () => { if (token !== selToken) return; if (tab === 'fiche' && ficheTab === 'projets') renderFiche(); else { dessinerPermis(); dessinerVefa(); if (tab === 'fiche' && ficheTab === 'urba') renderFiche(); } };
   if (sel.permis === undefined) {
     sel.permis = 'loading';
     api.permisLogements(insee, { minLogements: 2 }).then(async (l) => {

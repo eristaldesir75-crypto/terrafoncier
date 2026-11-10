@@ -54,6 +54,9 @@ jobs:
         with: { node-version: 20 }
       - name: Navigateur
         run: npm i playwright@1.48.2 --no-audit --no-fund >/dev/null && npx playwright install --with-deps chromium >/dev/null
+      - name: Liens des pièces du PLU
+        continue-on-error: true
+        run: cp frontend/tests/check_gpu.mjs . && node check_gpu.mjs
       - name: Sur téléphone
         if: inputs.mobile
         run: cp frontend/tests/e2e_mobile.mjs . && node e2e_mobile.mjs

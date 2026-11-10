@@ -439,3 +439,26 @@ export async function parcellesAutour(geom) {
   const fc = await getJSON(`${APICARTO}/cadastre/parcelle?geom=${g(geom)}&_limit=200`, { timeout: 20000, retries: 1 });
   return fc.features || [];
 }
+
+// ---------- Pièces du PLU (Géoportail de l'Urbanisme) : règlement, plan de zonage, OAP, archive complète ----------
+const GPU_API = 'https://www.geoportail-urbanisme.gouv.fr/api';
+const piecesCache = new Map();
+/** Document en vigueur d'une partition et la liste de ses fichiers : { id, nom, type, maj, fichiers: [{ nom, titre, rubrique, url }], zip, fiche }. */
+export function piecesPlu(partition) {
+  if (!piecesCache.has(partition)) {
+    piecesCache.set(partition, (async () => {
+      const l = await getJSON(`${GPU_API}/document?partition=${encodeURIComponent(partition)}&status=document.production`, { timeout: 15000, retries: 1 });
+      const d = (Array.isArray(l) ? l : [])[0];
+      if (!d) return null;
+      let files = [];
+      try { files = await getJSON(`${GPU_API}/document/${d.id}/files`, { timeout: 15000, retries: 1 }); } catch { files = []; }
+      return {
+        id: d.id, nom: d.originalName, type: d.type, maj: d.updateDate,
+        fichiers: (Array.isArray(files) ? files : []).map((x) => ({ nom: x.name, titre: x.title || x.name, rubrique: x.path && x.path !== 'null' ? x.path : '', url: `${GPU_API}/document/${d.id}/files/${encodeURIComponent(x.name)}` })),
+        zip: `${GPU_API}/document/${d.id}/download/${encodeURIComponent(d.originalName)}.zip`,
+        fiche: `https://www.geoportail-urbanisme.gouv.fr/document/by-id/${d.id}`,
+      };
+    })().catch((e) => { piecesCache.delete(partition); throw e; }));
+  }
+  return piecesCache.get(partition);
+}

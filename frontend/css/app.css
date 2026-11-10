@@ -377,3 +377,8 @@ dialog::backdrop{background:rgba(23,38,59,.45)}
   .fais-table input[type=number]{width:74px}
   .tw{border-radius:var(--radius-s)}
 }
+.pieces{display:flex;flex-direction:column;gap:8px}
+#piecesSlot{display:flex;flex-direction:column;gap:8px}
+.btn-link.prim{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-link.prim:hover{background:var(--accent-2);color:#fff}
+.plu-box{font-size:13.5px}

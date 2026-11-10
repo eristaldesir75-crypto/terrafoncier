@@ -532,10 +532,11 @@ function ficheUrba(body) {
       <dt>OAP</dt><dd>${pending ? 'Chargement…' : oap.length ? [...new Set(oap.map((x) => x.properties.libelle))].map(esc).join(' · ') : 'Aucune'}</dd>
       <dt>Prescriptions</dt><dd>${pending ? 'Chargement…' : prescF.length ? [...new Set(prescF.map((x) => x.properties.libelle || x.properties.txt).filter(Boolean))].map(esc).join(' · ') : 'Aucune'}</dd>
     </dl>
-    <div class="actions">
-      ${regl ? `<a class="btn-link" href="${esc(regl)}" target="_blank" rel="noopener">Ouvrir le règlement</a>` : ''}
-      <a class="btn-link" href="${api.gpuViewerUrl(lng, lat)}" target="_blank" rel="noopener">Géoportail de l'Urbanisme</a>
-    </div>
+    ${logementOk !== false && (r.ces === null || r.h === null || r.recul === null || r.ret === null || r.stat === null) ? `<div class="warn plu-box"><b>Règles de la zone ${esc(sel.zLabel)} à lire dans le règlement du PLU.</b> ${r.ces === null && r.h === null ? "Le PLU de la commune ne publie pas l'emprise ni la hauteur sous forme de données." : 'Recul, retrait et stationnement ne sont publiés que dans le règlement écrit.'} Ouvrez-le ci-dessous, chapitre de la zone ${esc(sel.zLabel)}.</div>` : ''}
+    <div class="pieces"><div class="label">Documents du PLU</div><div id="piecesSlot"><div class="actions">
+      ${regl ? `<a class="btn-link" href="${esc(regl)}" target="_blank" rel="noopener">Règlement de la zone</a>` : ''}
+      <a class="btn-link" href="${api.gpuViewerUrl(lng, lat)}" target="_blank" rel="noopener">Géoportail de l'Urbanisme</a></div>
+      <p class="note">Recherche des pièces du PLU…</p></div></div>
     <details class="rules-edit"><summary>Compléter ou corriger les règles de la zone ${esc(sel.zLabel)}</summary><div id="rulesSlot"></div></details>
     ${sel.partition ? `<div class="zones-sec"><div class="label">Toutes les zones du PLU</div><p class="note">Règles de constructibilité de chaque zone du document ${esc(sel.partition)}.</p><div id="zonesSlot"><button type="button" class="ghost" id="loadZones">Afficher le tableau des zones</button></div></div>` : ''}`;
   const lz = $('#loadZones', body); if (lz) lz.onclick = () => renderZones($('#zonesSlot', body), sel.partition, sel.zLabel);
@@ -543,6 +544,34 @@ function ficheUrba(body) {
   if (!z && !sel.cc && sel.zLabel === '?') slot.innerHTML = '<p class="note">Zone non déterminée : réessayez pour charger le zonage avant de saisir des règles.</p>';
   else if (constr !== false) slot.appendChild(rulesBlock(sel.key, sel.zLabel, renderFiche));
   else slot.innerHTML = '<p class="note">Zone agricole ou naturelle : pas de potentiel de logement.</p>';
+  if (sel.partition) afficherPieces($('#piecesSlot', body), sel.partition, regl, lng, lat);
+}
+
+// Liens directs vers les pièces du PLU : règlement de la zone, plan de zonage, OAP, archive complète
+async function afficherPieces(slot, partition, regl, lng, lat) {
+  const token = selToken, zl = sel.zLabel;
+  let d = null;
+  try { d = await api.piecesPlu(partition); } catch { d = null; }
+  if (token !== selToken || !slot.isConnected) return;
+  const lien = (url, t, cls = 'btn-link') => `<a class="${cls}" href="${esc(url)}" target="_blank" rel="noopener">${esc(t)}</a>`;
+  const gpuLien = lien(api.gpuViewerUrl(lng, lat), "Voir sur le Géoportail de l'Urbanisme");
+  if (!d) { slot.innerHTML = `<div class="actions">${regl ? lien(regl, `Règlement de la zone ${zl}`) : ''}${gpuLien}</div><p class="note">Liste des pièces indisponible pour le moment.</p>`; return; }
+  const F = d.fichiers;
+  const reglEcrit = F.filter((x) => /r[eè]glement/i.test(x.nom + ' ' + x.rubrique) && !/graphique|prescription|zonage|plan/i.test(x.nom)).sort((a, b) => a.nom.length - b.nom.length)[0];
+  const plan = F.filter((x) => /graphique|zonage|plan_?de_?zonage/i.test(x.nom));
+  const oap = F.filter((x) => /orientation|oap/i.test(x.nom + ' ' + x.rubrique));
+  const urlRegl = regl && !/download-by-partition/.test(regl) ? regl : reglEcrit ? reglEcrit.url : null;
+  const rubriques = {};
+  F.forEach((x) => { const k = x.rubrique || 'Autres pièces'; (rubriques[k] = rubriques[k] || []).push(x); });
+  slot.innerHTML = `
+    <div class="actions">
+      ${urlRegl ? lien(`${urlRegl}#search=${encodeURIComponent(zl)}`, `Règlement écrit (zone ${zl})`, 'btn-link prim') : ''}
+      ${plan.slice(0, 2).map((x) => lien(x.url, plan.length > 1 ? `Plan de zonage : ${x.titre}` : 'Plan de zonage')).join('')}
+      ${lien(d.zip, 'Télécharger tout le PLU (zip)')}
+    </div>
+    ${oap.length ? `<div class="actions">${oap.slice(0, 6).map((x) => lien(x.url, `OAP : ${x.titre}`)).join('')}</div>` : ''}
+    <p class="note">${esc(d.type || 'PLU')} en vigueur ${esc(d.nom || '')}${d.maj ? `, mis à jour le ${esc(String(d.maj).slice(0, 10))}` : ''}. ${F.length} pièces publiées. ${lien(d.fiche, 'Fiche du document', '')} · ${gpuLien.replace('class="btn-link"', '')}</p>
+    ${F.length ? `<details class="rules-edit"><summary>Toutes les pièces du PLU (${F.length})</summary>${Object.entries(rubriques).map(([k, l]) => `<div class="label">${esc(k)}</div><ul class="list">${l.map((x) => `<li>${lien(x.url, x.titre, '')} <span class="note">${esc(x.nom)}</span></li>`).join('')}</ul>`).join('')}</details>` : ''}`;
 }
 
 // Règles applicables à la parcelle, champ par champ, avec leur origine

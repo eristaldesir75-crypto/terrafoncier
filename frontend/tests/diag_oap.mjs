@@ -3,13 +3,15 @@ import { chromium } from 'playwright';
 const b = await chromium.launch(); const page = await b.newPage({ viewport: { width: 1400, height: 900 } });
 await page.goto('https://fonciscope.github.io/#14/47.95/1.87', { waitUntil: 'load' });
 await page.waitForTimeout(2500);
-const r = await page.evaluate(async () => {
+for (const commune of ['Saran', 'Chambray-lès-Tours', 'Étampes', 'Olivet']) {
+const r = await page.evaluate(async (commune) => {
   const api = await import('/js/api.js');
   const pro = window.tfDebug().pro;
-  const res = await pro.lancer({ commune: 'Saran', exclure_oap: true });
-  const presc = await api.gpuByPartition('prescription-surf', 'DU_244500468');
+  const res = await pro.lancer({ commune, exclure_oap: true });
+  const part = res.document_urbanisme;
+  const presc = await api.gpuByPartition('prescription-surf', part);
   const oap = presc.filter((p) => String(p.properties.typepsc) === '18' && p.geometry);
-  const info = await api.gpuByPartition('info-surf', 'DU_244500468');
+  const info = await api.gpuByPartition('info-surf', part);
   const infoOap = info.filter((p) => /OAP|orientation/i.test(p.properties.libelle || ''));
   const out = [];
   for (const h of pro.terrains()) {
@@ -23,7 +25,8 @@ const r = await page.evaluate(async () => {
     }
     if (a > 0) out.push({ ref: h.f.properties.idu, S: Math.round(h.occ.S), oap_m2: Math.round(a), pct: Math.round((100 * a) / h.occ.S), point_dedans: dedans, groupe: !!h.groupe, contraintes: h.contraintes.map((c) => c.k) });
   }
-  return { crit: res.criteres_appliques.exclure_oap, ecartees: res.ecartees, total: pro.terrains().length, oap: oap.length, infoOap: infoOap.map((x) => x.properties.libelle).slice(0, 10), touchent: out };
-});
-console.log(JSON.stringify(r, null, 1));
+  return { commune, part, crit: res.criteres_appliques.exclure_oap, ecartees: res.ecartees, total: pro.terrains().length, oap: oap.length, infoOap: infoOap.length, touchentPlus20: out.filter((x) => x.oap_m2 >= 20).length, touchent: out.slice(0, 8) };
+}, commune).catch((e) => ({ commune, erreur: e.message }));
+console.log(JSON.stringify(r));
+}
 await b.close();

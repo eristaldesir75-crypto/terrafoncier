@@ -392,6 +392,8 @@ export function initProspection(ctx) {
       const avertissements = [];
       const prescP = api.gpuByPartition('prescription-surf', partition, { signal }).catch(() => { avertissements.push("Prescriptions du PLU indisponibles : contraintes (EBC, emplacements réservés, OAP) et règles du plan graphique non vérifiées"); return null; });
       const frichesP = api.friches(com.code);
+      // périmètres d'OAP publiés en « informations » par certains PLU (les autres sont des prescriptions de type 18)
+      const infoP = c.exclOap || c.oapSeul ? api.gpuByPartition('info-surf', partition, { signal }).catch(() => null) : Promise.resolve(null);
       const cleDens = `${com.code}|${partition}`;
       if (!densCache.has(cleDens)) densCache.set(cleDens, densitesVoisines(com.code, idxZones).catch(() => { densCache.delete(cleDens); return null; }));
       const densP = densCache.get(cleDens);
@@ -442,12 +444,29 @@ export function initProspection(ctx) {
       const tiles = [...cells.values()];
       const occ = await api.occupationTiles(tiles, { signal, onProgress: (d, n) => setStatus(`Bâtiments, parkings et équipements : secteur ${d} / ${n} (${f0(cand.length)} parcelles seules, ${f0(pool.length)} petites parcelles pour le remembrement)`, 40 + (35 * d) / n) });
       setStatus('Prescriptions du PLU et friches…', 76);
-      const [presc, fr] = await Promise.all([prescP, frichesP]);
+      const [presc, fr, infos] = await Promise.all([prescP, frichesP, infoP]);
       if (fr === null) avertissements.push('Cartofriches indisponible : les friches ne sont pas repérées');
 
       const idx = { bat: grille(occ.batiments), park: grille(occ.parkings), eq: grille(occ.equipements) };
       const comBbox = turf.bbox(turf.featureCollection([...cand, ...pool].map((k) => k.f)));
       const idxPresc = presc ? grille(presc.filter((p) => p.geometry && (() => { const b = turf.bbox(p); return b[0] <= comBbox[2] && b[2] >= comBbox[0] && b[1] <= comBbox[3] && b[3] >= comBbox[1]; })())) : null;
+      // Secteurs d'OAP : prescriptions de type 18 ou nommées OAP, informations nommées OAP
+      const RE_OAP = /orientation[s]? d'am[ée]nagement|\bOAP\b/i;
+      const estOap = (x) => { const p = x.properties || {}; return String(p.typepsc) === '18' || RE_OAP.test(`${p.libelle || ''} ${p.txt && p.txt !== 'nr' ? p.txt : ''}`); };
+      const oapPolys = [...(presc || []), ...(infos || [])].filter((x) => x.geometry && /Polygon/.test(x.geometry.type) && estOap(x));
+      const idxOap = oapPolys.length ? grille(oapPolys) : null;
+      if ((c.exclOap || c.oapSeul) && presc === null) avertissements.push("Secteurs d'OAP non vérifiés : prescriptions du PLU indisponibles");
+      /** Terrain en secteur d'OAP : au moins 20 m² ou 2 % du terrain dans un périmètre d'OAP, ou zone du PLU dite « soumise à OAP ». */
+      const enOap = (f, S, zone) => {
+        if (zone && RE_OAP.test(zone.properties.libelong || '')) return true;
+        if (!idxOap) return false;
+        let a = 0;
+        for (const o of idxOap.pres(turf.bbox(f))) {
+          try { const x = turf.intersect(turf.featureCollection([o, f])); if (x) a += turf.area(x); } catch { /* géométrie invalide */ }
+          if (a >= 20 || a >= 0.02 * S) return true;
+        }
+        return false;
+      };
       const frichesParIdu = new Map();
       (fr || []).forEach((x) => x.idus.forEach((i) => frichesParIdu.set(i, x)));
 
@@ -458,7 +477,7 @@ export function initProspection(ctx) {
       const out = [], attente = [], missing = new Map(), critN = critPourNote();
       const evaluer = (h) => {
         const contraintes = contraintesDe(h.f, idxPresc, h.occ.S);
-        const oap = contraintes.some((x) => x.k === 'oap');
+        const oap = contraintes.some((x) => x.k === 'oap') || enOap(h.f, h.occ.S, h.zone);
         if (c.oapSeul && !oap) { compte.contraintes++; return; }
         if (c.exclOap && !c.oapSeul && oap) { compte.oap = (compte.oap || 0) + 1; return; }
         if (c.exclContraintes && contraintes.some((x) => x.k === 'ebc' || x.k === 'er')) { compte.contraintes++; return; }

@@ -59,6 +59,15 @@ export async function urlReglement(zone, partition) {
 
 // Texte des PDF déjà lus, le temps de la visite (un règlement sert à toutes ses zones)
 const textes = new Map();
+const textesServeur = new Map();
+function texteServeur(partition) {
+  if (!textesServeur.has(partition)) {
+    textesServeur.set(partition, fetch(`data/regles/textes/${encodeURIComponent(partition)}.json`)
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null)
+      .then((j) => (j && Array.isArray(j.pages) && j.pages.length ? { url: j.document, urls: j.fichiers || [j.document], pages: j.pages.map(([lab, t]) => ({ lab, t })), octets: 1e12, pdf: null } : null)));
+  }
+  return textesServeur.get(partition);
+}
 /** Lit plusieurs fichiers du règlement (PLUi en plusieurs tomes) : pages réunies, chacune avec son fichier et sa page. */
 async function lireReglement(urls, onEtape, max = 3) {
   const docs = [];
@@ -297,7 +306,10 @@ export function lireZone({ key, zone, partition, commune, onEtape, force = false
     const libelle = zone.properties.libelle;
     const urls = await urlReglement(zone, partition);
     if (!urls.length) throw new Error('Aucun règlement écrit publié au Géoportail de l\'Urbanisme pour ce document');
-    const doc = await lireReglement(urls, onEtape);
+    // texte du règlement préparé côté serveur (data/regles/textes) : pas de PDF à télécharger ni à lire sur l'appareil
+    let doc = await texteServeur(partition);
+    if (doc) onEtape && onEtape('Texte du règlement chargé');
+    else doc = await lireReglement(urls, onEtape);
     const vois = await zonesVoisines(partition, libelle);
     // zones demandées en priorité (celles de la prospection), puis les autres zones d'habitat du document
     const autres = [...avec.filter((l) => vois.includes(l)), ...vois.filter((l) => !avec.includes(l))].slice(0, MAX_ZONES - 1);

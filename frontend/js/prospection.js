@@ -639,7 +639,8 @@ export function initProspection(ctx) {
       // adresses en arrière-plan : la liste est utilisable tout de suite, les adresses s'ajoutent au fil de l'eau
       ajouterAdresses(st.results).catch(() => {});
       // zones sans règles : lecture du règlement écrit par l'IA (clé Gemini enregistrée), puis nouveau classement
-      if (cleIA() && st.zonesMissing.length) await lireZonesManquantes(st.results, signal);
+      // en arrière-plan : les résultats s'affichent tout de suite, puis sont reclassés quand les règles arrivent
+      if (cleIA() && st.zonesMissing.length) { st.results.lectureEnCours = true; const r0 = st.results; lireZonesManquantes(r0, signal).catch(() => {}).finally(() => { r0.lectureEnCours = false; }); }
     } catch (e) {
       st.erreur = e.name === 'AbortError' || signal.aborted ? 'Prospection arrêtée' : e.message;
       setStatus(`<p class="err">${esc(st.erreur)}</p>`);
@@ -841,7 +842,7 @@ export function initProspection(ctx) {
       terrains_logement: log.length, dont_remembrements: log.filter((h) => h.groupe).length,
       entrepots_locaux_activite: r.list.length - log.length, en_attente_de_regles: r.attente.length, duree_s: r.secs,
       ecartees: { surface: c.surface, zonage: c.zone, nature: c.nature, contraintes: c.contraintes, en_oap: c.oap || 0, regles_plu: c.regles, sans_facade: c.facade || 0, note: c.score },
-      avertissements: r.avertissements, meilleurs: log.slice(0, n).map((h, i) => terrainResume(h, i + 1)),
+      lecture_reglement_en_cours: !!r.lectureEnCours, avertissements: r.avertissements, meilleurs: log.slice(0, n).map((h, i) => terrainResume(h, i + 1)),
     };
   }
   async function communeDe(texte) {

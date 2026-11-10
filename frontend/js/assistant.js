@@ -179,9 +179,12 @@ export async function erreurHttp(r) {
 const reflexion = (modele) => (/gemini-2\./.test(modele) ? { thinkingBudget: /pro/.test(modele) ? 128 : 0 } : { thinkingLevel: 'low' });
 let sansReflexion = false; // modèle qui refuse le réglage : envoyé sans
 
+let modeleBulle = null;
 const epuises = new Set(); // modèles dont le quota est atteint pendant cette visite
 async function generer(cle, contents, contexte) {
-  let modele = await choisirModele(cle);
+  // bulle : modèle « Flash-Lite » s'il existe, nettement plus rapide pour comprendre une demande et appeler le site
+  if (!modeleBulle) { try { modeleBulle = (await modelesFlash(cle)).find((m) => /lite/.test(m) && !/preview/.test(m)) || null; } catch { modeleBulle = null; } }
+  let modele = modeleBulle || await choisirModele(cle);
   if (epuises.has(modele)) { const l = (await modelesFlash(cle).catch(() => [])).filter((m) => !epuises.has(m)); if (l[0]) modele = l[0]; }
   const corps = () => JSON.stringify({
     systemInstruction: { parts: [{ text: `${SYSTEME}\n\nÉtat actuel du site : ${contexte}` }] },

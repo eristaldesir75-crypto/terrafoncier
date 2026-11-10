@@ -20,7 +20,7 @@ jobs:
           if git fetch origin data --depth=1; then git worktree add data origin/data && mkdir -p frontend/data && cp -r data/plu frontend/data/ && (cp -r data/adresses frontend/data/ || true); else echo "Pas encore de copie des PLU"; fi
       - name: Ajout des règles lues par l'IA (branche regles)
         run: |
-          if git fetch origin regles --depth=1; then git worktree add regles origin/regles && mkdir -p frontend/data/regles && cp regles/*.json frontend/data/regles/ 2>/dev/null || true; else echo "Pas encore de règles lues"; fi
+          if git fetch origin regles --depth=1; then git worktree add regles origin/regles && mkdir -p frontend/data/regles && (cd regles && find . -name "*.json" -exec cp --parents {} ../frontend/data/regles/ \;) || true; else echo "Pas encore de règles lues"; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: { path: frontend }

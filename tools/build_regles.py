@@ -178,6 +178,25 @@ def convertit(x):
     return o
 
 
+def pages_utiles(pages, zones, budget=200_000):
+    """Pages gardées pour le site : tout le règlement s'il est court, sinon les pages des zones d'habitat et du stationnement."""
+    if sum(len(t) for t, _ in pages) <= budget:
+        return [[lab, t] for t, lab in pages]
+    codes = set()
+    for z in zones:
+        codes.add(z); b = z.split("-")[0]; codes.add(b); codes.add(re.sub(r"[a-z]+\d*$", "", b))
+    res = [re.compile(rf"(?<![A-Za-z0-9]){re.escape(c)}(?![A-Za-z0-9])") for c in codes if c]
+    score = sorted(((sum(len(r.findall(t)) for r in res) + (3 if re.search("stationnement", t, re.I) else 0), i) for i, (t, _) in enumerate(pages)), reverse=True)
+    garde, n = [], 0
+    for s_, i in score:
+        if s_ <= 0:
+            break
+        if n + len(pages[i][0]) > budget:
+            continue
+        garde.append(i); n += len(pages[i][0])
+    return [[pages[i][1], pages[i][0]] for i in sorted(garde)]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--plu", required=True)        # copie des PLU (index.json, p/<partition>/zones.json)
@@ -187,28 +206,27 @@ def main():
     a = ap.parse_args()
     cle = os.environ.get("GEMINI_API_KEY", "").strip()
     plu, prev, out = Path(a.plu), Path(a.prev), Path(a.out)
-    out.mkdir(parents=True, exist_ok=True)
-    # lectures déjà faites : reprises telles quelles
-    for f in prev.glob("*.json"):
-        (out / f.name).write_text(f.read_text())
-    essai = os.environ.get("ESSAI") == "1"  # téléchargement et lecture des PDF seulement, sans Gemini
-    if not cle and not essai:
-        log("Pas de secret GEMINI_API_KEY : lectures précédentes gardées, rien de nouveau lu.")
-        return
-    mod = modele(cle) if not essai else "essai"
-    log("Modèle :", mod)
+    (out / "textes").mkdir(parents=True, exist_ok=True)
+    # lectures et textes déjà faits : repris tels quels
+    for f in list(prev.glob("*.json")) + list(prev.glob("textes/*.json")):
+        (out / f.relative_to(prev)).write_text(f.read_text())
+    essai = os.environ.get("ESSAI") == "1"
+    mod = modele(cle) if cle and not essai else None
+    log("Modèle :", mod or "aucun (textes des règlements seulement : ajoutez le secret GEMINI_API_KEY pour la lecture des règles)")
     docs = json.loads((plu / "index.json").read_text())["documents"]
-    faits = 0
+    faits, quota = 0, False
     for part, d in sorted(docs.items()):
         if faits >= a.max_docs:
             log(f"Limite de {a.max_docs} documents atteinte : la suite au prochain passage."); break
-        dest = out / f"{part}.json"
-        if dest.exists():
+        dest, dtx = out / f"{part}.json", out / "textes" / f"{part}.json"
+        def a_jour(f):
             try:
-                if json.loads(dest.read_text()).get("id") == d.get("id"):
-                    continue
+                return f.exists() and json.loads(f.read_text()).get("id") == d.get("id")
             except Exception:
-                pass
+                return False
+        regles_ok, texte_ok = a_jour(dest), a_jour(dtx)
+        if texte_ok and (regles_ok or not mod or quota):
+            continue
         zf = plu / "p" / part / "zones.json"
         if not zf.exists() or d.get("type") == "CC":
             continue
@@ -222,14 +240,16 @@ def main():
             nom, urls = reglement(d["id"], part)
             url = urls[0] if urls else None
             if not url:
-                dest.write_text(json.dumps({"id": d.get("id"), "erreur": "pas de règlement écrit publié", "zones": {}}, ensure_ascii=False)); continue
+                dest.write_text(json.dumps({"id": d.get("id"), "erreur": "pas de règlement écrit publié", "zones": {}}, ensure_ascii=False))
+                dtx.write_text(json.dumps({"id": d.get("id"), "pages": []})); continue
             pages = pages_texte(urls)
             if sum(len(p) for p, _ in pages) < 2000:
-                dest.write_text(json.dumps({"id": d.get("id"), "document": url, "erreur": "règlement scanné (pas de texte)", "zones": {}}, ensure_ascii=False)); continue
-            if essai:
-                t = selection(pages, zones[:ZONES_PAR_APPEL])
-                log(f"ESSAI {part} : {nom}, {len(pages)} pages, {sum(len(p) for p, _ in pages)} caractères, {len(t)} envoyés, zones {zones[:8]}")
-                continue
+                dest.write_text(json.dumps({"id": d.get("id"), "document": url, "erreur": "règlement scanné (pas de texte)", "zones": {}}, ensure_ascii=False))
+                dtx.write_text(json.dumps({"id": d.get("id"), "document": url, "pages": []})); continue
+            # texte des pages utiles, servi au site : la lecture sur téléphone ne télécharge plus le PDF
+            dtx.write_text(json.dumps({"id": d.get("id"), "document": url, "fichiers": urls, "pages": pages_utiles(pages, zones)}, ensure_ascii=False, separators=(",", ":")))
+            if essai or not mod or quota or regles_ok:
+                log(f"{part} : texte du règlement enregistré ({len(pages)} pages)"); continue
             res = {}
             for i in range(0, len(zones), ZONES_PAR_APPEL):
                 lot = zones[i:i + ZONES_PAR_APPEL]
@@ -242,10 +262,10 @@ def main():
             n = sum(1 for z in res.values() if any(z[k] is not None for k in CHAMPS))
             log(f"{part} : {n} / {len(zones)} zones avec des règles ({len(pages)} pages)")
         except QuotaJour:
-            log("Quota du jour de Gemini atteint : la suite au prochain passage."); break
+            log("Quota du jour de Gemini atteint : les règles reprendront au prochain passage, les textes continuent."); quota = True
         except Exception as e:
             log(f"{part} : {e}")
-    log(f"Documents lus ce passage : {faits}. Total : {len(list(out.glob('*.json')))} documents.")
+    log(f"Documents traités ce passage : {faits}. Règles : {len(list(out.glob('*.json')))} documents, textes : {len(list((out / 'textes').glob('*.json')))}.")
 
 
 if __name__ == "__main__":

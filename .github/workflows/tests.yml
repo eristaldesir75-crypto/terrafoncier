@@ -17,6 +17,9 @@ on:
         description: "Test de la bulle d'assistant (Gemini simulé)"
         type: boolean
         default: false
+      script:
+        description: "Script de diagnostic à lancer à la place (fichier de frontend/tests)"
+        default: ""
       mode:
         description: "Mode : les2, seule, remembrement"
         default: "les2"
@@ -64,13 +67,16 @@ jobs:
       - name: Sur téléphone
         if: inputs.mobile && !inputs.assistant
         run: cp frontend/tests/e2e_mobile.mjs . && node e2e_mobile.mjs
+      - name: Diagnostic
+        if: inputs.script != ''
+        run: cp frontend/tests/${{ inputs.script }} . && node ${{ inputs.script }}
       - name: Assistant
         if: inputs.assistant
         env:
           MOBILE: ${{ inputs.mobile && '1' || '' }}
         run: cp frontend/tests/e2e_assistant.mjs . && node e2e_assistant.mjs
       - name: Prospection sur le site publié
-        if: ${{ !inputs.mobile && !inputs.assistant }}
+        if: ${{ !inputs.mobile && !inputs.assistant && inputs.script == '' }}
         env:
           MODE: ${{ inputs.mode }}
           SMIN: ${{ inputs.smin }}

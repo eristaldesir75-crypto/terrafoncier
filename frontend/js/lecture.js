@@ -8,7 +8,7 @@ import { cleIA, choisirModele, erreurHttp, ErreurIA, modelesFlash } from './assi
 
 const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
-const MAX_CAR = 70000; // texte envoyé par zone (≈ 20 000 jetons, pour ménager le quota gratuit)
+const MAX_CAR = 90000; // texte envoyé en un appel, toutes zones comprises (≈ 25 000 jetons)
 
 let pdfjsP = null;
 function pdfjs() {
@@ -106,45 +106,62 @@ function codes(zone) {
   return [...new Set(l)].filter((x) => x.length >= 1);
 }
 
-/** Pages du règlement qui concernent la zone (chapitre de la zone, dispositions communes sur le stationnement). */
-function pagesDeZone(pages, zone) {
+/** Pages du règlement qui concernent la zone, par ordre d'intérêt : chapitre de la zone, pages qui la citent, stationnement. */
+function indicesZone(pages, zone) {
   const cs = codes(zone);
   const re = cs.map((c) => new RegExp(`(?<![A-Za-z0-9])${echap(c)}(?![A-Za-z0-9])`, 'g'));
   const titre = cs.map((c) => new RegExp(`(zone|secteur|chapitre|titre|dispositions applicables)[^\\n]{0,40}(?<![A-Za-z0-9])${echap(c)}(?![A-Za-z0-9])`, 'i'));
-  const labs = pages.map((p) => p.lab);
-  pages = pages.map((p) => p.t);
   const score = pages.map((t, i) => {
     let s = 0;
     re.forEach((r, k) => { const n = (t.match(r) || []).length; s += n * (k === 0 ? 2 : 1); });
     if (titre.some((r) => r.test(t))) s += 6;
     return { i, s };
   });
-  // chapitre de la zone : de la première page titrée à la page qui titre une autre zone
-  const choisies = new Set();
+  const ordre = [];
+  const ajoute = (i) => { if (!ordre.includes(i)) ordre.push(i); };
   const debut = score.find((x) => titre[0].test(pages[x.i]) && x.s >= 8) || score.find((x) => titre.some((r) => r.test(pages[x.i])) && x.s >= 7);
   if (debut) {
     const autreZone = /(dispositions applicables|chapitre|zone)[^\n]{0,30}(?<![A-Za-z0-9])(\d?[AUN][A-Z]*\d*[a-z]?)(?![A-Za-z0-9])/;
     for (let i = debut.i; i < pages.length && i < debut.i + 40; i++) {
       if (i > debut.i + 2) { const m = pages[i].slice(0, 400).match(autreZone); if (m && !cs.includes(m[2]) && score[i].s < 3) break; }
-      choisies.add(i);
+      ajoute(i);
     }
   }
-  // pages les plus citées (règlements par thème), puis dispositions communes sur le stationnement
-  score.filter((x) => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 25).forEach((x) => choisies.add(x.i));
-  pages.forEach((t, i) => { if (/stationnement/i.test(t) && /logement/i.test(t) && /place/i.test(t) && choisies.size < 70) choisies.add(i); });
-  const liste = [...choisies].sort((a, b) => a - b);
-  let total = 0; const out = [];
-  for (const i of liste) { const t = `[${labs[i]}]\n${pages[i]}\n`; if (total + t.length > MAX_CAR) break; out.push(t); total += t.length; }
-  return out.join('\n');
+  score.filter((x) => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 20).forEach((x) => ajoute(x.i));
+  pages.forEach((t, i) => { if (/stationnement/i.test(t) && /logement/i.test(t) && /place/i.test(t)) ajoute(i); });
+  return ordre;
+}
+
+/**
+ * Texte envoyé à Gemini pour plusieurs zones à la fois : tout le règlement s'il est court, sinon les pages de la zone
+ * demandée d'abord, puis celles des autres zones, dans la limite du budget (le quota gratuit compte les caractères envoyés).
+ */
+function texteZones(pages, zones) {
+  const lab = (i) => `[${pages[i].lab}]\n${pages[i].t}\n`;
+  const tout = pages.map((_, i) => lab(i)).join('\n');
+  if (tout.length <= MAX_CAR) return tout;
+  const T = pages.map((p) => p.t), choisies = new Set();
+  let total = 0;
+  const prendre = (l, budget) => { for (const i of l) { if (choisies.has(i)) continue; const n = lab(i).length; if (total + n > budget) continue; choisies.add(i); total += n; } };
+  const listes = zones.map((z) => indicesZone(T, z));
+  prendre(listes[0], zones.length > 1 ? MAX_CAR * 0.55 : MAX_CAR);
+  // autres zones : à tour de rôle, quelques pages chacune
+  for (let k = 0; total < MAX_CAR && k < 40; k++) {
+    let ajout = false;
+    for (let z = 1; z < listes.length; z++) { const i = listes[z][k]; if (i === undefined || choisies.has(i)) continue; const n = lab(i).length; if (total + n <= MAX_CAR) { choisies.add(i); total += n; ajout = true; } }
+    if (!ajout && k > 3) break;
+  }
+  return [...choisies].sort((a, b) => a - b).map(lab).join('\n');
 }
 
 const CHAMP = (desc) => ({
   type: 'OBJECT', nullable: true,
-  properties: { valeur: { type: 'NUMBER', nullable: true, description: desc }, article: { type: 'STRING' }, page: { type: 'INTEGER' }, extrait: { type: 'STRING', description: 'Phrase exacte du règlement' }, condition: { type: 'STRING', description: 'Cas particuliers, conversion faite, ou « non réglementé »' } },
+  properties: { valeur: { type: 'NUMBER', nullable: true, description: desc }, article: { type: 'STRING' }, page: { type: 'STRING' }, extrait: { type: 'STRING', description: 'Phrase exacte du règlement' }, condition: { type: 'STRING', description: 'Cas particuliers, conversion faite, ou « non réglementé »' } },
 });
-const SCHEMA = {
+const ITEM = {
   type: 'OBJECT',
   properties: {
+    zone: { type: 'STRING' },
     zone_trouvee: { type: 'BOOLEAN' },
     ces: CHAMP("Emprise au sol maximale en % de la surface du terrain (100 si l'emprise n'est pas réglementée)"),
     h: CHAMP("Hauteur maximale en mètres à l'égout du toit ou à l'acrotère (sinon hauteur totale ou au faîtage)"),
@@ -154,14 +171,15 @@ const SCHEMA = {
     stat: CHAMP("Places de stationnement voiture par logement collectif (pour un logement de 60 m² si la règle est par m²)"),
     remarque: { type: 'STRING' },
   },
-  required: ['zone_trouvee'],
+  required: ['zone', 'zone_trouvee'],
 };
+const SCHEMA = { type: 'ARRAY', items: ITEM };
 
-const consigne = (zone, commune) => `Voici des extraits du règlement écrit du PLU${commune ? ' de ' + commune : ''}, avec les numéros de page entre crochets.
-Trouve les règles applicables aux constructions de LOGEMENTS dans la zone ${zone} (si la zone est un secteur, les règles de sa zone mère s'appliquent sauf mention contraire pour le secteur).
-Pour chaque règle : la valeur chiffrée, l'article, la page (numéro entre crochets), l'extrait exact, et en « condition » les cas particuliers ou la conversion faite.
+const consigne = (zones, commune) => `Voici des extraits du règlement écrit du PLU${commune ? ' de ' + commune : ''}, avec les numéros de page entre crochets.
+Pour CHACUNE des zones suivantes : ${zones.join(', ')}, trouve les règles applicables aux constructions de LOGEMENTS (un secteur suit les règles de sa zone mère sauf mention contraire pour le secteur).
+Pour chaque règle : la valeur chiffrée, l'article, la page (telle qu'écrite entre crochets), l'extrait exact (court), et en « condition » les cas particuliers ou la conversion faite.
 Si une règle n'est pas trouvée, renvoie null pour ce champ. N'invente jamais de valeur. Si la hauteur est donnée en niveaux (R+2...), convertis à 3 m par niveau et dis-le dans condition.
-zone_trouvee = false si les extraits ne contiennent pas le chapitre ou les règles de la zone ${zone}.`;
+Renvoie un élément par zone demandée, avec zone_trouvee = false si les extraits ne traitent pas cette zone.`;
 
 /**
  * Appel à Gemini, robuste aux pannes : nouvel essai si le serveur est saturé, puis sans schéma imposé
@@ -185,7 +203,7 @@ async function demander(cle, parts, onEtape) {
     const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 150000);
     try {
       const gc = { temperature: 0, responseMimeType: 'application/json', ...(e.schema ? { responseSchema: SCHEMA } : {}) };
-      const p2 = e.schema ? parts : [...parts, { text: `Réponds uniquement en JSON avec ce format : {"zone_trouvee": bool, "ces": {"valeur": nombre|null, "article": "", "page": n, "extrait": "", "condition": ""}, "h": {...}, "recul": {...}, "ret": {...}, "pt": {...}, "stat": {...}, "remarque": ""}. ces et pt en %, h, recul et ret en mètres, stat en places par logement.` }];
+      const p2 = e.schema ? parts : [...parts, { text: `Réponds uniquement en JSON : une liste, un objet par zone : [{"zone": "", "zone_trouvee": bool, "ces": {"valeur": nombre|null, "article": "", "page": "", "extrait": "", "condition": ""}, "h": {...}, "recul": {...}, "ret": {...}, "pt": {...}, "stat": {...}, "remarque": ""}]. ces et pt en %, h, recul et ret en mètres, stat en places par logement.` }];
       const r = await fetch(`${GEMINI}/models/${mod}:generateContent`, {
         method: 'POST', signal: ctrl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle },
         body: JSON.stringify({ contents: [{ role: 'user', parts: p2 }], generationConfig: gc }),
@@ -230,53 +248,91 @@ export function reglesCopie(partition) {
 }
 
 const enCours = new Map();
+const CH = ['ces', 'h', 'recul', 'ret', 'pt', 'stat'];
+const MAX_ZONES = 10; // zones lues en un seul appel (une commune entière d'un coup, pour ménager le quota)
+
+/** Règles Gemini d'une zone -> règles enregistrées (fusion avec une saisie manuelle éventuelle). */
+function enregistrer(key, x, url) {
+  const conv = { ces: (v) => Math.min(1, v / 100), pt: (v) => Math.min(1, v / 100) };
+  const regles = { source: 'ia', citations: {}, document: url, zoneTrouvee: !!(x && x.zone_trouvee), remarque: (x && x.remarque) || '' };
+  let n = 0;
+  for (const k of CH) {
+    const c = x && x[k];
+    const v = c && Number.isFinite(c.valeur) && c.valeur >= 0 ? c.valeur : null;
+    regles[k] = v === null ? null : conv[k] ? conv[k](v) : v;
+    if (v !== null) n++;
+    if (c && (v !== null || c.extrait)) regles.citations[k] = { value: v, status: v === null ? 'non_trouve' : 'extrait', article: c.article || '', page: c.page || null, citation: c.extrait || '', condition: c.condition || '' };
+  }
+  const avant = store.getRules(key);
+  if (avant && avant.source === 'manuel') { for (const k of CH) if (avant[k] !== null && avant[k] !== undefined) { regles[k] = avant[k]; delete regles.citations[k]; } regles.source = 'manuel+ia'; }
+  // enregistré même vide : la zone n'est pas relue à chaque parcelle (bouton « Relire » pour réessayer)
+  store.saveRules(key, regles);
+  return { regles, trouve: n };
+}
+
+/** Autres zones d'habitat du même document encore sans règles : lues dans le même appel. */
+async function zonesVoisines(partition, libelle) {
+  try {
+    const zs = await api.gpuByPartition('zone-urba', partition);
+    const libs = [...new Set(zs.filter((z) => /^\d?(U|AU)/.test(String(z.properties.typezone || '').toUpperCase()) && !/^2AU/i.test(z.properties.libelle || '')
+      && !/activit|industri|commerc|artisan|[ée]conomi|logisti|[ée]quipement/i.test(z.properties.libelong || '')).map((z) => z.properties.libelle).filter(Boolean))];
+    return libs.filter((l) => l !== libelle && !dejaLue(store.ruleKey(partition, l)) && !enCours.has(store.ruleKey(partition, l)));
+  } catch { return []; }
+}
+
 /**
- * Lit les règles d'une zone dans le règlement et les enregistre.
- * @returns { regles, trouve } — regles : objet enregistré (ou null si rien de trouvé)
+ * Lit les règles d'une zone dans le règlement et les enregistre ; les autres zones d'habitat du document encore
+ * sans règles sont lues dans le même appel (une seule demande à Gemini pour toute la commune).
+ * @returns { regles, trouve } pour la zone demandée
  */
-export function lireZone({ key, zone, partition, commune, onEtape, force = false }) {
+export function lireZone({ key, zone, partition, commune, onEtape, force = false, avec = [] }) {
   if (enCours.has(key)) return enCours.get(key);
+  let resoudre = {};
   const p = (async () => {
-    // déjà lue côté serveur ?
-    await reglesCopie(partition);
+    await reglesCopie(partition); // déjà lue côté serveur ?
     const dej = store.getRules(key);
-    if (!force && dej && dej.source === 'ia-copie') return { regles: dej, trouve: ['ces', 'h', 'recul', 'ret', 'pt', 'stat'].filter((k) => dej[k] !== null && dej[k] !== undefined).length };
+    if (!force && dej && dej.source === 'ia-copie') return { regles: dej, trouve: CH.filter((k) => dej[k] !== null && dej[k] !== undefined).length };
     const cle = cleIA();
     if (!cle) throw new ErreurIA("Ajoutez votre clé Gemini (bulle Assistant) pour lire le règlement automatiquement");
     const libelle = zone.properties.libelle;
     const urls = await urlReglement(zone, partition);
     if (!urls.length) throw new Error('Aucun règlement écrit publié au Géoportail de l\'Urbanisme pour ce document');
     const doc = await lireReglement(urls, onEtape);
-    const texte = pagesDeZone(doc.pages, libelle);
+    const vois = await zonesVoisines(partition, libelle);
+    // zones demandées en priorité (celles de la prospection), puis les autres zones d'habitat du document
+    const autres = [...avec.filter((l) => vois.includes(l)), ...vois.filter((l) => !avec.includes(l))].slice(0, MAX_ZONES - 1);
+    // les autres zones sont réservées pendant la lecture (pas de second appel pour elles)
+    const attente = new Map();
+    for (const l of autres) { const k = store.ruleKey(partition, l); const pr = new Promise((ok, ko) => attente.set(l, { ok, ko })); pr.catch(() => {}); enCours.set(k, pr); }
+    resoudre = attente;
+    const zones = [libelle, ...autres];
+    const texte = texteZones(doc.pages, zones);
     let parts;
-    if (texte.replace(/\[page [^\]]*\]|\s/g, '').length > 1500) parts = [{ text: `${consigne(libelle, commune)}\n\n${texte}` }];
+    if (texte.replace(/\[page [^\]]*\]|\s/g, '').length > 1500) parts = [{ text: `${consigne(zones, commune)}\n\n${texte}` }];
     else if (doc.octets <= 18e6) {
       // règlement scanné (pas de texte) : le PDF est envoyé tel quel, Gemini le lit comme une image
       onEtape && onEtape('Règlement scanné : envoi du PDF à Gemini…');
       const b = new Uint8Array(doc.pdf); let bin = '';
       for (let i = 0; i < b.length; i += 0x8000) bin += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
-      parts = [{ inline_data: { mime_type: 'application/pdf', data: btoa(bin) } }, { text: consigne(libelle, commune).replace('des extraits', 'le règlement').replace(', avec les numéros de page entre crochets', '') }];
+      parts = [{ inline_data: { mime_type: 'application/pdf', data: btoa(bin) } }, { text: consigne(zones, commune).replace('des extraits', 'le règlement').replace(', avec les numéros de page entre crochets', '') }];
     } else throw new Error('Règlement scanné trop volumineux pour être lu automatiquement');
-    onEtape && onEtape(`Lecture des règles de la zone ${libelle} par Gemini…`);
-    const res = await demander(cle, parts, onEtape);
-    const conv = { ces: (v) => Math.min(1, v / 100), pt: (v) => Math.min(1, v / 100) };
-    const regles = { source: 'ia', citations: {}, document: doc.url, zoneTrouvee: !!res.zone_trouvee, remarque: res.remarque || '' };
-    let n = 0;
-    for (const k of ['ces', 'h', 'recul', 'ret', 'pt', 'stat']) {
-      const x = res[k];
-      const v = x && Number.isFinite(x.valeur) && x.valeur >= 0 ? x.valeur : null;
-      regles[k] = v === null ? null : conv[k] ? conv[k](v) : v;
-      if (v !== null) n++;
-      if (x && (v !== null || x.extrait)) regles.citations[k] = { value: v, status: v === null ? 'non_trouve' : 'extrait', article: x.article || '', page: x.page || null, citation: x.extrait || '', condition: x.condition || '' };
+    onEtape && onEtape(zones.length > 1 ? `Lecture des règles de ${zones.length} zones (${zones.slice(0, 4).join(', ')}${zones.length > 4 ? '…' : ''}) par Gemini…` : `Lecture des règles de la zone ${libelle} par Gemini…`);
+    const rep = await demander(cle, parts, onEtape);
+    const liste = Array.isArray(rep) ? rep : rep && typeof rep === 'object' ? [{ zone: libelle, ...rep }] : [];
+    const par = new Map(liste.map((x) => [String(x.zone || '').trim(), x]));
+    let resultat = null;
+    for (const l of zones) {
+      const r = enregistrer(store.ruleKey(partition, l), par.get(l) || null, doc.url);
+      if (l === libelle) resultat = r;
+      else attente.get(l)?.ok(r);
     }
-    // enregistré même vide : la zone n'est pas relue à chaque parcelle (bouton « Relire » pour réessayer)
-    const avant = store.getRules(key);
-    if (avant && avant.source === 'manuel') { for (const k of ['ces', 'h', 'recul', 'ret', 'pt', 'stat']) if (avant[k] !== null && avant[k] !== undefined) { regles[k] = avant[k]; delete regles.citations[k]; } regles.source = 'manuel+ia'; }
-    store.saveRules(key, regles);
-    return { regles, trouve: n };
+    return resultat;
   })();
   enCours.set(key, p);
-  p.finally(() => enCours.delete(key)).catch(() => {});
+  p.catch((e) => { for (const v of resoudre.values ? resoudre.values() : []) v.ko(e); }).finally(() => {
+    enCours.delete(key);
+    for (const l of resoudre.keys ? resoudre.keys() : []) enCours.delete(store.ruleKey(partition, l));
+  }).catch(() => {});
   return p;
 }
 

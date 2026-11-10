@@ -13,13 +13,15 @@ await page.route('https://generativelanguage.googleapis.com/**', async (route) =
   const body = JSON.parse(route.request().postData() || '{}');
   const parts = body.contents?.[0]?.parts || [];
   const txt = parts.map((p) => p.text || '').join('');
-  const pages = [...txt.matchAll(/\[page (\d+)\]/g)].map((m) => +m[1]);
+  const pages = [...txt.matchAll(/\[page (\d+)[^\]]*\]/g)].map((m) => +m[1]);
   console.log('ENVOI GEMINI :', txt.length, 'caractères,', pages.length, 'pages :', pages.join(','), parts.some((p) => p.inline_data) ? '(PDF joint)' : '');
   for (const kw of ['emprise au sol', 'hauteur', 'stationnement', 'limites séparatives', 'pleine terre', 'voies']) console.log('  mot-clé', kw, ':', (txt.toLowerCase().match(new RegExp(kw, 'g')) || []).length);
   const ua = txt.match(/[^\n]{0,80}(zone|ZONE|Zone) UA[^\n]{0,80}/g) || [];
   console.log('  titres UA :', ua.slice(0, 6).join(' || '));
   const m = txt.match(/emprise au sol[^\n]{0,300}/i); console.log('  extrait emprise :', m && m[0].slice(0, 300));
-  return route.fulfill({ json: { candidates: [{ content: { parts: [{ text: JSON.stringify({ zone_trouvee: true, ces: { valeur: 60, article: 'UA 9', page: pages[0] || 1, extrait: 'test', condition: '' }, h: { valeur: 12, article: 'UA 10', page: pages[1] || 1, extrait: 'test' }, recul: null, ret: { valeur: 3, article: 'UA 7', page: 1, extrait: 'test' }, pt: null, stat: { valeur: 1, article: 'UA 12', page: 1, extrait: 'test' } }) }] } }] } });
+  const zs = (txt.match(/zones suivantes : ([^\n]*?), trouve/) || [, ''])[1].split(', ').filter(Boolean);
+  console.log('  ZONES DEMANDÉES :', zs.length, zs.join(' '));
+  return route.fulfill({ json: { candidates: [{ content: { parts: [{ text: JSON.stringify(zs.map((z, k) => ({ zone: z, zone_trouvee: true, ces: { valeur: 40 + k, article: 'art. 9', page: String(pages[0] || 1), extrait: 'test', condition: '' }, h: { valeur: 9 + k, article: 'art. 10', page: '2', extrait: 'test' }, recul: null, ret: { valeur: 3, article: 'art. 7', page: '1', extrait: 'test' }, pt: null, stat: { valeur: 1, article: 'art. 12', page: '1', extrait: 'test' } }))) }] } }] } });
 });
 await page.goto(URL + '#18/47.38925/0.66135', { waitUntil: 'load', timeout: 60000 });
 await page.waitForTimeout(3000);

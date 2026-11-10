@@ -651,16 +651,18 @@ export function initProspection(ctx) {
   }
 
   /** Lit dans le règlement les règles des zones qui en manquent (6 zones au plus, les plus fournies d'abord). */
+  const CHR = ['ces', 'h', 'recul', 'ret', 'pt', 'stat'];
   async function lireZonesManquantes(r, signal) {
-    const zs = st.zonesMissing.filter((m) => !lecture.dejaLue(m.key)).slice(0, 6);
+    const zs = st.zonesMissing.filter((m) => !lecture.dejaLue(m.key)).slice(0, 12);
     if (!zs.length) return;
     let lues = 0, trouvees = 0;
     for (let i = 0; i < zs.length; i++) {
       if (signal.aborted) break;
       const m = zs[i], lib = m.zone.properties.libelle;
+      if (lecture.dejaLue(m.key)) { lues++; if (CHR.some((k) => (store.getRules(m.key) || {})[k] != null)) trouvees++; continue; } // lue avec une zone précédente (même appel)
       setStatus(`Lecture du règlement par l'IA : zone ${esc(lib)} (${i + 1} / ${zs.length}), ${m.n} terrain(s) concerné(s)…`, 97);
       try {
-        const { trouve } = await lecture.lireZone({ key: m.key, zone: m.zone, partition: r.partition, commune: r.com.nom, onEtape: (t) => setStatus(`Zone ${esc(lib)} (${i + 1} / ${zs.length}) : ${esc(t)}`, 97) });
+        const { trouve } = await lecture.lireZone({ key: m.key, zone: m.zone, partition: r.partition, commune: r.com.nom, avec: zs.slice(i + 1).map((x) => x.zone.properties.libelle), onEtape: (t) => setStatus(`Zone ${esc(lib)} (${i + 1} / ${zs.length}) : ${esc(t)}`, 97) });
         lues++; if (trouve) trouvees++;
       } catch (e) {
         r.avertissements.push(`Règlement de la zone ${lib} non lu par l'IA : ${e.message}`);

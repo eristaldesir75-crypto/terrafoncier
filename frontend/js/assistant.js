@@ -308,7 +308,7 @@ export function initAssistant(ctx) {
     }
   }
   function alleger() {
-    while (histo.length > 30) histo.shift();
+    while (histo.length > 16) histo.shift(); // conversation courte : moins de texte renvoyé à chaque message
     while (histo.length && histo[0].role !== 'user') histo.shift();
     // une conversation doit commencer par un message de l'utilisateur, pas par une réponse de fonction
     while (histo.length && histo[0].parts.some((p) => p.functionResponse)) { histo.shift(); while (histo.length && histo[0].role !== 'user') histo.shift(); }

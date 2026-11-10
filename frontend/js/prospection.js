@@ -116,9 +116,12 @@ export function initProspection(ctx) {
           </div>
           <p class="note">Avec « Collectif possible selon le PLU », seuls les terrains dont les règles sont connues (plan graphique du PLU ou règles saisies pour la zone) et qui permettent au moins 5 logements à la hauteur choisie sont retenus. Les autres sont mis de côté : renseignez les règles de leur zone pour les faire entrer.</p>
         </fieldset>
-        <fieldset><legend>Zonage PLU</legend>
-          <div class="chk-row">${box('proZU', 'Zones U', c.zonesU)}${box('proZAU', 'Zones AU', c.zonesAU)}${box('proExclAct', "Exclure zones d'activités et d'équipements", c.exclActivite)}</div>
-          <label for="proZF">Limiter aux zones commençant par<input type="text" id="proZF" placeholder="Ex. : UR, UC, 1AU" value="${esc(c.zonesFiltre)}"></label>
+        <fieldset><legend>Zones du PLU</legend>
+          <div id="proZonesChoix"></div>
+          <div id="proZonesAncien" hidden>
+            <div class="chk-row">${box('proZU', 'Zones U', c.zonesU)}${box('proZAU', 'Zones AU', c.zonesAU)}${box('proExclAct', "Exclure zones d'activités et d'équipements", c.exclActivite)}</div>
+            <label for="proZF">Limiter aux zones commençant par<input type="text" id="proZF" placeholder="Ex. : UR, UC, 1AU" value="${esc(c.zonesFiltre)}"></label>
+          </div>
         </fieldset>
         <fieldset><legend>Type de foncier</legend>
           <div class="actions"><button type="button" class="ghost" id="proMaisons">Maisons seulement</button><button type="button" class="ghost" id="proMutable">Tout le foncier mutable</button></div>
@@ -149,6 +152,13 @@ export function initProspection(ctx) {
       if (st.crit.commune) run();
     };
     const stop = $('#proStop', v); if (stop) stop.onclick = () => st.ctrl && st.ctrl.abort();
+    $('#proCommune', v).addEventListener('change', async (e) => {
+      const avant = st.crit.commune && st.crit.commune.code;
+      await resolveCommune(e.target.value);
+      if (st.crit.commune && st.crit.commune.code !== avant) { e.target.value = `${st.crit.commune.nom} (${st.crit.commune.code})`; st.crit.zonesChoix = null; }
+      afficherZones(v);
+    });
+    afficherZones(v);
     if (st.results) renderResults();
   }
 
@@ -161,6 +171,10 @@ export function initProspection(ctx) {
       natures: Object.keys(NATURES).filter((k) => $(`#proN-${k}`, v).checked),
       exclRecent: $('#proRecent', v).checked, oapSeul: $('#proOap', v).checked, exclContraintes: $('#proContr', v).checked,
       scoreMin: n('#proScoreMin') || 0,
+      zonesChoix: (() => {
+        const l = [...v.querySelectorAll('#proZonesChoix input[data-zone]')];
+        return l.length && st.crit.commune ? { code: st.crit.commune.code, libs: l.filter((i) => i.checked).map((i) => i.dataset.zone) } : st.crit.zonesChoix || null;
+      })(),
       entrepots: $('#proEntr', v).checked, collectif: $('#proColl', v).checked, nivMin: +$('#proNiv', v).value, mode: $('#proMode', v).value, maxParcelles: +$('#proMaxP', v).value,
     });
     store.saveProspectionCrit({ ...st.crit, commune: st.crit.commune });
@@ -191,6 +205,8 @@ export function initProspection(ctx) {
   function zoneOk(z) {
     const c = st.crit, t = (z.properties.typezone || '').toUpperCase(), lib = z.properties.libelle || '';
     if (ctx.zoneConstructible(z) !== true) return false;
+    // zones cochées dans la liste de la commune
+    if (c.zonesChoix && c.commune && c.zonesChoix.code === c.commune.code) return c.zonesChoix.libs.includes(lib);
     if (t.startsWith('U') && !c.zonesU) return false;
     if (t.startsWith('AU') && !c.zonesAU) return false;
     if (c.exclActivite && ctx.zoneHorsLogement(z)) return false;
@@ -244,6 +260,95 @@ export function initProspection(ctx) {
     r.list.sort((a, b) => b.s.tot - a.s.tot);
   }
 
+  /** Document d'urbanisme (partition GPU) d'une commune : copie hebdomadaire, sinon points de la commune. */
+  async function trouverPartition(com, signal) {
+    // Le PLU est identifié par la zone trouvée en un point de la commune. Le centre officiel peut tomber
+    // dans un fleuve ou un espace non zoné (Tours, Chinon) : plusieurs points autour sont essayés.
+    let partition = null;
+    const copie = await api.communeCopie(com.code);
+    if (copie && copie.rnu) throw new api.ApiError(`${com.nom} est au RNU : pas de PLU ni de carte communale, c'est le règlement national d'urbanisme qui s'applique`);
+    if (copie && copie.partitions && copie.partitions.length) partition = copie.partitions.find((x) => !/PSMV/i.test(x)) || copie.partitions[0];
+    const [cx, cy] = com.centre.coordinates;
+    const points = [[0, 0], [0.006, 0], [-0.006, 0], [0, 0.004], [0, -0.004], [0.012, 0.008], [-0.012, -0.008], [0.012, -0.008], [-0.012, 0.008]];
+    for (let i = 0; !partition && i < points.length; i += 3) {
+      const res = await Promise.all(points.slice(i, i + 3).map(([dx, dy]) => api.duAt(cx + dx, cy + dy, { signal }).catch(() => null)));
+      for (const d of res) { const z = d && (d['zone-urba'][0] || d['secteur-cc'][0]); if (z && z.properties.partition && !partition) partition = z.properties.partition; }
+    }
+    if (!partition) {
+      try { partition = (await api.gpuAt('zone-urba', com.centre, { retries: 1 }))[0]?.properties.partition || null; } catch { partition = null; }
+    }
+    if (!partition) {
+      let rnu = null;
+      try { rnu = (await api.municipality(com.code))?.properties.is_rnu ?? null; } catch { rnu = null; }
+      if (rnu) throw new api.ApiError(`${com.nom} est au RNU : pas de PLU ni de carte communale, c'est le règlement national d'urbanisme qui s'applique`);
+      try { partition = (await api.gpuAt('document', com.centre, { retries: 1 }))[0]?.properties.partition || null; }
+      catch { throw new api.ApiError("Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment. Réessayez dans quelques minutes"); }
+    }
+    if (!partition) throw new api.ApiError(`Aucun PLU publié au Géoportail de l'Urbanisme pour ${com.nom} (document non numérisé)`);
+    return partition;
+  }
+
+  // ---------- Zones du PLU de la commune, à cocher ----------
+  const zonesCache = new Map();
+  /** Zones du PLU présentes sur la commune, regroupées par libellé : [{ libelle, libelong, typezone, n, logement }]. */
+  function zonesDeLaCommune(com) {
+    if (!zonesCache.has(com.code)) {
+      zonesCache.set(com.code, (async () => {
+        const partition = await trouverPartition(com);
+        const [zs, full] = await Promise.all([api.gpuByPartition('zone-urba', partition), com.contour ? com : api.communeByCode(com.code)]);
+        const contour = full && full.contour ? turf.feature(full.contour) : null;
+        const cb = contour ? turf.bbox(contour) : null;
+        const par = new Map();
+        for (const z of zs) {
+          if (!z.geometry) continue;
+          if (contour) {
+            const b = turf.bbox(z);
+            if (b[0] > cb[2] || b[2] < cb[0] || b[1] > cb[3] || b[3] < cb[1]) continue;
+            try { if (!turf.booleanIntersects(z, contour)) continue; } catch { /* géométrie invalide : on garde */ }
+          }
+          const p = z.properties, k = p.libelle || '?';
+          const e = par.get(k) || { libelle: k, libelong: p.libelong || '', typezone: (p.typezone || '').toUpperCase(), n: 0, logement: zoneLogement(z), construct: ctx.zoneConstructible(z) === true };
+          e.n++; par.set(k, e);
+        }
+        const ordre = (t) => (t.startsWith('U') ? 0 : t.startsWith('AU') ? 1 : 2);
+        return { partition, zones: [...par.values()].sort((a, b) => ordre(a.typezone) - ordre(b.typezone) || a.libelle.localeCompare(b.libelle, 'fr', { numeric: true })) };
+      })().catch((e) => { zonesCache.delete(com.code); throw e; }));
+    }
+    return zonesCache.get(com.code);
+  }
+  /** Zone où le PLU autorise le logement (U ou AU, hors activités, équipements, parcs, 2AU). */
+  const zoneLogement = (z) => ctx.zoneConstructible(z) === true && !ctx.zoneHorsLogement(z);
+
+  async function afficherZones(v) {
+    const box = $('#proZonesChoix', v); if (!box) return;
+    const com = st.crit.commune;
+    if (!com) { box.innerHTML = '<p class="note">Choisissez une commune : la liste de ses zones du PLU s\'affichera ici.</p>'; return; }
+    box.innerHTML = `<p class="note">Chargement des zones du PLU de ${esc(com.nom)}…</p>`;
+    let d;
+    try { d = await zonesDeLaCommune(com); } catch (e) {
+      box.innerHTML = `<p class="note">Liste des zones indisponible (${esc(e.message)}). Les options ci-dessous s'appliquent.</p>`;
+      $('#proZonesAncien', v).hidden = false; return;
+    }
+    if (st.crit.commune !== com) return;
+    const choix = st.crit.zonesChoix && st.crit.zonesChoix.code === com.code ? new Set(st.crit.zonesChoix.libs) : null;
+    const coche = (z) => (choix ? choix.has(z.libelle) : z.logement);
+    const ligne = (z) => `<label class="zchk${z.construct ? '' : ' off'}"><input type="checkbox" data-zone="${esc(z.libelle)}" ${coche(z) && z.construct ? 'checked' : ''} ${z.construct ? '' : 'disabled'}>
+      <span><b>${esc(z.libelle)}</b> <span class="note">${esc(z.libelong || '')}</span></span></label>`;
+    const hab = d.zones.filter((z) => z.logement), autres = d.zones.filter((z) => !z.logement);
+    box.innerHTML = `
+      <p class="note">${d.zones.length} zones du PLU (${esc(d.partition)}) sur ${esc(com.nom)}. Seules les zones cochées sont prospectées.</p>
+      <div class="actions"><button type="button" class="ghost" data-zsel="hab">Zones d'habitat</button><button type="button" class="ghost" data-zsel="tout">Tout cocher</button><button type="button" class="ghost" data-zsel="rien">Tout décocher</button></div>
+      ${hab.length ? `<div class="zgroup"><div class="label">Zones où le PLU autorise le logement</div>${hab.map(ligne).join('')}</div>` : ''}
+      ${autres.length ? `<details class="zgroup"${autres.some((z) => coche(z) && z.construct) ? ' open' : ''}><summary>Autres zones (${autres.length}) : activités, équipements, agricoles, naturelles</summary>${autres.map(ligne).join('')}</details>` : ''}`;
+    $('#proZonesAncien', v).hidden = true;
+    box.querySelectorAll('[data-zsel]').forEach((b) => (b.onclick = () => {
+      box.querySelectorAll('input[data-zone]:not(:disabled)').forEach((i) => {
+        const z = d.zones.find((x) => x.libelle === i.dataset.zone);
+        i.checked = b.dataset.zsel === 'tout' ? true : b.dataset.zsel === 'rien' ? false : z.logement;
+      });
+    }));
+  }
+
   async function run() {
     const c = st.crit, com = c.commune, hyp = store.settings();
     const bounds = c.scope === 'ecran' ? ctx.map.getBounds() : null;
@@ -254,29 +359,7 @@ export function initProspection(ctx) {
     try {
       if (!bounds) ctx.map.flyTo({ center: com.centre.coordinates, zoom: 13 });
       setStatus(`Document d'urbanisme de ${esc(com.nom)}…`, 3);
-      // Le PLU est identifié par la zone trouvée en un point de la commune. Le centre officiel peut tomber
-      // dans un fleuve ou un espace non zoné (Tours, Chinon) : plusieurs points autour sont essayés.
-      let partition = null;
-      const copie = await api.communeCopie(com.code);
-      if (copie && copie.rnu) throw new api.ApiError(`${com.nom} est au RNU : pas de PLU ni de carte communale, c'est le règlement national d'urbanisme qui s'applique`);
-      if (copie && copie.partitions && copie.partitions.length) partition = copie.partitions.find((x) => !/PSMV/i.test(x)) || copie.partitions[0];
-      const [cx, cy] = com.centre.coordinates;
-      const points = [[0, 0], [0.006, 0], [-0.006, 0], [0, 0.004], [0, -0.004], [0.012, 0.008], [-0.012, -0.008], [0.012, -0.008], [-0.012, 0.008]];
-      for (let i = 0; !partition && i < points.length; i += 3) {
-        const res = await Promise.all(points.slice(i, i + 3).map(([dx, dy]) => api.duAt(cx + dx, cy + dy, { signal }).catch(() => null)));
-        for (const d of res) { const z = d && (d['zone-urba'][0] || d['secteur-cc'][0]); if (z && z.properties.partition && !partition) partition = z.properties.partition; }
-      }
-      if (!partition) {
-        try { partition = (await api.gpuAt('zone-urba', com.centre, { retries: 1 }))[0]?.properties.partition || null; } catch { partition = null; }
-      }
-      if (!partition) {
-        let rnu = null;
-        try { rnu = (await api.municipality(com.code))?.properties.is_rnu ?? null; } catch { rnu = null; }
-        if (rnu) throw new api.ApiError(`${com.nom} est au RNU : pas de PLU ni de carte communale, c'est le règlement national d'urbanisme qui s'applique`);
-        try { partition = (await api.gpuAt('document', com.centre, { retries: 1 }))[0]?.properties.partition || null; }
-        catch { throw new api.ApiError("Le Géoportail de l'Urbanisme (IGN) ne répond pas pour le moment. Réessayez dans quelques minutes"); }
-      }
-      if (!partition) throw new api.ApiError(`Aucun PLU publié au Géoportail de l'Urbanisme pour ${com.nom} (document non numérisé)`);
+      const partition = await trouverPartition(com, signal);
 
       setStatus(`Zonage ${esc(partition)}…`, 6);
       const zones = (await api.gpuByPartition('zone-urba', partition, { signal })).filter((z) => z.geometry);

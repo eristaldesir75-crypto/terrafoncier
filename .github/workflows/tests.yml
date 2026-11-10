@@ -22,6 +22,9 @@ on:
       commune:
         description: "Commune (nom et code INSEE)"
         default: "Saran (45302)"
+      zones:
+        description: "Zones à cocher, séparées par des virgules (vide = choix par défaut)"
+        default: ""
       centre:
         description: "Vue de la carte zoom/lat/lon (périmètre « zone affichée »)"
         default: "15/47.9480/1.8700"
@@ -54,6 +57,7 @@ jobs:
           MAISONS: ${{ inputs.maisons && '1' || '' }}
           COMMUNE: ${{ inputs.commune }}
           CENTRE: ${{ inputs.centre }}
+          ZONES: ${{ inputs.zones }}
         run: cp frontend/tests/e2e_prospection.mjs . && node e2e_prospection.mjs
       - uses: actions/upload-artifact@v4
         if: always()

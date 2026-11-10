@@ -11,6 +11,14 @@ await page.waitForSelector('#tab-pro');
 await page.waitForTimeout(3000);
 await page.click('#tab-pro');
 await page.fill('#proCommune', process.env.COMMUNE || 'Saran (45302)');
+await page.locator('#proCommune').press('Tab');
+await page.waitForSelector('#proZonesChoix input[data-zone]', { timeout: 60000 }).catch(() => {});
+const zonesTxt = await page.locator('#proZonesChoix').innerText().catch(() => '');
+console.log('ZONES DE LA COMMUNE :', zonesTxt.replace(/\n+/g, ' | ').slice(0, 900));
+if (process.env.ZONES) {
+  await page.click('[data-zsel=rien]');
+  for (const z of process.env.ZONES.split(',')) await page.check(`#proZonesChoix input[data-zone="${z.trim()}"]`).catch(() => console.log('zone absente', z));
+}
 await page.selectOption('#proScope', 'ecran');
 await page.selectOption('#proMode', process.env.MODE || 'les2');
 await page.fill('#proSmin', process.env.SMIN || '1200');

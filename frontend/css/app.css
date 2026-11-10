@@ -283,3 +283,9 @@ dialog::backdrop{background:rgba(23,38,59,.45)}
 .steps li{counter-increment:etape;display:grid;grid-template-columns:30px 1fr;gap:10px;align-items:start;font-size:14.5px;max-width:60ch}
 .steps li::before{content:counter(etape);width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;display:grid;place-items:center;font-size:14px}
 .backup{background:var(--surface-2);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+#proZonesChoix{display:flex;flex-direction:column;gap:10px}
+.zgroup{display:flex;flex-direction:column;gap:2px;background:var(--surface);border-radius:var(--radius-s);padding:8px 10px;max-height:320px;overflow-y:auto}
+.zgroup summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--ink);padding:2px 0 6px}
+.pro-form label.zchk{display:grid;grid-template-columns:18px 1fr;gap:8px;align-items:start;font-weight:400;color:var(--ink);font-size:13.5px;padding:4px 0;cursor:pointer}
+.pro-form label.zchk input{margin-top:3px}
+.pro-form label.zchk.off{opacity:.55;cursor:default}

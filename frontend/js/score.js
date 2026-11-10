@@ -87,6 +87,7 @@ export function noter(o) {
     if (c.malus) { vC -= c.malus; why.push(`${c.t} sur ${Math.round(c.part * 100)} % (−${c.malus})`); }
   }
   if (o.compacite !== undefined && o.compacite < 0.35) { vC -= 5; why.push('Forme étroite ou en lanière (−5)'); }
+  if (o.facade !== undefined && o.facade !== null && o.facade < 4) { vC -= 8; why.push('Sans façade sur rue : terrain enclavé (−8)'); }
   if (occ.flags.some((f) => f.k === 'parking') && occ.cle !== 'parking') why.push('Parking partiel');
   vC = Math.max(0, vC);
   parts.push({ k: 'contraintes', label: 'Contraintes et forme', v: vC, max: 20, why: why.length ? why.join(' ; ') : 'Aucune contrainte du PLU détectée' });

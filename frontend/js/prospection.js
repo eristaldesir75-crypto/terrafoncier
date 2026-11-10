@@ -6,7 +6,7 @@ import * as store from './store.js';
 import { computePotentiel, parseQuery } from './potentiel.js';
 import { NATURES, grille, analyser } from './occupation.js';
 import { noter, contraintesDe, compacite, POIDS_NATURE } from './score.js';
-import { voisinages, regroupements, fusion, sansDoublons } from './remembrement.js';
+import { voisinages, regroupements, fusion, sansDoublons, facadesSurRue } from './remembrement.js';
 import * as permis from './permis.js';
 import { reglesGraphiquesParcelle, fusionRegles } from './regles.js';
 
@@ -21,6 +21,8 @@ export const CRIT_DEFAUT = {
   collectif: true, nivMin: 2, mode: 'les2', maxParcelles: 3,
   // entrepôts et locaux d'activité, listés à part (en zone d'habitat : reconversion ; en zone d'activités : foncier d'activité)
   entrepots: false,
+  // remembrement : terrains avec pignon sur rue
+  rueSeul: true, facadeMin: 10,
 };
 const CATS = { logement: 'Logement possible', entrepot: "Entrepôts et locaux d'activité", tout: 'Tout' };
 // Zone d'activités économiques (pas de logement) : entrepôts, industrie, commerce, artisanat
@@ -99,6 +101,7 @@ export function initProspection(ctx) {
               <option value="remembrement" ${c.mode === 'remembrement' ? 'selected' : ''}>Remembrement uniquement</option></select></label>
             <label for="proMaxP">Remembrement jusqu'à<select id="proMaxP">${[2, 3, 4].map((n) => `<option value="${n}" ${+c.maxParcelles === n ? 'selected' : ''}>${n} parcelles</option>`).join('')}</select></label>
           </div>
+          <div class="field-row"><label class="chk"><input type="checkbox" id="proRue" ${c.rueSeul ? 'checked' : ''}> Remembrement avec pignon sur rue d'au moins</label><label for="proFacMin">Façade sur rue (m)<input type="number" id="proFacMin" min="0" step="1" value="${esc(c.facadeMin)}"></label></div>
           <p class="note">Remembrement : 2 à ${c.maxParcelles} parcelles voisines (vraie limite commune), dans la même zone du PLU, toutes du type de foncier coché ci-dessous, qui ensemble atteignent la surface minimale et forment un terrain compact.</p>
         </fieldset>
         <fieldset><legend>Programme</legend>
@@ -175,6 +178,7 @@ export function initProspection(ctx) {
         const l = [...v.querySelectorAll('#proZonesChoix input[data-zone]')];
         return l.length && st.crit.commune ? { code: st.crit.commune.code, libs: l.filter((i) => i.checked).map((i) => i.dataset.zone) } : st.crit.zonesChoix || null;
       })(),
+      rueSeul: $('#proRue', v).checked, facadeMin: n('#proFacMin') || 0,
       entrepots: $('#proEntr', v).checked, collectif: $('#proColl', v).checked, nivMin: +$('#proNiv', v).value, mode: $('#proMode', v).value, maxParcelles: +$('#proMaxP', v).value,
     });
     store.saveProspectionCrit({ ...st.crit, commune: st.crit.commune });
@@ -251,7 +255,7 @@ export function initProspection(ctx) {
       estimer(h);
       const ok = h.estim && h.estim.lg >= Math.max(5, Math.ceil((c.lmin || 0) * 0.5));
       if (ok) {
-        h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot: null, contraintes: h.contraintes, compacite: compacite(h.f) });
+        h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot: null, contraintes: h.contraintes, compacite: compacite(h.f), facade: h.facade });
         if (h.s.tot >= (c.scoreMin || 0)) { r.list.push(h); continue; }
       }
       garde.push(h);
@@ -366,6 +370,9 @@ export function initProspection(ctx) {
       zones.forEach((z) => (z.bbox = turf.bbox(z)));
 
       const parcels = await api.parcellesCommune(com.code, { signal, onProgress: (n, tot) => setStatus(`Parcelles cadastrales : ${f0(n)}${tot ? ' / ' + f0(tot) : ''}`, 8 + (tot ? (27 * n) / tot : 10)) });
+      // façade sur rue de chaque parcelle (côtés non mitoyens)
+      setStatus('Façades sur rue des parcelles…', 34); await pause();
+      const facades = facadesSurRue(parcels);
 
       // 1. Parcelles situées dans une zone retenue (index des zones pour aller vite)
       const idxZones = grille(zones, 0.005);
@@ -435,7 +442,7 @@ export function initProspection(ctx) {
         if (h.zoneAct) {
           // zone d'activités : pas de logement, foncier d'activité noté sur sa taille, sa sous-exploitation et ses contraintes
           h.pot = null; h.aConfirmer = false;
-          h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot: null, contraintes, compacite: compacite(h.f) });
+          h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot: null, contraintes, compacite: compacite(h.f), facade: h.facade });
           if (h.s.tot < (c.scoreMin || 0)) { compte.score++; return; }
           out.push(h); return;
         }
@@ -463,7 +470,7 @@ export function initProspection(ctx) {
           attente.push(h); return 'attente';
         }
         if (!rules) { const m = missing.get(h.key) || { key: h.key, zone: h.zone, n: 0 }; m.n++; missing.set(h.key, m); }
-        h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot, contraintes: h.contraintes, compacite: compacite(h.f) });
+        h.s = noter({ S: h.occ.S, crit: critN, occ: h.occ, pot, contraintes: h.contraintes, compacite: compacite(h.f), facade: h.facade });
         if (h.s.tot < (c.scoreMin || 0)) { compte.score++; return 'ecarte'; }
         if (initial || !out.includes(h)) out.push(h);
         return 'garde';
@@ -477,11 +484,11 @@ export function initProspection(ctx) {
         const o = analyser(k.f, idx, frichesParIdu);
         if (k.dest === 'activite') {
           if (o.cle !== 'activite') { compte.nature++; continue; }
-          evaluer({ f: k.f, zone: k.zone, occ: o, cat: 'entrepot', zoneAct: true });
+          evaluer({ f: k.f, zone: k.zone, occ: o, cat: 'entrepot', zoneAct: true, facade: facades.get(k.f.properties.idu) });
           continue;
         }
         if (!natureOk(o)) { compte.nature++; continue; }
-        evaluer({ f: k.f, zone: k.zone, occ: o });
+        evaluer({ f: k.f, zone: k.zone, occ: o, facade: facades.get(k.f.properties.idu) });
       }
 
       // 3b. Remembrement : petites parcelles voisines du foncier coché, dans la même zone
@@ -494,7 +501,7 @@ export function initProspection(ctx) {
           const k = pool[n];
           const o = analyser(k.f, idx, frichesParIdu);
           if (!natureOk(o)) continue;
-          items.push({ ...k, occ: o });
+          items.push({ ...k, occ: o, facade: facades.get(k.f.properties.idu) || 0 });
         }
         setStatus(`Remembrement : recherche des parcelles voisines parmi ${f0(items.length)}…`, 90);
         await pause();
@@ -506,6 +513,8 @@ export function initProspection(ctx) {
         for (let n = 0; n < groupes.length && n < 4000; n++) {
           if (n % 200 === 0) await pause();
           const membres = groupes[n].map((i) => items[i]);
+          const facG = membres.reduce((a, m) => a + (m.facade || 0), 0);
+          if (c.rueSeul && facG < (c.facadeMin || 0)) { compte.facade = (compte.facade || 0) + 1; continue; }
           const u = fusion(membres.map((m) => m.f));
           if (!u || compacite(u) < 0.3) continue;
           const S = membres.reduce((a, m) => a + m.S, 0);
@@ -525,7 +534,7 @@ export function initProspection(ctx) {
             stats: { ...st2, n: membres.reduce((a, m) => a + m.occ.stats.n, 0), legers: 0, liste: [] },
             flags, raisons: membres.map((m) => `${refOf(m.f.properties)} : ${m.occ.label.toLowerCase()} (${f0(m.S)} m²)`),
           };
-          const h = { f: u, zone: membres[0].zone, occ: o, groupe: true, membres };
+          const h = { f: u, zone: membres[0].zone, occ: o, groupe: true, membres, facade: Math.round(facG * 10) / 10 };
           const avant = out.length;
           evaluer(h);
           if (out.length > avant) evalues.push(out.pop());
@@ -596,7 +605,7 @@ export function initProspection(ctx) {
     const c = r.compte;
     const g = r.list.filter((h) => h.groupe).length, e = r.list.filter((h) => h.cat === 'entrepot').length;
     return `<b>${f0(r.list.length - e)} terrain(s) pour du logement</b>${g ? ` dont ${f0(g)} remembrement(s)` : ''}${e ? ` · <b>${f0(e)} entrepôt(s) et local(aux) d'activité</b>` : ''} sur ${f0(c.total)} parcelles en ${r.secs} s
-      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
+      <span class="note">· écartées : ${f0(c.surface)} surface, ${c.perimetre ? f0(c.perimetre) + ' hors zone affichée, ' : ''}${f0(c.zone)} zonage, ${f0(c.nature)} nature du foncier, ${f0(c.contraintes)} contraintes, ${f0(c.regles)} règles du PLU (programme impossible)${c.sansRegles ? `, ${f0(c.sansRegles)} en attente de règles` : ''}${c.facade ? `, ${f0(c.facade)} regroupements sans pignon sur rue` : ''}${c.score ? ', ' + f0(c.score) + ' note trop basse' : ''}</span>`;
   }
 
   // ---------- Résultats ----------
@@ -605,6 +614,7 @@ export function initProspection(ctx) {
     { k: 'ref', t: 'Parcelle(s)', v: (h) => refOf(h.f.properties) },
     { k: 'adresse', t: 'Adresse', v: (h) => h.adresse || '' },
     { k: 'zone', t: 'Zone', v: (h) => h.zone.properties.libelle },
+    { k: 'facade', t: 'Façade', v: (h) => (h.facade ?? -1), fmt: (x) => (x < 0 ? '—' : `${f0(x)} m`), n: true },
     { k: 'surface', t: 'Surface', v: (h) => h.occ.S, fmt: (x) => m2(x), n: true },
     { k: 'nature', t: 'Nature', v: (h) => h.occ.label },
     { k: 'ces', t: 'Bâti', v: (h) => h.occ.ces, fmt: (x) => `${Math.round(x * 100)} %`, n: true },
@@ -676,14 +686,14 @@ export function initProspection(ctx) {
       <div class="why">${h.s.parts.map((p) => `<div class="why-row"><span>${esc(p.label)}</span><span class="bar"><i style="width:${p.v === null ? 0 : Math.round((100 * p.v) / p.max)}%"></i></span><b>${p.v === null ? '—' : p.v}/${p.max}</b><small>${esc(p.why)}</small></div>`).join('')}</div>
       ${h.cat === 'entrepot' ? `<p><span class="pill ${h.zoneAct ? 'no' : 'ok'}">${h.zoneAct ? "zone d'activités" : "zone d'habitat"}</span> ${h.zoneAct ? "Entrepôt ou local d'activité en zone d'activités : le logement y est interdit par le PLU." : 'Entrepôt ou local d\'activité en zone qui autorise le logement : reconversion en logements possible.'}</p>` : ''}
       ${h.groupe ? `<p><span class="pill wa">remembrement</span> ${h.membres.length} parcelles voisines, propriétaires probablement différents : ${h.membres.map((m, j) => `<b>${esc(refOf(m.f.properties))}</b> ${esc(m.occ.label.toLowerCase())}, ${f0(m.S)} m²${h.adresses && h.adresses[j] ? ', ' + esc(h.adresses[j].label) : ''}`).join(' · ')}</p>` : ''}
-      <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? (h.estim ? ` · <b>≈ ${h.estim.lg} logements estimés</b> (densité médiane de ${h.estim.dens} logts/ha sur ${h.estim.n} opérations collectives autorisées, ${esc(h.estim.base)}) : à confirmer avec le règlement` : ' · potentiel à confirmer (règles de zone manquantes)') : ''}${h.graph ? ' · plan graphique : ' + Object.values(h.graph.sources).map(esc).join(', ') : ''}</p>
+      <p class="note">${esc(h.occ.raisons.join(' ; '))}${h.occ.flags.length ? ' · ' + h.occ.flags.map((x) => esc(x.t)).join(' · ') : ''}${h.facade !== undefined ? ` · façade sur rue ${f0(h.facade)} m` : ''}${h.oap ? ' · en secteur d\'OAP' : ''}${h.aConfirmer ? (h.estim ? ` · <b>≈ ${h.estim.lg} logements estimés</b> (densité médiane de ${h.estim.dens} logts/ha sur ${h.estim.n} opérations collectives autorisées, ${esc(h.estim.base)}) : à confirmer avec le règlement` : ' · potentiel à confirmer (règles de zone manquantes)') : ''}${h.graph ? ' · plan graphique : ' + Object.values(h.graph.sources).map(esc).join(', ') : ''}</p>
       <div class="actions"><button type="button" data-fiche="${i}">Ouvrir la fiche</button></div></td></tr>` : '';
     return `<tr data-i="${i}" class="${open ? 'open' : ''}">${cells}</tr>${detail}`;
   }
 
   function exportCsv(r) {
-    const head = 'rang;categorie;reference;idu;adresse;commune;zone;logements_estimes_operations_voisines;surface_m2;nature;nb_parcelles;niveaux;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
-    const rows = r.list.map((h, i) => [i + 1, h.cat === 'entrepot' ? (h.zoneAct ? "entrepot_zone_activites" : 'entrepot_zone_habitat') : 'logement', refOf(h.f.properties), h.f.properties.idu, `"${String(h.f.properties.adresse || h.adresse || '').replace(/"/g, "'")}"`, r.com.nom, h.zone.properties.libelle, h.estim ? h.estim.lg : '', Math.round(h.occ.S), h.occ.label, h.groupe ? h.membres.length : 1, h.pot ? h.pot.niv : '', Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
+    const head = 'rang;categorie;reference;idu;adresse;facade_rue_m;commune;zone;logements_estimes_operations_voisines;surface_m2;nature;nb_parcelles;niveaux;emprise_batie_pct;logements_existants;annee_bati_recent;emprise_max_m2;sdp_m2;logements_theoriques;logements_realisables;note;note_partielle;oap;contraintes;detail_note';
+    const rows = r.list.map((h, i) => [i + 1, h.cat === 'entrepot' ? (h.zoneAct ? "entrepot_zone_activites" : 'entrepot_zone_habitat') : 'logement', refOf(h.f.properties), h.f.properties.idu, `"${String(h.f.properties.adresse || h.adresse || '').replace(/"/g, "'")}"`, h.facade ?? '', r.com.nom, h.zone.properties.libelle, h.estim ? h.estim.lg : '', Math.round(h.occ.S), h.occ.label, h.groupe ? h.membres.length : 1, h.pot ? h.pot.niv : '', Math.round(h.occ.ces * 100), h.occ.stats.logements, h.occ.stats.anneeMax || '', h.pot ? Math.round(h.pot.E) : '', h.pot ? Math.round(h.pot.sdp) : '', h.pot ? h.pot.lg : '', h.pot ? h.pot.real : '', h.s.tot, h.s.partiel ? 'oui' : 'non', h.oap ? 'oui' : 'non', `"${h.contraintes.map((c) => c.t).join(', ')}"`, `"${h.s.parts.map((p) => `${p.label} ${p.v ?? '-'}/${p.max}`).join(' | ')}"`].join(';'));
     ctx.download(`prospection-${r.com.code}.csv`, '﻿' + [head, ...rows].join('\n'), 'text/csv;charset=utf-8');
   }
 

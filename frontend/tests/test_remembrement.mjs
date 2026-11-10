@@ -53,3 +53,21 @@ const compte = {};
 gardes.forEach((g) => g.membres.forEach((m) => (compte[m.f.properties.idu] = (compte[m.f.properties.idu] || 0) + 1)));
 assert.ok(Object.values(compte).every((n) => n <= 2));
 console.log('test_remembrement : OK');
+
+// Façades sur rue : rangée de 3 parcelles le long d'une rue (côté sud), une 4e derrière la parcelle du milieu
+{
+  const { facadesSurRue } = await import('../js/remembrement.js');
+  // carrés de dx × dy en degrés
+  const cs = (i, j, idu) => carre(i, j, { idu });
+  const fs = [cs(0, 0, 'A'), cs(1, 0, 'B'), cs(2, 0, 'C'), cs(1, 1, 'D')];
+  const fac = facadesSurRue(fs);
+  const L = (a, b) => turf.distance(a, b, { units: 'meters' });
+  const lx = L([x0, y0], [x0 + dx, y0]), ly = L([x0, y0], [x0, y0 + dy]);
+  // A : côtés sud, ouest et nord libres (le nord de A n'est pas bordé : D est derrière B seulement)
+  assert.ok(Math.abs(fac.get('A') - (lx + ly + lx)) < 0.5, 'A ' + fac.get('A'));
+  // B : seul le côté sud est libre (A à l'ouest, C à l'est, D au nord)
+  assert.ok(Math.abs(fac.get('B') - lx) < 0.5, 'B ' + fac.get('B'));
+  // D : bordée seulement au sud par B
+  assert.ok(Math.abs(fac.get('D') - (lx + 2 * ly)) < 0.5, 'D ' + fac.get('D'));
+  console.log('façades sur rue : OK', Object.fromEntries(fac));
+}

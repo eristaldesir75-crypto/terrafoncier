@@ -71,7 +71,8 @@ export function regroupements(items, voisins, { smin, smax, maxParcelles = 3, ma
       // voisins du groupe, même zone, classés par longueur de limite commune
       const front = new Map();
       for (const i of g) for (const [j, l] of voisins[i]) if (!g.includes(j) && items[j].zoneLib === z) front.set(j, Math.max(front.get(j) || 0, l));
-      const cands = [...front.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map((x) => x[0]);
+      // parcelles avec façade sur rue d'abord, puis par longueur de limite commune
+      const cands = [...front.entries()].sort((a, b) => ((items[b[0]].facade || 0) >= 4) - ((items[a[0]].facade || 0) >= 4) || b[1] - a[1]).slice(0, 4).map((x) => x[0]);
       for (const j of cands) {
         const g2 = [...g, j].sort((a, b) => a - b), k = g2.join('|');
         if (vus.has(k)) continue;
@@ -109,5 +110,42 @@ export function sansDoublons(groupes, parParcelle = 2) {
     g.membres.forEach((m) => n.set(m.f.properties.idu, (n.get(m.f.properties.idu) || 0) + 1));
     out.push(g);
   }
+  return out;
+}
+
+/**
+ * Façade sur rue de chaque parcelle : longueur des côtés qui ne sont partagés avec aucune autre parcelle
+ * (limite avec la voie ou le domaine public). Deux parcelles voisines du cadastre partagent les mêmes sommets :
+ * un côté est mitoyen si ses deux extrémités appartiennent aussi à une même autre parcelle.
+ * @param features toutes les parcelles du secteur
+ * @returns Map idu -> mètres de façade
+ */
+export function facadesSurRue(features) {
+  const parSommet = new Map();
+  features.forEach((f, i) => {
+    if (!f.geometry) return;
+    for (const p of sommets(f.geometry)) {
+      const k = cle(p);
+      let s = parSommet.get(k);
+      if (!s) { s = new Set(); parSommet.set(k, s); }
+      s.add(i);
+    }
+  });
+  const out = new Map();
+  features.forEach((f, i) => {
+    if (!f.geometry) return;
+    const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.type === 'MultiPolygon' ? f.geometry.coordinates : [];
+    let rue = 0;
+    for (const poly of polys) {
+      const ring = poly[0];
+      for (let j = 0; j < ring.length - 1; j++) {
+        const a = parSommet.get(cle(ring[j])), b = parSommet.get(cle(ring[j + 1]));
+        let mitoyen = false;
+        if (a && b) for (const x of a) if (x !== i && b.has(x)) { mitoyen = true; break; }
+        if (!mitoyen) rue += turf.distance(ring[j], ring[j + 1], { units: 'meters' });
+      }
+    }
+    out.set(f.properties.idu, Math.round(rue * 10) / 10);
+  });
   return out;
 }

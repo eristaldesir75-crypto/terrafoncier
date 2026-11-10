@@ -68,6 +68,8 @@ async function densitesVoisines(insee, idxZones) {
 export function initProspection(ctx) {
   const { esc, f0, m2, refOf } = ctx;
   const $ = (s, el = document) => el.querySelector(s);
+  // caches le temps de la visite : cadastre et façades par commune, densités des opérations voisines
+  const parcCache = new Map(), densCache = new Map();
   const st = {
     crit: { ...CRIT_DEFAUT, ...(store.prospectionCrit() || {}) },
     results: null, running: false, ctrl: null, zonesMissing: [], filtreNature: null, tri: { k: 'score', dir: -1 }, ouvert: null,
@@ -385,13 +387,23 @@ export function initProspection(ctx) {
       const zones = (await api.gpuByPartition('zone-urba', partition, { signal })).filter((z) => z.geometry);
       zones.forEach((z) => (z.bbox = turf.bbox(z)));
 
-      const parcels = await api.parcellesCommune(com.code, { signal, onProgress: (n, tot) => setStatus(`Parcelles cadastrales : ${f0(n)}${tot ? ' / ' + f0(tot) : ''}`, 8 + (tot ? (27 * n) / tot : 10)) });
-      // façade sur rue de chaque parcelle (côtés non mitoyens)
-      setStatus('Façades sur rue des parcelles…', 34); await pause();
-      const facades = facadesSurRue(parcels);
+      // index des zones, puis en parallèle du cadastre : prescriptions du PLU, friches, densités des opérations voisines
+      const idxZones = grille(zones, 0.005);
+      const avertissements = [];
+      const prescP = api.gpuByPartition('prescription-surf', partition, { signal }).catch(() => { avertissements.push("Prescriptions du PLU indisponibles : contraintes (EBC, emplacements réservés, OAP) et règles du plan graphique non vérifiées"); return null; });
+      const frichesP = api.friches(com.code);
+      const cleDens = `${com.code}|${partition}`;
+      if (!densCache.has(cleDens)) densCache.set(cleDens, densitesVoisines(com.code, idxZones).catch(() => { densCache.delete(cleDens); return null; }));
+      const densP = densCache.get(cleDens);
+      // cadastre de la commune gardé en mémoire le temps de la visite : une 2e prospection repart sans le retélécharger
+      if (!parcCache.has(com.code)) parcCache.set(com.code, api.parcellesCommune(com.code, { signal, onProgress: (n, tot) => setStatus(`Parcelles cadastrales : ${f0(n)}${tot ? ' / ' + f0(tot) : ''}`, 8 + (tot ? (27 * n) / tot : 10)) }).then(async (l) => {
+        // façade sur rue de chaque parcelle (côtés non mitoyens)
+        setStatus('Façades sur rue des parcelles…', 34); await pause();
+        return { parcels: l, facades: facadesSurRue(l) };
+      }).catch((e) => { parcCache.delete(com.code); throw e; }));
+      const { parcels, facades } = await parcCache.get(com.code);
 
       // 1. Parcelles situées dans une zone retenue (index des zones pour aller vite)
-      const idxZones = grille(zones, 0.005);
       const seule = c.mode !== 'remembrement', remb = c.mode !== 'seule';
       const cand = [], pool = [];
       const compte = { total: parcels.length, surface: 0, perimetre: 0, zone: 0, nature: 0, regles: 0, sansRegles: 0, contraintes: 0, score: 0, groupes: 0 };
@@ -428,9 +440,6 @@ export function initProspection(ctx) {
         }
       }
       const tiles = [...cells.values()];
-      const avertissements = [];
-      const prescP = api.gpuByPartition('prescription-surf', partition, { signal }).catch(() => { avertissements.push("Prescriptions du PLU indisponibles : contraintes (EBC, emplacements réservés, OAP) et règles du plan graphique non vérifiées"); return null; });
-      const frichesP = api.friches(com.code);
       const occ = await api.occupationTiles(tiles, { signal, onProgress: (d, n) => setStatus(`Bâtiments, parkings et équipements : secteur ${d} / ${n} (${f0(cand.length)} parcelles seules, ${f0(pool.length)} petites parcelles pour le remembrement)`, 40 + (35 * d) / n) });
       setStatus('Prescriptions du PLU et friches…', 76);
       const [presc, fr] = await Promise.all([prescP, frichesP]);
@@ -573,7 +582,8 @@ export function initProspection(ctx) {
       st.zonesMissing = [...missing.values()].sort((a, b) => b.n - a.n);
       // logements estimés d'après les opérations voisines pour les terrains sans règles PLU
       setStatus('Estimation des logements d\'après les opérations collectives autorisées alentour…', 97);
-      try { st.results.densites = await densitesVoisines(com.code, idxZones); } catch { st.results.densites = null; avertissements.push('Permis de construire (Sitadel) indisponibles : pas d\'estimation des logements pour les zones sans règles'); }
+      st.results.densites = await densP;
+      if (!st.results.densites) { avertissements.push('Permis de construire (Sitadel) indisponibles : pas d\'estimation des logements pour les zones sans règles'); }
       const avantEstim = st.results.attente.length;
       appliquerEstimations(st.results);
       const entres = avantEstim - st.results.attente.length;

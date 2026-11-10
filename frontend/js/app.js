@@ -229,7 +229,7 @@ let ficheTab = 'synthese';
 async function selectAt(lng, lat) {
   const token = ++selToken;
   sel = { loading: true };
-  if (tab !== 'pro' && tab !== 'crm') showTab('fiche'); else renderFiche();
+  if (tab !== 'pro' && tab !== 'crm') showTab('fiche', { garderMode: estMobile() && document.body.dataset.m === 'carte' }); else renderFiche();
   try {
     const f = await api.parcelleAt(lng, lat);
     if (token !== selToken) return;
@@ -1205,7 +1205,8 @@ dlg.addEventListener('close', () => {
 // Légende des notes
 $('#legend').innerHTML = `<b>Note</b>${['0-19', '20-39', '40-59', '60-79', '80-100'].map((t, i) => `<span><i style="background:${SCORE_COLORS[i]}"></i>${t}</span>`).join('')}`;
 
-showTab('fiche');
+showTab('fiche', { garderMode: true });
+if (estMobile()) modeMobile('carte');
 
 // Diagnostic (console du navigateur) : état courant de l'application
 window.tfDebug = () => ({ tab, ficheTab, selToken, sel });

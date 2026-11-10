@@ -44,16 +44,20 @@ def get(url, tries=3, timeout=120, **kw):
 
 
 def modele(cle):
+    """Modèles utilisables, du préféré au dernier recours : Flash stables récents, Flash-Lite, versions d'essai, Pro.
+    Chaque modèle a son propre quota gratuit : quand l'un est épuisé pour la journée, on passe au suivant."""
     r = S.get(f"{GEM}/models", params={"pageSize": 200}, headers={"x-goog-api-key": cle}, timeout=30)
     r.raise_for_status()
     ok = [m["name"].split("/", 1)[1] for m in r.json().get("models", [])
-          if "generateContent" in m.get("supportedGenerationMethods", []) and "flash" in m["name"]
-          and not re.search(r"lite|image|tts|live|audio|thinking|exp", m["name"])]
+          if "generateContent" in m.get("supportedGenerationMethods", [])]
+    ok = [n for n in ok if re.match(r"^gemini-\d", n) and re.search(r"flash|pro", n)
+          and not re.search(r"image|tts|live|audio|thinking|exp|latest|embedding|vision|-\d{3}$|-\d{2}-\d{4}|computer|search", n)]
     ver = lambda n: float((re.search(r"gemini-(\d+(?:\.\d+)?)", n) or [0, 0])[1])
-    ok.sort(key=lambda n: ("preview" in n, -ver(n), "latest" not in n))
+    rang = lambda n: 3 if "pro" in n else 2 if "preview" in n else 1 if "lite" in n else 0
+    ok.sort(key=lambda n: (rang(n), -ver(n)))
     if not ok:
-        raise RuntimeError("Aucun modèle Gemini Flash disponible avec cette clé")
-    return ok[0]
+        raise RuntimeError("Aucun modèle Gemini disponible avec cette clé")
+    return ok
 
 
 def champ(desc):
@@ -82,17 +86,33 @@ def consigne(zones, commune):
             "Renvoie un élément par zone demandée, avec zone_trouvee = false si le règlement ne traite pas cette zone.")
 
 
-def demander(cle, mod, texte, zones, commune):
+EPUISES = set()
+
+
+def demander(cle, mods, texte, zones, commune):
+    """Essaie les modèles dans l'ordre ; un modèle à court de quota du jour est écarté pour le reste du passage."""
+    for mod in [m for m in mods if m not in EPUISES]:
+        try:
+            return demander_un(cle, mod, texte, zones, commune)
+        except QuotaJour:
+            log(f"  quota du jour atteint pour {mod}, modèle suivant")
+            EPUISES.add(mod)
+    raise QuotaJour()
+
+
+def demander_un(cle, mod, texte, zones, commune):
     body = {"contents": [{"role": "user", "parts": [{"text": consigne(zones, commune) + "\n\n" + texte}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json", "responseSchema": SCHEMA}}
     for essai in range(5):
         r = S.post(f"{GEM}/models/{mod}:generateContent", json=body, headers={"x-goog-api-key": cle}, timeout=300)
         if r.status_code == 429:
             msg = r.text
-            if "PerDay" in msg or "per day" in msg.lower():
+            if "PerDay" in msg or "per day" in msg.lower() or essai >= 1:
                 raise QuotaJour()
-            time.sleep(60 * (essai + 1)); continue
+            time.sleep(45); continue
         if r.status_code >= 500:
+            if essai >= 2:
+                raise QuotaJour()  # saturé : modèle suivant
             time.sleep(20 * (essai + 1)); continue
         if r.status_code != 200:
             raise RuntimeError(f"Gemini {r.status_code} : {r.text[:300]}")
@@ -212,7 +232,7 @@ def main():
         (out / f.relative_to(prev)).write_text(f.read_text())
     essai = os.environ.get("ESSAI") == "1"
     mod = modele(cle) if cle and not essai else None
-    log("Modèle :", mod or "aucun (textes des règlements seulement : ajoutez le secret GEMINI_API_KEY pour la lecture des règles)")
+    log("Modèles :", ", ".join(mod) if mod else "aucun (textes des règlements seulement : ajoutez le secret GEMINI_API_KEY pour la lecture des règles)")
     docs = json.loads((plu / "index.json").read_text())["documents"]
     faits, quota = 0, False
     for part, d in sorted(docs.items()):

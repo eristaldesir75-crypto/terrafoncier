@@ -1370,4 +1370,4 @@ showTab('fiche', { garderMode: true });
 if (estMobile()) modeMobile('carte');
 
 // Diagnostic (console du navigateur) : état courant de l'application
-window.tfDebug = () => ({ tab, ficheTab, selToken, sel });
+window.tfDebug = () => ({ tab, ficheTab, selToken, sel, pro });

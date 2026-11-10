@@ -95,7 +95,7 @@ def demander(cle, mods, texte, zones, commune):
         try:
             return demander_un(cle, mod, texte, zones, commune)
         except QuotaJour:
-            log(f"  quota du jour atteint pour {mod}, modèle suivant")
+            log(f"  {mod} indisponible (quota du jour, saturation ou modèle fermé), modèle suivant")
             EPUISES.add(mod)
     raise QuotaJour()
 
@@ -114,6 +114,8 @@ def demander_un(cle, mod, texte, zones, commune):
             if essai >= 2:
                 raise QuotaJour()  # saturé : modèle suivant
             time.sleep(20 * (essai + 1)); continue
+        if r.status_code in (403, 404):
+            raise QuotaJour()  # modèle indisponible avec cette clé : modèle suivant
         if r.status_code != 200:
             raise RuntimeError(f"Gemini {r.status_code} : {r.text[:300]}")
         parts = (r.json().get("candidates") or [{}])[0].get("content", {}).get("parts", [])

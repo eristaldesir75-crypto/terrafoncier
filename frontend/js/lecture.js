@@ -4,7 +4,7 @@
 // Les règles lues sont enregistrées pour la zone (une seule lecture par zone) et marquées « lu par l'IA, à vérifier ».
 import * as api from './api.js';
 import * as store from './store.js';
-import { cleIA, choisirModele, erreurHttp, ErreurIA, modelesFlash } from './assistant.js';
+import { cleIA, choisirModele, erreurHttp, ErreurIA, modelesFlash, sature } from './assistant.js';
 
 const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
@@ -197,14 +197,15 @@ Renvoie un élément par zone demandée, avec zone_trouvee = false si les extrai
 async function demander(cle, parts, onEtape) {
   const principal = await choisirModele(cle);
   let autres = null;
-  const essais = [{ m: principal, schema: true }, { m: principal, schema: true, pause: 3000 }, { m: principal, schema: false, pause: 2000 }, { m: 'autre', schema: true }, { m: 'autre2', schema: true }, { m: 'autre3', schema: false }];
+  // modèle saturé (503) : on change de modèle tout de suite plutôt que d'attendre
+  const essais = [{ m: principal, schema: true }, { m: 'autre', schema: true }, { m: 'autre2', schema: true }, { m: principal, schema: false, pause: 3000 }, { m: 'autre3', schema: false, pause: 2000 }, { m: principal, schema: true, pause: 8000 }];
   const quotaPlein = new Set();
   let derniere = null;
   for (const e of essais) {
     let mod = e.m;
     if (mod.startsWith('autre')) {
       if (!autres) { try { autres = (await modelesFlash(cle)).filter((x) => x !== principal); } catch { autres = []; } }
-      mod = autres.filter((x) => !quotaPlein.has(x))[0];
+      mod = autres.filter((x) => !quotaPlein.has(x) && !(Date.now() - (sature.get(x) || 0) < 600000))[0] || autres.filter((x) => !quotaPlein.has(x))[0];
       if (!mod) continue;
     } else if (quotaPlein.has(mod)) continue;
     if (e.pause) await new Promise((ok) => setTimeout(ok, e.pause));
@@ -220,6 +221,7 @@ async function demander(cle, parts, onEtape) {
       if (!r.ok) {
         const err = await erreurHttp(r);
         if (err.quota) { quotaPlein.add(mod); derniere = err; continue; } // chaque modèle a son quota : on passe au suivant
+        if (err.serveur) sature.set(mod, Date.now());
         if (err.serveur || err.modele) { derniere = err; continue; }
         throw err;
       }

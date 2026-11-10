@@ -180,6 +180,7 @@ const reflexion = (modele) => (/gemini-2\./.test(modele) ? { thinkingBudget: /pr
 let sansReflexion = false; // modèle qui refuse le réglage : envoyé sans
 
 let modeleBulle = null;
+export const sature = new Map(); // modèles saturés (503) : évités 10 minutes
 const epuises = new Set(); // modèles dont le quota est atteint pendant cette visite
 async function generer(cle, contents, contexte) {
   // bulle : modèle « Flash-Lite » s'il existe, nettement plus rapide pour comprendre une demande et appeler le site
@@ -191,7 +192,7 @@ async function generer(cle, contents, contexte) {
     contents, tools: [{ functionDeclarations: OUTILS }],
     generationConfig: { temperature: 0.2, ...(sansReflexion ? {} : { thinkingConfig: reflexion(modele) }) },
   });
-  for (let essai = 0; essai < 3; essai++) {
+  for (let essai = 0; essai < 5; essai++) {
     const ctrl = new AbortController(), minuteur = setTimeout(() => ctrl.abort(), 90000);
     let r;
     try { r = await fetch(`${API}/models/${modele}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle }, body: corps(), signal: ctrl.signal }); }
@@ -208,9 +209,15 @@ async function generer(cle, contents, contexte) {
       return c.content;
     }
     const e = await erreurHttp(r);
-    if (e.serveur && essai < 2) { await new Promise((ok) => setTimeout(ok, 2500 * (essai + 1))); continue; }
+    // modèle saturé (erreur 503 « high demand ») : on passe tout de suite à un autre modèle, sinon court nouvel essai
+    if (e.serveur && essai < 4) {
+      sature.set(modele, Date.now());
+      const l = (await modelesFlash(cle).catch(() => [])).filter((m) => m !== modele && !epuises.has(m) && !(Date.now() - (sature.get(m) || 0) < 600000));
+      if (l[0]) { modele = l[0]; if (modeleBulle && sature.has(modeleBulle)) modeleBulle = null; continue; }
+      await new Promise((ok) => setTimeout(ok, 2500 * (essai + 1))); continue;
+    }
     // quota d'un modèle atteint : chaque modèle a son propre quota gratuit, on passe au suivant
-    if (e.quota && essai < 2) { const l = (await modelesFlash(cle).catch(() => [])).filter((m) => m !== modele && !epuises.has(m)); epuises.add(modele); if (l[0]) { modele = l[0]; continue; } }
+    if (e.quota && essai < 4) { const l = (await modelesFlash(cle).catch(() => [])).filter((m) => m !== modele && !epuises.has(m)); epuises.add(modele); if (l[0]) { modele = l[0]; continue; } }
     if (e.modele && essai < 2) { modele = await choisirModele(cle, true); continue; }
     throw e;
   }

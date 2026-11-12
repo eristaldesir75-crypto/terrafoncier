@@ -1,0 +1,20 @@
+// Ouverture du site dans le navigateur choisi : erreurs JavaScript et captures (PC, Mac)
+import * as pw from 'playwright';
+const nav = pw[process.env.NAVIGATEUR || 'chromium'];
+const b = await nav.launch();
+const page = await b.newPage({ viewport: { width: 1440, height: 900 } });
+const msgs = [];
+page.on('pageerror', (e) => msgs.push('PAGEERROR ' + String(e) + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' / ')));
+page.on('console', (m) => { if (['error', 'warning'].includes(m.type())) msgs.push(m.type().toUpperCase() + ' ' + m.text().slice(0, 300)); });
+const img = async (nom) => { const t = (await page.screenshot({ type: 'jpeg', quality: 50 })).toString('base64'); for (let i = 0; i < t.length; i += 3000) console.log(`IMG-${nom}-${String(i / 3000).padStart(4, '0')}:${t.slice(i, i + 3000)}`); };
+await page.goto('https://fonciscope.github.io/#16/47.9504/1.8693', { waitUntil: 'load', timeout: 60000 });
+await page.waitForTimeout(5000);
+await img('N1-accueil');
+console.log('ONGLETS :', await page.locator('.tabs').innerText().catch((e) => 'absent ' + e.message));
+console.log('FICHE :', (await page.locator('#v-fiche').innerText().catch(() => '')).slice(0, 200).replace(/\n+/g, ' | '));
+await page.click('#tab-pro').catch((e) => console.log('CLIC PROSPECTION', e.message));
+await page.waitForTimeout(1500);
+console.log('PROSPECTION :', (await page.locator('#v-pro').innerText().catch(() => '')).slice(0, 200).replace(/\n+/g, ' | '));
+await img('N2-prospection');
+console.log('MESSAGES :\n' + msgs.join('\n'));
+await b.close();

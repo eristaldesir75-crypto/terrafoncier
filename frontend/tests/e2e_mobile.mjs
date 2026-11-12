@@ -1,5 +1,7 @@
 // Test sur téléphone (iPhone émulé) : carte plein écran, fiche résumée, onglets du bas, faisabilité, prospection.
-import { chromium, devices } from 'playwright';
+import * as pw from 'playwright';
+const { devices } = pw;
+const chromium = pw[process.env.NAVIGATEUR || 'chromium']; // chromium (Chrome, Edge), webkit (Safari sur Mac et iPhone), firefox
 const URL = process.env.SITE || 'https://fonciscope.github.io/';
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices['iPhone 13'] });

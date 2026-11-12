@@ -17,6 +17,9 @@ on:
         description: "Test de la bulle d'assistant (Gemini simulé)"
         type: boolean
         default: false
+      navigateur:
+        description: "Navigateur : chromium (Chrome/Edge sur PC), webkit (Safari sur Mac et iPhone), firefox"
+        default: "chromium"
       script:
         description: "Script de diagnostic à lancer à la place (fichier de frontend/tests)"
         default: ""
@@ -55,12 +58,14 @@ jobs:
   e2e:
     if: github.event_name == 'workflow_dispatch' && inputs.e2e
     runs-on: ubuntu-latest
+    env:
+      NAVIGATEUR: ${{ inputs.navigateur || 'chromium' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - name: Navigateur
-        run: npm i playwright@1.48.2 --no-audit --no-fund >/dev/null && npx playwright install --with-deps chromium >/dev/null
+        run: npm i playwright@1.48.2 --no-audit --no-fund >/dev/null && npx playwright install --with-deps ${{ inputs.navigateur || 'chromium' }} >/dev/null
       - name: Liens des pièces du PLU
         continue-on-error: true
         run: cp frontend/tests/check_gpu.mjs . && node check_gpu.mjs

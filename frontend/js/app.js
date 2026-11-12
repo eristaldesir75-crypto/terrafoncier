@@ -55,7 +55,26 @@ const wms = (layers) => `https://data.geopf.fr/wms-v/ows?SERVICE=WMS&VERSION=1.3
 const empty = { type: 'FeatureCollection', features: [] };
 const SCORE_COLORS = ['#8b96a0', '#b98a2c', '#c96f2a', '#2b8a6b', '#0f6e5a'];
 
-const map = new maplibregl.Map({
+// Carte : si l'ordinateur ne peut pas l'afficher (WebGL désactivé : PC d'entreprise, bureau à distance, vieux pilote),
+// le reste du site (recherche, fiches, prospection, faisabilité, suivi) continue de fonctionner sans elle.
+let carteOk = true;
+function carteIndisponible(raison) {
+  carteOk = false;
+  const el = document.getElementById('map');
+  if (el) el.innerHTML = `<div class="map-off"><b>La carte ne peut pas s'afficher sur cet appareil.</b><br>${raison === 'lib' ? "Le réseau bloque le chargement de la carte (unpkg.com)." : "L'affichage 3D du navigateur (WebGL) est désactivé, ce qui arrive sur les PC d'entreprise ou en bureau à distance."} Recherche, fiches, prospection, faisabilité et suivi fonctionnent quand même. Pour avoir la carte, essayez un autre navigateur (Chrome, Edge, Firefox) ou activez l'accélération matérielle dans ses paramètres.</div>`;
+  const stub = new Proxy(function () {}, {
+    get: (t, k) => ({
+      getSource: () => ({ setData() {} }), getLayer: () => null, getCanvas: () => ({ style: {} }), getZoom: () => 14,
+      getBounds: () => null, queryRenderedFeatures: () => [], getCenter: () => ({ lng: 2.45, lat: 46.6 }), getStyle: () => ({ layers: [] }),
+    }[k] || (() => stub)),
+    apply: () => stub,
+  });
+  return stub;
+}
+const map = (() => {
+  if (typeof maplibregl === 'undefined') return carteIndisponible('lib');
+  try {
+    return new maplibregl.Map({
   container: 'map',
   center: [2.45, 46.6], zoom: 5.4, maxZoom: 20, hash: true,
   style: {
@@ -108,13 +127,17 @@ const map = new maplibregl.Map({
     ],
   },
 });
-map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
-map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'top-right');
-map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+  } catch (e) { return carteIndisponible('webgl'); }
+})();
+if (carteOk) {
+  map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+  map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), 'top-right');
+  map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+}
 map.on('click', (e) => { if (e.defaultPrevented || (map.getLayer('permis-pt') && map.queryRenderedFeatures(e.point, { layers: ['permis-pt', 'vefa-pt', 'bat-fill'] }).length)) return; selectAt(e.lngLat.lng, e.lngLat.lat); });
 
 // Infobulle au survol des terrains de la prospection
-const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: 'tf-pop' });
+const popup = carteOk ? new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: 'tf-pop' }) : null;
 map.on('mousemove', 'hits-fill', (e) => {
   map.getCanvas().style.cursor = 'pointer';
   const p = e.features[0].properties;
@@ -183,6 +206,8 @@ $('#lay-hits').addEventListener('change', (e) => { vis('hits-fill', e.target.che
 let markers = [];
 function setHits(list) {
   markers.forEach((m) => m.remove()); markers = [];
+  $('#legend').hidden = !list.length;
+  if (!carteOk) return;
   map.getSource('hits')?.setData({
     type: 'FeatureCollection',
     features: list.map((h) => ({ type: 'Feature', geometry: h.f.geometry, properties: { idu: h.f.properties.idu, ref: refOf(h.f.properties), zone: h.zone?.properties.libelle || '', nature: h.occ?.label || '', surface: h.occ?.S || +h.f.properties.contenance, score: h.s ? h.s.tot : 0, partiel: !!h.s?.partiel } })),

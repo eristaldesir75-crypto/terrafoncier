@@ -1,6 +1,6 @@
 // Met en cache l'interface pour une ouverture rapide et hors ligne (les données restent en ligne).
 // Stratégie « réseau d'abord » avec revalidation : une nouvelle version publiée est toujours prise en compte.
-const CACHE = 'fonciscope-v69';
+const CACHE = 'fonciscope-v70';
 const SHELL = ['./', 'index.html', 'css/app.css', 'js/app.js', 'js/api.js', 'js/potentiel.js', 'js/store.js', 'js/occupation.js', 'js/score.js', 'js/prospection.js', 'js/regles.js', 'js/zones.js', 'js/permis.js', 'js/remembrement.js', 'js/faisabilite.js', 'js/assistant.js', 'js/lecture.js', 'icon-512.png', 'manifest.webmanifest', 'icon.svg', 'icon-192.png'];
 self.addEventListener('install', (e) => e.waitUntil(
   caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting())

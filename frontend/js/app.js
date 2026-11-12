@@ -61,7 +61,7 @@ let carteOk = true;
 function carteIndisponible(raison) {
   carteOk = false;
   const el = document.getElementById('map');
-  if (el) el.innerHTML = `<div class="map-off"><b>La carte ne peut pas s'afficher sur cet appareil.</b><br>${raison === 'lib' ? "Le réseau bloque le chargement de la carte (unpkg.com)." : "L'affichage 3D du navigateur (WebGL) est désactivé, ce qui arrive sur les PC d'entreprise ou en bureau à distance."} Recherche, fiches, prospection, faisabilité et suivi fonctionnent quand même. Pour avoir la carte, essayez un autre navigateur (Chrome, Edge, Firefox) ou activez l'accélération matérielle dans ses paramètres.</div>`;
+  if (el) el.innerHTML = `<div class="map-off"><b>La carte ne peut pas s'afficher sur cet appareil.</b><span>${raison === 'lib' ? "Le réseau bloque le chargement de la carte (unpkg.com)." : "L'affichage 3D du navigateur (WebGL) est désactivé, ce qui arrive sur les PC d'entreprise ou en bureau à distance."} Recherche, fiches, prospection, faisabilité et suivi fonctionnent quand même. Pour avoir la carte, essayez un autre navigateur (Chrome, Edge, Firefox) ou activez l'accélération matérielle dans ses paramètres.</span></div>`;
   const stub = new Proxy(function () {}, {
     get: (t, k) => ({
       getSource: () => ({ setData() {} }), getLayer: () => null, getCanvas: () => ({ style: {} }), getZoom: () => 14,

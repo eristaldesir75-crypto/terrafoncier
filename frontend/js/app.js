@@ -58,10 +58,10 @@ const SCORE_COLORS = ['#8b96a0', '#b98a2c', '#c96f2a', '#2b8a6b', '#0f6e5a'];
 // Carte : si l'ordinateur ne peut pas l'afficher (WebGL désactivé : PC d'entreprise, bureau à distance, vieux pilote),
 // le reste du site (recherche, fiches, prospection, faisabilité, suivi) continue de fonctionner sans elle.
 let carteOk = true;
-function carteIndisponible(raison) {
+function carteIndisponible(raison, err) {
   carteOk = false;
   const el = document.getElementById('map');
-  if (el) el.innerHTML = `<div class="map-off"><b>La carte ne peut pas s'afficher sur cet appareil.</b><span>${raison === 'lib' ? "Le réseau bloque le chargement de la carte (unpkg.com)." : "L'affichage 3D du navigateur (WebGL) est désactivé, ce qui arrive sur les PC d'entreprise ou en bureau à distance."} Recherche, fiches, prospection, faisabilité et suivi fonctionnent quand même. Pour avoir la carte, essayez un autre navigateur (Chrome, Edge, Firefox) ou activez l'accélération matérielle dans ses paramètres.</span></div>`;
+  if (el) el.innerHTML = `<div class="map-off"><b>La carte ne peut pas s'afficher sur cet appareil.</b><span>${raison === 'lib' ? "Le réseau bloque le chargement de la carte (unpkg.com)." : "L'affichage 3D du navigateur (WebGL) est désactivé, ce qui arrive sur les PC d'entreprise ou en bureau à distance."} Recherche, fiches, prospection, faisabilité et suivi fonctionnent quand même. Pour avoir la carte, essayez un autre navigateur (Chrome, Edge, Firefox) ou activez l'accélération matérielle dans ses paramètres.</span>${err ? `<small class="note">Détail : ${esc(String(err.message || err).slice(0, 200))}</small>` : ''}</div>`;
   const stub = new Proxy(function () {}, {
     get: (t, k) => ({
       getSource: () => ({ setData() {} }), getLayer: () => null, getCanvas: () => ({ style: {} }), getZoom: () => 14,
@@ -127,7 +127,7 @@ const map = (() => {
     ],
   },
 });
-  } catch (e) { return carteIndisponible('webgl'); }
+  } catch (e) { console.error('Carte :', e); return carteIndisponible('webgl', e); }
 })();
 if (carteOk) {
   map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');

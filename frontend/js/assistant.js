@@ -137,7 +137,23 @@ function rendu(t) {
 
 export class ErreurIA extends Error {}
 /** Clé Gemini de l'utilisateur (enregistrée sur cet appareil), ou chaîne vide. */
-export const cleIA = () => lire(CLE);
+// Relais Google Apps Script (compte Google du propriétaire du site) : la clé Gemini y est gardée dans un coffre,
+// l'IA marche sur tous les appareils sans clé à coller. L'adresse du relais n'est pas secrète.
+export const RELAIS = '';
+const VIA_RELAIS = '@relais';
+/** Clé Gemini de cet appareil, sinon le relais du site, sinon chaîne vide (IA indisponible). */
+export const cleIA = () => lire(CLE) || (RELAIS ? VIA_RELAIS : '');
+export const cleProprePosee = () => !!lire(CLE);
+/** Appel à l'API Gemini, directement avec la clé de l'appareil ou par le relais. path : « /models/... ». */
+export async function gemFetch(cle, path, { method = 'GET', body = null, signal } = {}) {
+  if (cle === VIA_RELAIS) {
+    const r = await fetch(RELAIS, { method: 'POST', body: JSON.stringify({ chemin: path, methode: method, corps: body }), signal, redirect: 'follow' });
+    if (!r.ok) return new Response(JSON.stringify({ error: { message: `relais ${r.status}` } }), { status: 502 });
+    const j = await r.json();
+    return new Response(j.texte, { status: j.status || 502 });
+  }
+  return fetch(`${API}${path}`, { method, body, signal, headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), 'x-goog-api-key': cle } });
+}
 
 /** Choix du modèle : le plus récent des modèles « Flash » stables accessibles avec la clé. */
 /** Modèles Gemini Flash accessibles avec la clé, du plus récent au plus ancien (pour changer de modèle en cas de panne). */
@@ -149,7 +165,7 @@ let listeModeles = null;
  */
 export async function modelesFlash(cle) {
   if (listeModeles) return listeModeles;
-  const r = await fetch(`${API}/models?pageSize=200`, { headers: { 'x-goog-api-key': cle } });
+  const r = await gemFetch(cle, '/models?pageSize=200');
   if (!r.ok) throw await erreurHttp(r);
   const j = await r.json();
   const ver = (n) => { const v = n.match(/gemini-(\d+(?:\.\d+)?)/); return v ? +v[1] : 0; };
@@ -163,7 +179,7 @@ export async function modelesFlash(cle) {
 export async function choisirModele(cle, force) {
   const m = !force && lire(MODELE);
   if (m) return m;
-  const r = await fetch(`${API}/models?pageSize=200`, { headers: { 'x-goog-api-key': cle } });
+  const r = await gemFetch(cle, '/models?pageSize=200');
   if (!r.ok) throw await erreurHttp(r);
   const j = await r.json();
   const ok = (j.models || []).filter((x) => (x.supportedGenerationMethods || []).includes('generateContent') && /flash/i.test(x.name) && !/lite|image|tts|live|audio|thinking|exp/i.test(x.name));
@@ -206,7 +222,7 @@ async function generer(cle, contents, contexte) {
   for (let essai = 0; essai < 5; essai++) {
     const ctrl = new AbortController(), minuteur = setTimeout(() => ctrl.abort(), 90000);
     let r;
-    try { r = await fetch(`${API}/models/${modele}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle }, body: corps(), signal: ctrl.signal }); }
+    try { r = await gemFetch(cle, `/models/${modele}:generateContent`, { method: 'POST', body: corps(), signal: ctrl.signal }); }
     catch (e) { if (ctrl.signal.aborted) throw new ErreurIA("Gemini n'a pas répondu en 90 secondes : réessayez"); throw e; }
     finally { clearTimeout(minuteur); }
     if (!r.ok && r.status === 400 && !sansReflexion) {
@@ -268,7 +284,7 @@ export function initAssistant(ctx) {
     'Ajoute les 5 meilleurs au suivi',
   ];
   function accueil() {
-    if (!lire(CLE)) { ecranCle(); return; }
+    if (!cleIA()) { ecranCle(); return; }
     fil.innerHTML = `<div class="ia-msg ia-bot"><p>Dites-moi ce que vous cherchez : je lance la prospection, ouvre les fiches et calcule les faisabilités avec les données du site.</p></div>
       <div class="ia-ex">${EXEMPLES.map((e) => `<button type="button" class="chip-btn" data-ex="${esc(e)}">${esc(e)}</button>`).join('')}</div>`;
     fil.querySelectorAll('[data-ex]').forEach((b) => (b.onclick = () => { q.value = b.dataset.ex; envoyer(); }));
@@ -295,7 +311,7 @@ export function initAssistant(ctx) {
   function ouvrir(on) {
     box.hidden = !on; fab.setAttribute('aria-expanded', String(on)); fab.hidden = on;
     document.body.classList.toggle('ia-ouvert', on);
-    if (on) { if (!fil.children.length) accueil(); setTimeout(() => (lire(CLE) ? q : fil.querySelector('#iaCle'))?.focus(), 50); }
+    if (on) { if (!fil.children.length) accueil(); setTimeout(() => (cleIA() ? q : fil.querySelector('#iaCle'))?.focus(), 50); }
   }
   fab.onclick = () => ouvrir(true);
   box.querySelector('#iaClose').onclick = () => ouvrir(false);
@@ -338,7 +354,7 @@ export function initAssistant(ctx) {
   async function envoyer() {
     const t = q.value.trim();
     if (!t || occupe) return;
-    const cle = lire(CLE);
+    const cle = cleIA();
     if (!cle) { ecranCle(); return; }
     occupe = true; box.querySelector('#iaGo').disabled = true;
     compacter();

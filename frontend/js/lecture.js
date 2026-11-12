@@ -4,7 +4,7 @@
 // Les règles lues sont enregistrées pour la zone (une seule lecture par zone) et marquées « lu par l'IA, à vérifier ».
 import * as api from './api.js';
 import * as store from './store.js';
-import { cleIA, choisirModele, erreurHttp, ErreurIA, modelesFlash, sature } from './assistant.js';
+import { cleIA, choisirModele, erreurHttp, ErreurIA, modelesFlash, sature, gemFetch } from './assistant.js';
 
 const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
@@ -215,10 +215,7 @@ async function demander(cle, parts, onEtape) {
     try {
       const gc = { temperature: 0, responseMimeType: 'application/json', ...(e.schema ? { responseSchema: SCHEMA } : {}) };
       const p2 = e.schema ? parts : [...parts, { text: `Réponds uniquement en JSON : une liste, un objet par zone : [{"zone": "", "zone_trouvee": bool, "ces": {"valeur": nombre|null, "article": "", "page": "", "extrait": "", "condition": ""}, "h": {...}, "recul": {...}, "ret": {...}, "pt": {...}, "stat": {...}, "remarque": ""}]. ces et pt en %, h, recul et ret en mètres, stat en places par logement.` }];
-      const r = await fetch(`${GEMINI}/models/${mod}:generateContent`, {
-        method: 'POST', signal: ctrl.signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: p2 }], generationConfig: gc }),
-      });
+      const r = await gemFetch(cle, `/models/${mod}:generateContent`, { method: 'POST', signal: ctrl.signal, body: JSON.stringify({ contents: [{ role: 'user', parts: p2 }], generationConfig: gc }) });
       if (!r.ok) {
         const err = await erreurHttp(r);
         if (err.quota) { quotaPlein.add(mod); derniere = err; continue; } // chaque modèle a son quota : on passe au suivant

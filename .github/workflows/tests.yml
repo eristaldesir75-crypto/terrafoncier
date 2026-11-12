@@ -45,7 +45,7 @@ on:
 permissions: { contents: read }
 jobs:
   unitaires:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -57,7 +57,7 @@ jobs:
           node tests/test_occupation.mjs && node tests/test_regles.mjs && node tests/test_zones.mjs && node tests/test_remembrement.mjs && node tests/test_faisabilite.mjs
   e2e:
     if: github.event_name == 'workflow_dispatch' && inputs.e2e
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       NAVIGATEUR: ${{ inputs.navigateur || 'chromium' }}
     steps:
